@@ -1,0 +1,22 @@
+{
+  "edges": {
+    "smooth": false,
+    "font": {
+      "size": 20,
+      "align": "top"
+    },
+    "labelHighlightBold": false
+  },
+  "physics": {
+    "enabled": true,
+    "barnesHut": {
+      "gravitationalConstant": -5000,
+      "centralGravity": 0.1,
+      "springLength": 95,
+      "springConstant": 0.01,
+      "damping": 0.09,
+      "avoidOverlap": 0.5
+    },
+    "minVelocity": 0.75
+  }
+}
