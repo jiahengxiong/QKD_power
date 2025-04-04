@@ -138,7 +138,7 @@ def main():
         f"----------CONFIG: map: {map_name}, Protocol: {config.protocol}, Detector: {config.detector}, Bypass: {config.bypass}----------")
 
     # 定义运行次数
-    num_runs = 8
+    num_runs = 1
     # 用于存储每次运行的结果
     all_results = {}
 

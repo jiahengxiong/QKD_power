@@ -294,8 +294,8 @@ def calculate_data_auxiliary_edge(G, path, wavelength_combination, wavelength_ca
             distance = calculate_distance(G=G, path=path, start=path[0], end=path[-1])
             data.append({'power': power, 'path': path, 'laser_detector_position': wavelength_laser_detector,
                          'wavelength_traffic': wavelength_traffic_limitation,
-                         'weight': power + 0.00001 * (len(path)**1.01) + 0.0000001 * len(
-                             wavelength_combination) + 0.000000000001 * (distance**1.01) - 0.0000000000000001 * max_traffic,
+                         'weight': power + 0.00001 * ((len(path) - 1)**1.01) + 0.0000001 * len(
+                             wavelength_combination) + 0.000000000001 * (distance**1.01),
                          'wavelength_list': wavelength_combination,
                          'transverse_laser_detector':wavelength_used_laser_detector})
 
@@ -382,7 +382,7 @@ def build_auxiliary_graph(topology, wavelength_list, traffic, physical_topology)
     ice_box_capacity = config.ice_box_capacity
     bypass = config.bypass
 
-    with Pool(processes=32) as pool:
+    with Pool(processes=8) as pool:
         # 使用 tqdm 包装 starmap 的进度条
         results = pool.starmap(process_wavelength_combination,
                                [(wavelength_combinations, topology, traffic, network_slice, physical_topology, protocol, detector, ice_box_capacity, bypass)
