@@ -392,7 +392,7 @@ def build_auxiliary_graph(topology, wavelength_list, traffic, physical_topology,
     ice_box_capacity = config.ice_box_capacity
     bypass = config.bypass
 
-    with Pool(processes=8) as pool:
+    with Pool(processes=32) as pool:
         # 使用 tqdm 包装 starmap 的进度条
         results = pool.starmap(process_wavelength_combination,
                                [(wavelength_combinations, topology, traffic, network_slice, physical_topology, protocol, detector, ice_box_capacity, bypass, shared_key_rate_list)
