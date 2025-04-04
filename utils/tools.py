@@ -159,10 +159,20 @@ def calculate_keyrate(laser_detector_position, path, G):
             distance += edge_distance
 
         bypass_number = len(cover_path) - 2
-        key_rate = compute_key_rate(protocol=config.protocol, receiver=config.detector, distance=distance) * (
-                    0.89 ** bypass_number)
+        if distance in config.key_rate_list.keys():
+            key_rate = config.key_rate_list[distance]
+            key_rate = (key_rate * (0.89 ** bypass_number))
+        else:
+            key_rate = compute_key_rate(protocol=config.protocol, receiver=config.detector, distance=distance)
+            config.key_rate_list[distance] = key_rate
+            key_rate = (key_rate * (0.89 ** bypass_number))
     else:
-        key_rate = compute_key_rate(protocol=config.protocol, receiver=config.detector, distance=0.00001)
+        distance = 0.00001
+        if distance in config.key_rate_list.keys():
+            key_rate = config.key_rate_list[distance]
+        else:
+            key_rate = compute_key_rate(protocol=config.protocol, receiver=config.detector, distance=0.00001)
+            config.key_rate_list[distance] = key_rate
 
     return key_rate
 
@@ -372,7 +382,7 @@ def build_multi_wavelength_auxiliary_graph(multi_wavelength_slice, network_slice
 """
 
 
-def build_auxiliary_graph(topology, wavelength_list, traffic, physical_topology):
+def build_auxiliary_graph(topology, wavelength_list, traffic, physical_topology,shared_key_rate_list):
     auxiliary_graph = nx.MultiDiGraph()
     network_slice = build_network_slice(wavelength_list=wavelength_list, topology=topology, traffic=traffic)
     physical_topology = copy.deepcopy(topology)
@@ -385,7 +395,7 @@ def build_auxiliary_graph(topology, wavelength_list, traffic, physical_topology)
     with Pool(processes=8) as pool:
         # 使用 tqdm 包装 starmap 的进度条
         results = pool.starmap(process_wavelength_combination,
-                               [(wavelength_combinations, topology, traffic, network_slice, physical_topology, protocol, detector, ice_box_capacity, bypass)
+                               [(wavelength_combinations, topology, traffic, network_slice, physical_topology, protocol, detector, ice_box_capacity, bypass, shared_key_rate_list)
                                 for wavelength_combinations in wavelength_combination_list])
 
     # 合并所有局部图
@@ -395,7 +405,7 @@ def build_auxiliary_graph(topology, wavelength_list, traffic, physical_topology)
 
 
 def process_wavelength_combination(wavelength_combinations, topology, traffic, network_slice, physical_topology,
-                                   protocol, detector, ice_box_capacity, bypass):
+                                   protocol, detector, ice_box_capacity, bypass, shared_key_rate_list):
     # 在每个进程中创建自己的局部图
     multi_wavelength_slice = build_multiple_wavelength_slices(wavelength_combinations=wavelength_combinations,
                                                               topology=topology, traffic=traffic)
@@ -404,6 +414,7 @@ def process_wavelength_combination(wavelength_combinations, topology, traffic, n
     config.detector = detector
     config.ice_box_capacity = ice_box_capacity
     config.bypass = bypass
+    config.key_rate_list = shared_key_rate_list
     for node in topology.nodes():
         local_auxiliary_graph.add_node(node)
 
@@ -484,7 +495,7 @@ def generate_traffic(mid, topology):
 def generate_and_sort_requests(topology):
     """生成节点对请求，并按规则排序"""
     node_list = list(topology.nodes)
-    random.shuffle(node_list)
+    # random.shuffle(node_list)
     degrees = dict(topology.degree())
 
     # 生成所有无向节点对，并确定方向

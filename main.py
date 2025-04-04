@@ -10,6 +10,7 @@ import utils.tools
 from utils.Network import Network
 from utils.custom_algorithm import Dijkstra_single_path, Dijkstra_double_path
 from utils.tools import calculate_keyrate, generate_and_sort_requests, assign_traffic_values
+from multiprocessing import Manager
 
 
 def find_min_weight_path_with_relay(auxiliary_graph, src, dst):
@@ -141,6 +142,9 @@ def main():
     num_runs = 1
     # 用于存储每次运行的结果
     all_results = {}
+    manager = Manager()
+    shared_dict = manager.dict()
+    config.key_rate_list = shared_dict
 
     for run in range(num_runs):
         print(f"\n--- 第 {run + 1} 次运行 ---")
@@ -168,7 +172,8 @@ def main():
                     auxiliary_graph = utils.tools.build_auxiliary_graph(topology=topology,
                                                                         wavelength_list=wavelength_list,
                                                                         traffic=traffic,
-                                                                        physical_topology=physical_topology)
+                                                                        physical_topology=physical_topology,
+                                                                        shared_key_rate_list=shared_dict)
 
                     # 找出最优路径和最小功率
                     result = find_min_weight_path_with_relay(auxiliary_graph=auxiliary_graph, src=src, dst=dst)
