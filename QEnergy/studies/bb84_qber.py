@@ -8,10 +8,10 @@ Study of the influence of QBER on the energetic consumption of BB84.
 """
 
 import matplotlib.pyplot as plt
-from qenergy import components as comp
-from qenergy.experiments_dv import BB84Experiment
+from QEnergy.qenergy import components as comp
+from QEnergy.qenergy.experiments_dv import BB84Experiment
 
-from studies import FIGSIZE_FULL, EXPORT_DIR
+from QEnergy.studies import FIGSIZE_FULL, EXPORT_DIR
 
 dist = [d for d in range(100)]
 wavelength = 1550

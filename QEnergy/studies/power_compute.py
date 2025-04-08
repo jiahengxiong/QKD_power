@@ -149,8 +149,8 @@ def compute_power(distance, protocol, receiver):
 
 
         # Components, Homodyne detection double polarization
-        DetectorHomodyne2P = [
-            "Homodyne 2P",
+        DetectorHeterodyne1P = [
+            "Heterodyne 1P",
             comp.ADC(),
             comp.LaserCVPPCL590(),
             comp.Computer(),
@@ -163,7 +163,7 @@ def compute_power(distance, protocol, receiver):
         # Components, Heterodyne detection single polarization
 
         CVQKD_experiment = CVQKDProtocol(
-            eta, Vel, beta_GM, sourcerate, source, DetectorHomodyne2P, xi, dist, "Gauss"
+            eta, Vel, beta_GM, sourcerate, source, DetectorHeterodyne1P, xi, dist, "Gauss"
         )
         power = CVQKD_experiment.power()
 

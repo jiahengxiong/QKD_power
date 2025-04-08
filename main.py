@@ -1,21 +1,23 @@
 # from utils.tools import build_auxiliary_graph, generate_traffic
-import sys
+
 
 import networkx as nx
-import numpy as np
-from tqdm import tqdm
+
 
 import config
 import utils.tools
 from utils.Network import Network
 from utils.custom_algorithm import Dijkstra_single_path, Dijkstra_double_path
 from utils.tools import calculate_keyrate, generate_and_sort_requests, assign_traffic_values
-from multiprocessing import Manager
+
+
+from multiprocessing import Process, Manager
+from tqdm import tqdm
+import sys
+import numpy as np
 
 
 def find_min_weight_path_with_relay(auxiliary_graph, src, dst):
-    paths = []  # 存储所有可能路径和属性
-
     # 辅助函数：计算路径总功率
     def calculate_path_power(path_edges):
         total_power = 0
@@ -28,59 +30,53 @@ def find_min_weight_path_with_relay(auxiliary_graph, src, dst):
         edges = []
         for i in range(len(path) - 1):
             u, v = path[i], path[i + 1]
-            # 获取所有多重边
-            min_edge = min(auxiliary_graph[u][v].items(), key=lambda x: x[1]['weight'])  # 选择权重最小的边
-            edges.append((u, v, min_edge[0]))  # 只取最小权重的边
+            # 获取所有多重边中权重最小的那一条
+            min_edge = min(auxiliary_graph[u][v].items(), key=lambda x: x[1]['weight'])
+            edges.append((u, v, min_edge[0]))
         return edges
 
-    # 1. src -> dst
+    paths = []  # 存储所有可能路径和属性
+
+    # 1. 检查 src -> dst 的直接路径
     if nx.has_path(auxiliary_graph, src, dst):
-        # path = nx.dijkstra_path(auxiliary_graph, source=src, target=dst, weight='weight')
         path_edges = Dijkstra_single_path(src=src, dst=dst, graph=auxiliary_graph)
         if path_edges:
             power_sum = calculate_path_power(path_edges)
-            paths.append(('src->dst', path_edges, None, power_sum))  # 无中继
+            # 若找到功率为0的路径，直接返回
+            paths.append(('src->dst', path_edges, None, power_sum))
 
-    # 2. dst -> src
+    # 2. 检查 dst -> src 的直接路径
     if nx.has_path(auxiliary_graph, dst, src):
-        # path = nx.dijkstra_path(auxiliary_graph, source=dst, target=src, weight='weight')
         path_edges = Dijkstra_single_path(src=dst, dst=src, graph=auxiliary_graph)
         if path_edges:
             power_sum = calculate_path_power(path_edges)
-            paths.append(('dst->src', path_edges, None, power_sum))  # 无中继
+            paths.append(('dst->src', path_edges, None, power_sum))
 
-    # 3. 中继路径: src->delay 和 dst->delay
+    # 3. 检查中继路径：src->delay 和 dst->delay 或 dst->delay 和 src->delay
     for delay in auxiliary_graph.nodes:
-        if delay != src and delay != dst:  # 排除src和dst自身
-            # src -> delay 和 dst -> delay
+        if delay != src and delay != dst:  # 排除 src 和 dst 本身
+            # 情形1：src -> delay 和 dst -> delay
             if nx.has_path(auxiliary_graph, src, delay) and nx.has_path(auxiliary_graph, dst, delay):
-                """path1 = nx.dijkstra_path(auxiliary_graph, source=src, target=delay, weight='weight')
-                path2 = nx.dijkstra_path(auxiliary_graph, source=dst, target=delay, weight='weight')"""
-
                 path1_edges, path2_edges = Dijkstra_double_path(graph=auxiliary_graph, src=src, dst=dst, delay=delay)
                 path_edges = path1_edges + path2_edges
                 if path_edges:
                     power_sum = calculate_path_power(path_edges)
                     paths.append(('src->delay,dst->delay', path_edges, delay, power_sum))
 
-            # dst -> delay 和 src -> delay
-            if nx.has_path(auxiliary_graph, dst, delay) and nx.has_path(auxiliary_graph, src, delay):
-                """path1 = nx.dijkstra_path(auxiliary_graph, source=dst, target=delay, weight='weight')
-                path2 = nx.dijkstra_path(auxiliary_graph, source=src, target=delay, weight='weight')"""
+            # 情形2：dst -> delay 和 src -> delay
+            # if nx.has_path(auxiliary_graph, dst, delay) and nx.has_path(auxiliary_graph, src, delay):
+            #     path1_edges, path2_edges = Dijkstra_double_path(graph=auxiliary_graph, src=dst, dst=src, delay=delay)
+            #     path_edges = path1_edges + path2_edges
+            #     if path_edges:
+            #         power_sum = calculate_path_power(path_edges)
+            #         paths.append(('dst->delay,src->delay', path_edges, delay, power_sum))
 
-                path1_edges, path2_edges = Dijkstra_double_path(graph=auxiliary_graph, src=dst, dst=src, delay=delay)
-                path_edges = path1_edges + path2_edges
-                if path_edges:
-                    # path_edges = extract_path_edges(path1) + extract_path_edges(path2)
-                    power_sum = calculate_path_power(path_edges)
-                    paths.append(('dst->delay,src->delay', path_edges, delay, power_sum))
-
-    # 找到power最小的路径
+    # 如果没有找到功率为0的路径，则返回功率最小的候选路径
     if paths:
-        best_path_info = min(paths, key=lambda x: x[3])  # 按照power最小值排序
+        best_path_info = min(paths, key=lambda x: x[3])
         return best_path_info
     else:
-        return None
+        return False
 
 
 def serve_traffic(G, AG, path_edge_list, request_traffic, pbar):
@@ -133,109 +129,152 @@ def serve_traffic(G, AG, path_edge_list, request_traffic, pbar):
                 G.nodes[laser_postion]['key_rate'][cover_links] = compute_key_rate(laser_postion, detector_postion)"""
 
 
-def main():
-    wavelength_list = np.linspace(1530, 1565, 10).tolist()
-    print(
-        f"----------CONFIG: map: {map_name}, Protocol: {config.protocol}, Detector: {config.detector}, Bypass: {config.bypass}----------")
 
-    # 定义运行次数
-    num_runs = 1
-    # 用于存储每次运行的结果
-    all_results = {}
-    manager = Manager()
-    shared_dict = manager.dict()
-    config.key_rate_list = shared_dict
+
+from multiprocessing import Pool, Manager
+from tqdm import tqdm
+import sys
+import numpy as np
+import os
+# 请确保以下对象已正确导入：
+# Network, assign_traffic_values, generate_and_sort_requests,
+# utils.tools.build_auxiliary_graph, find_min_weight_path_with_relay, serve_traffic
+# 同时，全局变量 map_name 和 config 模块需要在工程中预先定义
+
+def process_mid(mid, map_name, protocol, detector, bypass, key_rate_list, pairs, wavelength_list,
+                shared_results, num_runs, ice_box_capacity):
+    """
+    对给定的 mid 内部执行 num_runs 次模拟，计算每次的结果后取平均，
+    最终将该 mid 对应的平均值写入 shared_results。
+    """
+
+    # 在子进程中导入 config 并初始化所有需要的属性
+    import config
+    config.protocol = protocol
+    config.detector = detector
+    config.bypass = bypass
+    config.key_rate_list = key_rate_list
+    config.ice_box_capacity = ice_box_capacity
+    flag = True
+
+    # 打印当前进程ID及开始处理的信息
+    print(f"[PID {os.getpid()}] Starting processing mid {mid}")
+
+    run_results = []  # 用于保存每次 run 的结果
 
     for run in range(num_runs):
-        print(f"\n--- 第 {run + 1} 次运行 ---")
-        flag = True
-        mid = 0
-        result_average_power = {}
-        network = Network(map_name=map_name, wavelength_list=wavelength_list, protocol=config.protocol,
-                          receiver=config.detector)
+
+        result_run = 0.0
+
+        # 每次 run 重新构造网络实例
+        network = Network(map_name=map_name,
+                          wavelength_list=wavelength_list,
+                          protocol=protocol,
+                          receiver=detector)
         topology = network.topology
         physical_topology = network.physical_topology
-        pairs = generate_and_sort_requests(physical_topology)
 
+        # 根据当前 mid 生成流量矩阵（所有 run 使用相同的 pairs）
+        traffic_matrix = assign_traffic_values(pairs=pairs, mid=mid)
 
-        while flag:
-            mid = mid + 5000
-            result_average_power[mid] = 0.0
-            network = Network(map_name=map_name, wavelength_list=wavelength_list, protocol=config.protocol,
-                              receiver=config.detector)
-            topology = network.topology
-            physical_topology = network.physical_topology
-            # traffic_matrix = utils.tools.generate_traffic(topology=physical_topology, mid=mid)
-            traffic_matrix = assign_traffic_values(pairs=pairs, mid=mid)
-            with tqdm(total=len(traffic_matrix), file=sys.stdout, colour="red") as pbar:
-                for (src, dst), traffic in traffic_matrix.items():
-                    auxiliary_graph = utils.tools.build_auxiliary_graph(topology=topology,
-                                                                        wavelength_list=wavelength_list,
-                                                                        traffic=traffic,
-                                                                        physical_topology=physical_topology,
-                                                                        shared_key_rate_list=shared_dict)
+        # 使用 tqdm 显示当前 run 中该 mid 的进度，输出到 sys.stderr
+        with tqdm(total=len(traffic_matrix), file=sys.stderr, colour="red",
+                  desc=f"mid {mid} run {run+1}/{num_runs}") as pbar:
+            for (src, dst), traffic in traffic_matrix.items():
+                auxiliary_graph = utils.tools.build_auxiliary_graph(
+                    topology=topology,
+                    wavelength_list=wavelength_list,
+                    traffic=traffic,
+                    physical_topology=physical_topology,
+                    shared_key_rate_list=key_rate_list
+                )
 
-                    # 找出最优路径和最小功率
-                    result = find_min_weight_path_with_relay(auxiliary_graph=auxiliary_graph, src=src, dst=dst)
-                    if result:
-                        direction, best_path_edges, relay, min_power = result
-                        if relay:
-                            pbar.write(
-                                f"从 {src} 到 {dst} 最优路径(方向: {direction}, 中继: {relay}): {best_path_edges}, 最小功率: {min_power}")
-
-                        else:
-                            pbar.write(
-                                f"从 {src} 到 {dst} 最优路径(方向: {direction}): {best_path_edges}, 最小功率: {min_power}")
-                        serve_traffic(G=topology, AG=auxiliary_graph, path_edge_list=best_path_edges,
-                                      request_traffic=traffic, pbar=pbar)
-                        result_average_power[mid] += min_power / len(traffic_matrix)
-
-                        pbar.update(1)
+                result = find_min_weight_path_with_relay(auxiliary_graph=auxiliary_graph, src=src, dst=dst)
+                if result:
+                    direction, best_path_edges, relay, min_power = result
+                    if relay:
+                        pbar.write(f"[PID {os.getpid()}] 从 {src} 到 {dst} 最优路径(方向: {direction}, 中继: {relay}): {best_path_edges}, 最小功率: {min_power}")
                     else:
-                        pbar.write(f"从 {src} 到 {dst} 无可用路径")
-                        pbar.update(1)
-                        del result_average_power[mid]
-                        flag = False
-                        break
+                        pbar.write(f"[PID {os.getpid()}] 从 {src} 到 {dst} 最优路径(方向: {direction}): {best_path_edges}, 最小功率: {min_power}")
+                    serve_traffic(G=topology,
+                                  AG=auxiliary_graph,
+                                  path_edge_list=best_path_edges,
+                                  request_traffic=traffic,
+                                  pbar=pbar)
+                    result_run += min_power / len(traffic_matrix)
+                    pbar.update(1)
+                else:
+                    pbar.write(f"[PID {os.getpid()}] 从 {src} 到 {dst} 无可用路径")
+                    pbar.update(1)
+                    flag = False
+                    return
 
-            if mid >= 105000:
-                flag = False
-        # 将当前运行的结果存储到 all_results 中
-        for mid, power in result_average_power.items():
-            if mid not in all_results:
-                all_results[mid] = []
-            all_results[mid].append(power)
-        print(f"\n--- 第 {run + 1} 次运行结果 ---\n{all_results}")
+        if flag:
+            run_results.append(result_run)
 
-    # 过滤掉在部分运行中缺失的 mid
-    valid_results = {}
-    for mid, powers in all_results.items():
-        if len(powers) >= num_runs:  # 只有十次运行中都存在的 mid 才有效
-            valid_results[mid] = powers
+    if run_results:
+        avg_value = sum(run_results) / len(run_results)
+        shared_results[mid] = avg_value
 
-    # 计算平均值
-    average_results = {}
-    for mid, powers in valid_results.items():
-        average_results[mid] = sum(powers) / len(powers)
+    print(f"[PID {os.getpid()}] Finished processing mid {mid}")
 
-    # 输出最终结果
-    print(
-        f'\n--- 最终结果（{num_runs} 次运行的平均值）---\n'
-        f'Protocol: {config.protocol}, Bypass: {config.bypass}, Detector: {config.detector}, Map: {map_name}\n'
-        f'{average_results}'
-    )
+def main():
+    import config
+    # 生成波长列表
+    wavelength_list = np.linspace(1530, 1565, 10).tolist()
+    print(f"----------CONFIG: map: {map_name}, Protocol: {config.protocol}, Detector: {config.detector}, Bypass: {config.bypass}----------")
+
+    # 每个 mid 内部的运行次数
+    num_runs = 1  # 可根据需要调整
+
+    manager = Manager()
+    # 创建共享字典用于 key_rate（按原逻辑使用）
+    shared_key_rate = {}
+    config.key_rate_list = shared_key_rate
+
+    # 根据当前网络配置生成用于计算请求对的列表 pairs（所有 mid 使用相同的 pairs）
+    network = Network(map_name=map_name,
+                      wavelength_list=wavelength_list,
+                      protocol=config.protocol,
+                      receiver=config.detector)
+    physical_topology = network.physical_topology
+    pairs = generate_and_sort_requests(physical_topology)
+
+    # 创建跨进程共享的 flag 和存放结果的共享字典
+    shared_results = manager.dict()
+
+    # 定义所有待测试的 mid 值（5000 到 105000，步长5000）
+    mids = list(range(5000, 105000, 5000))
+    # 构造任务参数列表，将 config.bypass 与 config.ice_box_capacity 一并传入
+    args_list = [
+        (mid, map_name, config.protocol, config.detector, config.bypass, shared_key_rate, pairs, wavelength_list,
+         shared_results, num_runs, config.ice_box_capacity)
+        for mid in mids
+    ]
+
+    with Pool(processes=5) as pool:
+        pool.starmap(process_mid, args_list)
+
+    # 将最终结果从共享字典转换为普通字典
+    average_results = dict(shared_results)
+
+    print(f'\n--- 最终结果（每个 mid 经过 {num_runs} 次运行后取平均）---\n'
+          f'Protocol: {config.protocol}, Bypass: {config.bypass}, Detector: {config.detector}, Map: {map_name}\n'
+          f'{average_results}')
     with open('result.txt', 'a') as file:
-        file.write(f'\n--- 最终结果（{num_runs} 次运行的平均值）---\n')
-        file.write(
-            f'Protocol: {config.protocol}, Bypass: {config.bypass}, Detector: {config.detector}, Map: {map_name}\n')
+        file.write(f'\n--- 最终结果（每个 mid 经过 {num_runs} 次运行后取平均）---\n')
+        file.write(f'Protocol: {config.protocol}, Bypass: {config.bypass}, Detector: {config.detector}, Map: {map_name}\n')
         file.write(f'{average_results}\n')
 
-
 if __name__ == '__main__':
+    # 根据 protocol、detector、map_name、bypass 进行多重循环配置
     topology_type = ['Paris', 'Large']
     detector_list = ['APD', 'SNSPD']
-    protocol_list = ['BB84', 'E91', 'CV-QKD']
+    protocol_list = ['CV-QKD']
     bypass_list = [True, False]
+
+    import config  # 确保 config 模块能正确导入
+
     for protocol in protocol_list:
         if protocol == 'CV-QKD':
             detector = 'ThorlabsPDB'
@@ -244,7 +283,7 @@ if __name__ == '__main__':
                     config.protocol = protocol
                     config.detector = detector
                     config.bypass = bypass
-                    config.ice_box_capacity = 8
+                    config.ice_box_capacity = 8  # 设置冰箱容量
                     main()
         else:
             for detector in detector_list:

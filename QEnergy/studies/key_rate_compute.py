@@ -147,8 +147,8 @@ def compute_key_rate(distance, protocol, receiver):
         ]
 
         # Components, Homodyne detection double polarization
-        DetectorHomodyne2P = [
-            "Homodyne 2P",
+        DetectorHeterodyne1P = [
+            "Heterodyne 1P",
             comp.ADC(),
             comp.LaserCVPPCL590(),
             comp.Computer(),
@@ -160,7 +160,7 @@ def compute_key_rate(distance, protocol, receiver):
 
 
         CVQKD_experiment = CVQKDProtocol(
-            eta, Vel, beta_GM, sourcerate, source, DetectorHomodyne2P, xi, dist, "Gauss"
+            eta, Vel, beta_GM, sourcerate, source, DetectorHeterodyne1P, xi, dist, "Gauss"
         )
         key_rate = CVQKD_experiment.compute_secret_key_rate()[0]
 

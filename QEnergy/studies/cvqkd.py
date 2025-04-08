@@ -16,7 +16,7 @@ from QEnergy.studies import FIGSIZE_HALF, EXPORT_DIR
 # Parameters of the plot
 dist_PSK = [d / 100 for d in range(850)]  # Points of the plot, PSK
 dist_GM = [d / 10 for d in range(2000)]  # Points of the plot, GM
-dist_nCV = [d / 10 for d in range(1500)]  # Points of the plot, nCV network
+dist_nCV = [d / 10 for d in range(500,601)]  # Points of the plot, nCV network
 
 gigabit = 1e9  # Target number of secret bits
 MJ = 1e6  # Change of scale to megajoules
@@ -190,11 +190,11 @@ fig, ax = plt.subplots(1, figsize=FIGSIZE_HALF)
 # Loop of the experiments according to the no. of users
 for N in Nusers:
     Experiment_nCV = CVQKDProtocol(
-        eta, Vel, beta_GM, sourcerate, source, DetectorHomodyne2P, xi, dist_nCV, "Gauss"
+        eta, Vel, beta_GM, sourcerate, source, DetectorHeterodyne1P, xi, dist_nCV, "Gauss"
     )
     tsk_nCV = Experiment_nCV.time_skr(gigabit)
     key_rate_nCV = Experiment_nCV.compute_secret_key_rate()
-    print(f"key_rate_nCV for {N} users: {key_rate_nCV}")
+    print(f"key_rate_nCV for {N} users: {key_rate_nCV}, {dist_nCV}")
     # Note the (N-1) since the protocol is executed by every pair of users wrt a central node
     # Uncomment the zeros in the second argument of total_energy to take the DSP into account
     Energy_nCV = [Experiment_nCV.total_energy(t) * (N - 1) / MJ for t in tsk_nCV]

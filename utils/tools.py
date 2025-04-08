@@ -391,15 +391,34 @@ def build_auxiliary_graph(topology, wavelength_list, traffic, physical_topology,
     detector = config.detector
     ice_box_capacity = config.ice_box_capacity
     bypass = config.bypass
+    results = []
+    # 遍历 wavelength_combination_list 中的每一项
+    for wavelength_combinations in wavelength_combination_list:
+        result = process_wavelength_combination(
+            wavelength_combinations,
+            topology,
+            traffic,
+            network_slice,
+            physical_topology,
+            protocol,
+            detector,
+            ice_box_capacity,
+            bypass,
+            shared_key_rate_list
+        )
+        results.append(result)
 
-    with Pool(processes=32) as pool:
-        # 使用 tqdm 包装 starmap 的进度条
-        results = pool.starmap(process_wavelength_combination,
-                               [(wavelength_combinations, topology, traffic, network_slice, physical_topology, protocol, detector, ice_box_capacity, bypass, shared_key_rate_list)
-                                for wavelength_combinations in wavelength_combination_list])
-
-    # 合并所有局部图
+    # 合并所有局部图，生成总图
     auxiliary_graph = nx.compose_all(results)
+
+    # with Pool(processes=8) as pool:
+    #     # 使用 tqdm 包装 starmap 的进度条
+    #     results = pool.starmap(process_wavelength_combination,
+    #                            [(wavelength_combinations, topology, traffic, network_slice, physical_topology, protocol, detector, ice_box_capacity, bypass, shared_key_rate_list)
+    #                             for wavelength_combinations in wavelength_combination_list])
+    #
+    # # 合并所有局部图
+    # auxiliary_graph = nx.compose_all(results)
 
     return auxiliary_graph
 

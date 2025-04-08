@@ -8,12 +8,12 @@ Study of the influence of detector choice on the energetic cost.
 """
 
 import matplotlib.pyplot as plt
-from qenergy import components as comp
-from qenergy.experiments_dv import BB84Experiment
+from QEnergy.qenergy import components as comp
+from QEnergy.qenergy.experiments_dv import BB84Experiment
 
-from studies import FIGSIZE_HALF, EXPORT_DIR
+from QEnergy.studies import FIGSIZE_HALF, EXPORT_DIR
 
-dist = [d for d in range(200)]
+dist = [d for d in range(50, 61)]
 wavelength = 1550
 gigabit = 1e9
 
@@ -46,6 +46,9 @@ Experiment02 = BB84Experiment(
 Experiment03 = BB84Experiment(
     sourcerate, pcoupling, mu, wavelength, 0.05, laser, detectoringaas, dist, other
 )
+print(Experiment01.compute_secret_key_rate())
+print(Experiment02.compute_secret_key_rate())
+
 
 tskr = Experiment01.time_skr(gigabit)
 tskr2 = Experiment02.time_skr(gigabit)
