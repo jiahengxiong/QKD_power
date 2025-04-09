@@ -268,9 +268,9 @@ def main():
 
 if __name__ == '__main__':
     # 根据 protocol、detector、map_name、bypass 进行多重循环配置
-    topology_type = ['Paris', 'Large']
+    topology_type = ['Tokyo']
     detector_list = ['APD', 'SNSPD']
-    protocol_list = ['CV-QKD']
+    protocol_list = ['BB84', 'E91', 'CV-QKD']
     bypass_list = [True, False]
 
     import config  # 确保 config 模块能正确导入

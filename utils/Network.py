@@ -19,6 +19,32 @@ class Network:
 
     def get_physical_topology(self, map_name):
         G = nx.Graph()
+        if map_name == "Tokyo":
+            edges = [
+                ("Setagaya", "Ota", 12.045),
+                ("Setagaya", "Shinagawa", 9.072),
+                ("Setagaya", "Minato", 9.945),
+                ("Setagaya", "Shinjuku", 7.916),
+                ("Setagaya", "Nerima", 10.885),
+                ("Ota", "Shinagawa", 6.464),
+                ("Shinagawa", "Minato", 6.788),
+                ("Minato", "Koto", 7.195),
+                ("Minato", "Chiyoda", 4.972),
+                ("Shinjuku", "Minato", 6.878),
+                ("Shinjuku", "Chiyoda", 5.461),
+                ("Shinjuku", "Itabashi", 7.446),
+                ("Shinjuku", "Nerima", 7.504),
+                ("Nerima", "Itabashi", 6.341),
+                ("Koto", "Edogawa", 6.868),
+                ("Chiyoda", "Koto", 7.248),
+                ("Chiyoda", "Edogawa", 11.528),
+                ("Chiyoda", "Bunkyo", 2.601),
+                ("Bunkyo", "Adachi", 9.701),
+                ("Itabashi", "Bunkyo", 7.239),
+                ("Edogawa", "Adachi", 10.682)
+            ]
+            for node1, node2, distance in edges:
+                G.add_edge(node1, node2, distance=distance, type='fiber')
         if map_name == "Paris":
             edges = [
                 ("LKB-2", "LKB", 0.027),
@@ -108,6 +134,39 @@ class Network:
 
     def get_topology(self, map_name):
         G = nx.MultiGraph()
+        if map_name == "Tokyo":
+            edges = [
+                ("Setagaya", "Ota", 12.045),
+                ("Setagaya", "Shinagawa", 9.072),
+                ("Setagaya", "Minato", 9.945),
+                ("Setagaya", "Shinjuku", 7.916),
+                ("Setagaya", "Nerima", 10.885),
+                ("Ota", "Shinagawa", 6.464),
+                ("Shinagawa", "Minato", 6.788),
+                ("Minato", "Koto", 7.195),
+                ("Minato", "Chiyoda", 4.972),
+                ("Shinjuku", "Minato", 6.878),
+                ("Shinjuku", "Chiyoda", 5.461),
+                ("Shinjuku", "Itabashi", 7.446),
+                ("Shinjuku", "Nerima", 7.504),
+                ("Nerima", "Itabashi", 6.341),
+                ("Koto", "Edogawa", 6.868),
+                ("Chiyoda", "Koto", 7.248),
+                ("Chiyoda", "Edogawa", 11.528),
+                ("Chiyoda", "Bunkyo", 2.601),
+                ("Bunkyo", "Adachi", 9.701),
+                ("Itabashi", "Bunkyo", 7.239),
+                ("Edogawa", "Adachi", 10.682)
+            ]
+            for node1, node2, distance in edges:
+                for wavelength in self.wavelength_list:
+                    G.add_edge(node1, node2, distance=distance, key=uuid.uuid4().hex,
+                               wavelength=wavelength, laser=0, detector=0,
+                               capacity=compute_key_rate(distance=distance, protocol=self.protocol,
+                                                         receiver=self.receiver),
+                               used_capacity=0,
+                               free_capacity=compute_key_rate(distance=distance, protocol=self.protocol,
+                                                              receiver=self.receiver))
         if map_name == "Paris":
             edges = [
                 ("LKB-2", "LKB", 0.027),
@@ -225,8 +284,6 @@ class Network:
                     G.nodes[node]['laser'][wavelength] = []
                     G.nodes[node]['laser_capacity'][wavelength] = {}
         return G
-
-
 
     def print_topology(self):
         print(f"Topology: {self.name}")
