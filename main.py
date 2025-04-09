@@ -1,5 +1,5 @@
 # from utils.tools import build_auxiliary_graph, generate_traffic
-
+import gc
 
 import networkx as nx
 
@@ -207,7 +207,11 @@ def process_mid(mid, map_name, protocol, detector, bypass, key_rate_list, pairs,
                     pbar.write(f"[PID {os.getpid()}] 从 {src} 到 {dst} 无可用路径")
                     pbar.update(1)
                     flag = False
+                    del auxiliary_graph
+                    gc.collect()
                     return
+                del auxiliary_graph
+                gc.collect()
 
         if flag:
             run_results.append(result_run)
@@ -252,7 +256,7 @@ def main():
         for mid in mids
     ]
 
-    with Pool(processes=5) as pool:
+    with Pool(processes=10) as pool:
         pool.starmap(process_mid, args_list)
 
     # 将最终结果从共享字典转换为普通字典
@@ -268,9 +272,9 @@ def main():
 
 if __name__ == '__main__':
     # 根据 protocol、detector、map_name、bypass 进行多重循环配置
-    topology_type = ['Tokyo']
+    topology_type = ['Large']
     detector_list = ['APD', 'SNSPD']
-    protocol_list = ['BB84', 'E91', 'CV-QKD']
+    protocol_list = ['CV-QKD']
     bypass_list = [True, False]
 
     import config  # 确保 config 模块能正确导入

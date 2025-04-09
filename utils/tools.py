@@ -1,4 +1,5 @@
 import copy
+import gc
 import itertools
 import uuid
 from itertools import product
@@ -261,6 +262,8 @@ def Max_capacity(laser_detector, path, G, wavelength, network_slice):
     recovery_detector_list = []
     for used_laser_detector in used_laser_detector_list:
         recovery_detector_list.append(AG.edges[used_laser_detector[0], used_laser_detector[1]]['detector_list'])
+    del AG
+    gc.collect()
 
     return capacity, recovery_detector_list
 
@@ -360,6 +363,8 @@ def build_multi_wavelength_auxiliary_graph(multi_wavelength_slice, network_slice
                     for edge_data in data:
                         auxiliary_graph.add_edge(src, dst, key=uuid.uuid4().hex + str(wavelength_combinations),
                                                  **edge_data)
+    del virtual_physical_topology
+    gc.collect()
                 # print(f"Finished build virtual link between {src} and {dst}")
 
 
@@ -419,8 +424,13 @@ def build_auxiliary_graph(topology, wavelength_list, traffic, physical_topology,
     #
     # # 合并所有局部图
     # auxiliary_graph = nx.compose_all(results)
-
+     # 清理临时图对象列表和切片以释放内存**
+    for subgraph in results:
+        subgraph.clear()  # 清空子图内容
+    del results, network_slice
+    gc.collect()
     return auxiliary_graph
+
 
 
 def process_wavelength_combination(wavelength_combinations, topology, traffic, network_slice, physical_topology,

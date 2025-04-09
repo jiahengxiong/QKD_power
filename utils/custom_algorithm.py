@@ -1,5 +1,6 @@
 import networkx as nx
 import heapq
+import gc
 
 def find_maximin_path(G, src, dst):
     # 初始化每个节点从src出发可达到的最大最小容量（瓶颈容量），初值设为0
@@ -123,6 +124,8 @@ def Dijkstra_double_path(graph, src, delay, dst):
 
     # 第二步，在处理后的图上，找到dst到delay的最短路径
     path2_edges = Dijkstra_single_path(graph_copy, dst, delay)
+    del graph_copy
+    gc.collect()
 
     if path2_edges:
         return path1_edges, path2_edges
