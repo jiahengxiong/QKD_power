@@ -167,6 +167,15 @@ class Network:
                                used_capacity=0,
                                free_capacity=compute_key_rate(distance=distance, protocol=self.protocol,
                                                               receiver=self.receiver))
+
+            for node in G.nodes:
+                G.nodes[node]['laser'] = {}
+                G.nodes[node]['laser_capacity'] = {}
+                G.nodes[node]['ice_box'] = 0
+                G.nodes[node]['num_detector'] = 0
+                for wavelength in self.wavelength_list:
+                    G.nodes[node]['laser'][wavelength] = []
+                    G.nodes[node]['laser_capacity'][wavelength] = {}
         if map_name == "Paris":
             edges = [
                 ("LKB-2", "LKB", 0.027),
