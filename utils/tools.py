@@ -5,6 +5,7 @@ import uuid
 from itertools import product
 from multiprocessing import Pool
 
+
 import config
 from QEnergy.studies.key_rate_compute import compute_key_rate
 from QEnergy.studies.power_compute import compute_power
@@ -179,6 +180,7 @@ def calculate_keyrate(laser_detector_position, path, G):
 
 
 def calculate_power(laser_detector_position, path, G):
+    component_power = {'source': 0, 'detector':0, 'other':0, 'ice_box':0, 'total':0}
     if config.detector == 'SNSPD':
         ice_box_power = 3000
     else:
@@ -188,13 +190,20 @@ def calculate_power(laser_detector_position, path, G):
     if laser_position is not None and detector_position is not None:
         distance = calculate_distance(G=G, path=path, start=laser_position, end=detector_position)
         power = compute_power(distance=distance, protocol=config.protocol, receiver=config.detector)
+        component_power['source'] = power['source']
+        component_power['detector'] = power['detector']
+        component_power['other'] = power['other']
+        total_power = power['total']
         num_detector = G.nodes[detector_position]['num_detector']
         if num_detector % config.ice_box_capacity == 0:
-            power = ice_box_power + power
+            total_power = ice_box_power + total_power
+            component_power['ice_box'] = ice_box_power
     else:
-        power = 0
+        total_power = 0
+    component_power['total'] = total_power
 
-    return power
+
+    return component_power
 
 
 def remove_possible_laser_detector_position(wavelength_laser_detector_list, path, G, traffic, network_slice):
@@ -299,16 +308,34 @@ def calculate_data_auxiliary_edge(G, path, wavelength_combination, wavelength_ca
                 print(wavelength, laser_detector)"""
         if max_traffic >= traffic:
             power = 0
+            source_power = 0
+            detector_power = 0
+            other_power = 0
+            ice_box_power = 0
             for wavelength, laser_detector in wavelength_laser_detector.items():
-                wavelength_power = calculate_power(
+                component_power = calculate_power(
                     laser_detector_position={'laser': laser_detector[0], 'detector': laser_detector[1]}, path=path,
                     G=network_slice[wavelength])
-                power = power + wavelength_power
+                power = power + component_power['total']
+                source_power = source_power + component_power['source']
+                detector_power = detector_power + component_power['detector']
+                other_power = other_power + component_power['other']
+                ice_box_power = ice_box_power + component_power['ice_box']
             distance = calculate_distance(G=G, path=path, start=path[0], end=path[-1])
-            data.append({'power': power, 'path': path, 'laser_detector_position': wavelength_laser_detector,
+            data.append({'power': power,
+                         'source_power': source_power,
+                         'detector_power': detector_power,
+                         'other_power': other_power,
+                         'ice_box_power': ice_box_power,
+                         'path': path, 'laser_detector_position': wavelength_laser_detector,
                          'wavelength_traffic': wavelength_traffic_limitation,
-                         'weight': power + 0.00001 * ((len(path) - 1)**1.01) + 0.0000001 * len(
-                             wavelength_combination) + 0.000000000001 * (distance**1.01),
+                         'weight': (
+                                 power
+                                 + 0.01 * ((len(path) - 1) ** 1.01)
+                                 + 0.000001 * distance
+                                 + 1e-8 * min(wavelength_combination)
+                                 + 1e-9 * max(wavelength_combination)
+                         ),
                          'wavelength_list': wavelength_combination,
                          'transverse_laser_detector':wavelength_used_laser_detector})
 
@@ -577,7 +604,7 @@ def assign_traffic_values(pairs, mid):
             [mid] * num_60_percent +
             [mid + 1000] * num_20_percent_2
     )
-    random.shuffle(traffic_values)
+    # random.shuffle(traffic_values)
 
     # 按排序后的顺序分配流量值
     for idx, (sender, receiver) in enumerate(pairs):

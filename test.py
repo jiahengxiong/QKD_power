@@ -58,6 +58,7 @@ if __name__ == "__main__":
     # 添加边及其容量属性
     G.add_edge('src', 'a', capacity=5)
     G.add_edge('a', 'dst', capacity=3)
+    G.add_edge('a', 'b', capacity=5)
     G.add_edge('src', 'b', capacity=4)
     G.add_edge('b', 'dst', capacity=6)
 

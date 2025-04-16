@@ -196,5 +196,5 @@ ax1.tick_params(axis="both", which="major")
 ax1.legend(loc="best")
 plt.savefig(EXPORT_DIR / "EE.pdf", format="pdf")
 plt.show()"""
-rate = compute_key_rate(40, 'CV-QKD', 'APD')
-print(rate)
+rate = compute_key_rate(19.957, 'BB84', 'SNSPD')
+print(rate * 0.89)

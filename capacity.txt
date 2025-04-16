@@ -1,0 +1,8 @@
+Protocol: BB84, Bypass: True, Detector: APD, Map: Tokyo, capacity: 1200000
+Protocol: BB84, Bypass: True, Detector: SNSPD, Map: Tokyo， capacity： 4320000
+Protocol: BB84, Bypass: True, Detector: APD, Map: Large， capacity：30000
+Protocol: BB84, Bypass: True, Detector: SNSPD, Map: Large， capacity：100000
+Protocol: BB84, Bypass: True, Detector: APD, Map: Paris， capacity：100000
+Protocol: BB84, Bypass: True, Detector: SNSPD, Map: Paris， capacity：400000
+
+

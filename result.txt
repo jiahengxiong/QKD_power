@@ -55,3 +55,110 @@ Protocol: CV-QKD, Bypass: True, Detector: ThorlabsPDB, Map: Paris
 --- 最终结果（1 次运行的平均值）---
 Protocol: CV-QKD, Bypass: False, Detector: ThorlabsPDB, Map: Paris
 {}
+
+--- 最终结果（每个 mid 经过 1 次运行后取平均）---
+Protocol: BB84, Bypass: True, Detector: APD, Map: Tokyo
+{90000: 472.7272727272726, 95000: 449.09090909090895}
+
+--- 最终结果（每个 mid 经过 1 次运行后取平均）---
+Protocol: BB84, Bypass: True, Detector: APD, Map: Tokyo
+{220000: 898.1818181818179, 200000: 874.5454545454543, 240000: 921.8181818181815, 260000: 945.4545454545452, 280000: 1039.9999999999998}
+
+--- 最终结果（每个 mid 经过 1 次运行后取平均）---
+Protocol: BB84, Bypass: True, Detector: APD, Map: Tokyo
+{300000: 1134.5454545454545, 400000: 1370.909090909092, 500000: 1583.6363636363649, 600000: 1796.3636363636376, 700000: 2056.3636363636374, 800000: 2340.0000000000014}
+
+--- 最终结果（每个 mid 经过 1 次运行后取平均）---
+Protocol: BB84, Bypass: True, Detector: APD, Map: Tokyo
+{1240000: 4136.363636363639}
+Protocol: BB84, Bypass: True, Detector: APD, Map: Tokyo, capacity: 1240000
+
+--- 最终结果（每个 mid 经过 1 次运行后取平均）---
+Protocol: BB84, Bypass: True, Detector: SNSPD, Map: Tokyo
+{4000000: 9121.030303030306}
+
+--- 最终结果（每个 mid 经过 1 次运行后取平均）---
+Protocol: BB84, Bypass: True, Detector: SNSPD, Map: Tokyo
+{4000000: 9121.030303030306, 4200000: 11100.545454545456}
+
+--- 最终结果（每个 mid 经过 1 次运行后取平均）---
+Protocol: BB84, Bypass: True, Detector: SNSPD, Map: Paris
+{400000: 3213.163636363635, 380000: 3301.0181818181813}
+
+--- 最终结果（每个 mid 经过 1 次运行后取平均）---
+Protocol: BB84, Bypass: True, Detector: SNSPD, Map: Tokyo
+{4280000: 10677.575757575758, 4260000: 10586.666666666668, 4240000: 9969.393939393942, 4220000: 9969.393939393942, 4200000: 9732.06060606061}
+
+--- 最终结果（每个 mid 经过 1 次运行后取平均）---
+Protocol: BB84, Bypass: True, Detector: SNSPD, Map: Tokyo
+{4300000: 10960.363636363638, 4380000: 11019.696969696972, 4320000: 10412.484848484852}
+
+--- 最终结果（每个 mid 经过 1 次运行后取平均）---
+Protocol: BB84, Bypass: False, Detector: SNSPD, Map: Tokyo
+{4380000: 11341.696969696968, 4360000: 11341.696969696968, 4340000: 11537.39393939394, 4320000: 11076.606060606066}
+
+--- 最终结果（每个 mid 经过 1 次运行后取平均）---
+Protocol: BB84, Bypass: False, Detector: APD, Map: Tokyo
+{1200000: 3923.636363636365}
+
+--- 最终结果（每个 mid 经过 1 次运行后取平均）---
+Protocol: BB84, Bypass: True, Detector: APD, Map: Paris
+{'total_avg_power': 283.6363636363637, 'avg_spectrum_occupied': 0.08333333333333333}
+
+--- 最终结果（每个 mid 经过 1 次运行后取平均）---
+Protocol: BB84, Bypass: True, Detector: APD, Map: Tokyo
+{'total_avg_power': 3710.9090909090933, 'avg_spectrum_occupied': 0.43333333333333335, 'avg_component_power': {'source': 9.515151515151508, 'detector': 1531.939393939393, 'other': 2169.4545454545473, 'ice_box': 0.0}}
+
+--- 最终结果（每个 mid 经过 1 次运行后取平均）---
+Protocol: BB84, Bypass: True, Detector: APD, Map: Tokyo
+{'total_avg_power': 3758.181818181821, 'avg_spectrum_occupied': 0.44285714285714284, 'avg_component_power': {'source': 9.63636363636363, 'detector': 1551.4545454545446, 'other': 2197.090909090911, 'ice_box': 0.0}}
+
+--- 最终结果（每个 mid 经过 1 次运行后取平均）---
+Protocol: BB84, Bypass: True, Detector: APD, Map: Tokyo
+{'total_avg_power': 3758.181818181821, 'avg_spectrum_occupied': 0.45238095238095233, 'avg_component_power': {'source': 9.63636363636363, 'detector': 1551.4545454545446, 'other': 2197.090909090911, 'ice_box': 0.0}}
+
+--- 最终结果（每个 mid 经过 1 次运行后取平均）---
+Protocol: BB84, Bypass: True, Detector: APD, Map: Tokyo
+{'total_avg_power': 3758.181818181821, 'avg_spectrum_occupied': 0.4380952380952381, 'avg_component_power': {'source': 9.63636363636363, 'detector': 1551.4545454545446, 'other': 2197.090909090911, 'ice_box': 0.0}}
+
+--- 最终结果（每个 mid 经过 1 次运行后取平均）---
+Protocol: BB84, Bypass: True, Detector: APD, Map: Tokyo
+{'total_avg_power': 3710.9090909090937, 'avg_spectrum_occupied': 0.4285714285714285, 'avg_component_power': {'source': 9.515151515151508, 'detector': 1531.939393939393, 'other': 2169.4545454545478, 'ice_box': 0.0}}
+
+--- 最终结果（每个 mid 经过 1 次运行后取平均）---
+Protocol: BB84, Bypass: True, Detector: APD, Map: Tokyo
+{'total_avg_power': 3710.9090909090933, 'avg_spectrum_occupied': 0.43333333333333335, 'avg_component_power': {'source': 9.515151515151508, 'detector': 1531.939393939393, 'other': 2169.4545454545473, 'ice_box': 0.0}}
+
+--- 最终结果（每个 mid 经过 1 次运行后取平均）---
+Protocol: BB84, Bypass: True, Detector: APD, Map: Tokyo
+{'traffic': 1240000, 'total_avg_power': 4041.8181818181843, 'avg_spectrum_occupied': 0.9285714285714286, 'avg_component_power': {'source': 10.363636363636356, 'detector': 1668.5454545454536, 'other': 2362.9090909090933, 'ice_box': 0.0}}
+
+--- 最终结果（每个 mid 经过 1 次运行后取平均）---
+Protocol: BB84, Bypass: True, Detector: APD, Map: Tokyo
+{'traffic': 1200000, 'total_avg_power': 3734.545454545457, 'avg_spectrum_occupied': 0.9238095238095235, 'avg_component_power': {'source': 9.575757575757569, 'detector': 1541.6969696969688, 'other': 2183.2727272727293, 'ice_box': 0.0}}
+
+--- 最终结果（每个 mid 经过 1 次运行后取平均）---
+Protocol: BB84, Bypass: True, Detector: APD, Map: Tokyo
+{'traffic': 1220000, 'total_avg_power': 4018.18181818182, 'avg_spectrum_occupied': 0.9047619047619049, 'avg_component_power': {'source': 10.303030303030296, 'detector': 1658.7878787878778, 'other': 2349.0909090909117, 'ice_box': 0.0}}
+
+--- 最终结果（每个 mid 经过 1 次运行后取平均）---
+Protocol: BB84, Bypass: False, Detector: APD, Map: Tokyo
+{'traffic': 1200000, 'total_avg_power': 3923.636363636365, 'avg_spectrum_occupied': 0.7761904761904759, 'avg_component_power': {'source': 10.060606060606053, 'detector': 1619.7575757575748, 'other': 2293.818181818182, 'ice_box': 0.0}}
+
+
+-------------------------------------
+--- 最终结果（每个 mid 经过 1 次运行后取平均）---
+Protocol: BB84, Bypass: True, Detector: APD, Map: Tokyo, Traffic:Medium
+{'traffic': 1200000, 'total_avg_power': 3734.545454545456, 'avg_spectrum_occupied': 0.885714285714286, 'avg_component_power': {'source': 9.575757575757569, 'detector': 1541.6969696969688, 'other': 2183.2727272727298, 'ice_box': 0.0}}
+
+--- 最终结果（每个 mid 经过 1 次运行后取平均）---
+Protocol: BB84, Bypass: True, Detector: APD, Map: Paris, Traffic:Medium
+{'traffic': 100000, 'total_avg_power': 936.0000000000002, 'avg_spectrum_occupied': 0.35000000000000003, 'avg_component_power': {'source': 2.4000000000000004, 'detector': 386.39999999999986, 'other': 547.1999999999999, 'ice_box': 0.0}}
+
+--- 最终结果（每个 mid 经过 1 次运行后取平均）---
+Protocol: BB84, Bypass: True, Detector: APD, Map: Paris, Traffic:Low
+{'traffic': 50000, 'total_avg_power': 595.6363636363637, 'avg_spectrum_occupied': 0.24166666666666664, 'avg_component_power': {'source': 1.5272727272727276, 'detector': 245.89090909090916, 'other': 348.2181818181818, 'ice_box': 0.0}}
+
+--- 最终结果（每个 mid 经过 1 次运行后取平均）---
+Protocol: BB84, Bypass: True, Detector: APD, Map: Tokyo, Traffic:Low
+{'traffic': 600000, 'total_avg_power': 1914.5454545454556, 'avg_spectrum_occupied': 0.4761904761904762, 'avg_component_power': {'source': 4.909090909090906, 'detector': 790.3636363636359, 'other': 1119.2727272727286, 'ice_box': 0.0}}

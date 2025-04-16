@@ -107,7 +107,19 @@ def compute_power(distance, protocol, receiver):
             othercomponentBB84,
         )
         power01 = Experiment01.power()
-        power = power01
+        source_component = [laser]
+        detector_component = [detector]
+        source_power = 0
+        detector_power = 0
+        other_power = 0
+        for source in source_component:
+            source_power = source_power + source.power
+        for detector in detector_component:
+            detector_power = detector_power + detector.power
+        for other in othercomponentBB84:
+            other_power = other_power + other.power
+        power = {'total':power01, 'source':source_power, 'detector':detector_power, 'other':other_power}
+
     if protocol == 'E91':
         Experiment02 = EntanglementBasedExperiment(
             sourcerate,
@@ -122,7 +134,19 @@ def compute_power(distance, protocol, receiver):
             othercomponentE91,
         )
         power02 = Experiment02.power()
-        power = power02
+        source_component = [laserE91]
+        detector_component = [detector, detector]
+        other_component = othercomponentE91
+        source_power = 0
+        detector_power = 0
+        other_power = 0
+        for source in source_component:
+            source_power = source_power + source.power
+        for detector in detector_component:
+            detector_power = detector_power + detector.power
+        for other in other_component:
+            other_power = other_power + other.power
+        power = {'source':source_power, 'detector':detector_power, 'other':other_power, 'total':power02}
     if protocol == 'CV-QKD':
         gigabit = 1e9  # Target number of secret bits
         MJ = 1e6  # Change of scale to megajoules
@@ -165,7 +189,29 @@ def compute_power(distance, protocol, receiver):
         CVQKD_experiment = CVQKDProtocol(
             eta, Vel, beta_GM, sourcerate, source, DetectorHeterodyne1P, xi, dist, "Gauss"
         )
-        power = CVQKD_experiment.power()
+        source_component = [comp.LaserCVPPCL590()]
+        detector_component = [comp.ThorlabsPDB(),
+            comp.ThorlabsPDB()]
+        other_component = [comp.MBC(),
+            comp.DAC(),
+            comp.ThorlabsPowerMeter(),
+            comp.Computer(),
+            comp.ADC(),
+            comp.LaserCVPPCL590(),
+            comp.Computer(),
+            comp.SwitchCVQKD(),
+            comp.PolarizationController()]
+        source_power = 0
+        detector_power = 0
+        other_power = 0
+        for source in source_component:
+            source_power = source_power + source.power
+        for detector in detector_component:
+            detector_power = detector_power + detector.power
+        for other in other_component:
+            other_power = other_power + other.power
+        total_power = CVQKD_experiment.power()
+        power = {'source':source_power, 'detector':detector_power, 'other':other_power, 'total':total_power}
 
 
     return power
@@ -199,3 +245,6 @@ ax1.tick_params(axis="both", which="major")
 ax1.legend(loc="best")
 plt.savefig(EXPORT_DIR / "EE.pdf", format="pdf")
 plt.show()"""
+if __name__ == "__main__":
+    power = compute_power(40, 'E91', 'APD')
+    print(power)

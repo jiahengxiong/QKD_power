@@ -9,6 +9,7 @@ import plotly.graph_objects as go
 
 class Network:
     def __init__(self, map_name, wavelength_list, protocol, receiver):
+        self.num_wavelength = 0
         self.name = f"{map_name} Network"
         self.wavelength_list = wavelength_list
         self.protocol = protocol
@@ -135,6 +136,7 @@ class Network:
     def get_topology(self, map_name):
         G = nx.MultiGraph()
         if map_name == "Tokyo":
+            self.num_wavelength = 0
             edges = [
                 ("Setagaya", "Ota", 12.045),
                 ("Setagaya", "Shinagawa", 9.072),
@@ -160,11 +162,12 @@ class Network:
             ]
             for node1, node2, distance in edges:
                 for wavelength in self.wavelength_list:
+                    self.num_wavelength += 1
                     G.add_edge(node1, node2, distance=distance, key=uuid.uuid4().hex,
                                wavelength=wavelength, laser=0, detector=0,
                                capacity=compute_key_rate(distance=distance, protocol=self.protocol,
                                                          receiver=self.receiver),
-                               used_capacity=0,
+                               used_capacity=0, occupied=False,
                                free_capacity=compute_key_rate(distance=distance, protocol=self.protocol,
                                                               receiver=self.receiver))
 
@@ -177,6 +180,7 @@ class Network:
                     G.nodes[node]['laser'][wavelength] = []
                     G.nodes[node]['laser_capacity'][wavelength] = {}
         if map_name == "Paris":
+            self.num_wavelength = 0
             edges = [
                 ("LKB-2", "LKB", 0.027),
                 ("LKB", "WL", 0.176),
@@ -193,11 +197,12 @@ class Network:
             ]
             for node1, node2, distance in edges:
                 for wavelength in self.wavelength_list:
+                    self.num_wavelength += 1
                     G.add_edge(node1, node2, distance=distance, key=uuid.uuid4().hex,
                                wavelength=wavelength, laser=0, detector=0,
                                capacity=compute_key_rate(distance=distance, protocol=self.protocol,
                                                          receiver=self.receiver),
-                               used_capacity=0,
+                               used_capacity=0, occupied=False,
                                free_capacity=compute_key_rate(distance=distance, protocol=self.protocol,
                                                               receiver=self.receiver))
             for node in G.nodes:
@@ -232,6 +237,7 @@ class Network:
                            138, 81, 56, 100, 86, 71, 65, 79, 52, 82, 86, 82, 27, 120, 95, 102, 80, 60, 64, 104, 66, 53,
                            44, 152,
                            91, 66, 125, 173, 151, 89, 109, 105, 145, 56, 104, 86, 105, 120, 62, 73, 124, 67, 32, 68]"""
+            self.num_wavelength = 0
             edge_list = [
                 (1, 2), (1, 6),
                 (2, 3), (2, 6),
@@ -276,11 +282,12 @@ class Network:
             length_list = [int(round(x)) for x in scaled_list]
             for i in range(len(edge_list)):
                 for wavelength in self.wavelength_list:
+                    self.num_wavelength += 1
                     G.add_edge(edge_list[i][0], edge_list[i][1], distance=length_list[i], key=uuid.uuid4().hex,
                                wavelength=wavelength, laser=0, detector=0,
                                capacity=compute_key_rate(distance=length_list[i], protocol=self.protocol,
                                                          receiver=self.receiver),
-                               used_capacity=0,
+                               used_capacity=0, occupied=False,
                                free_capacity=compute_key_rate(distance=length_list[i], protocol=self.protocol,
                                                               receiver=self.receiver)
                                )
