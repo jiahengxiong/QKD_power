@@ -162,3 +162,6 @@ Protocol: BB84, Bypass: True, Detector: APD, Map: Paris, Traffic:Low
 --- 最终结果（每个 mid 经过 1 次运行后取平均）---
 Protocol: BB84, Bypass: True, Detector: APD, Map: Tokyo, Traffic:Low
 {'traffic': 600000, 'total_avg_power': 1914.5454545454556, 'avg_spectrum_occupied': 0.4761904761904762, 'avg_component_power': {'source': 4.909090909090906, 'detector': 790.3636363636359, 'other': 1119.2727272727286, 'ice_box': 0.0}}
+
+
+---------------------------------------------
