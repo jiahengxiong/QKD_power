@@ -1,0 +1,497 @@
+[PID 68085] Starting processing Protocol: BB84 Bypass:False Topology:Tokyo Traffic Type: High
+mid 4200000 run 1/1:   2%|▏         | 1/66 [00:00<00:08,  7.51it/s][PID 68085] 从 Shinjuku 到 Minato 最优路径(方向: src->dst): [('Shinjuku', 'Minato', '3a098b48dfa94acc88997b2482b5ab3e[1530.0]')], 最小功率: 6916
+1530.0: laser-detector: Shinjuku -> Minato, cover links: ['Shinjuku', 'Minato']
+1530.0: Shinjuku -> Minato with 4199000, 113315.0545056276, 4312315.054505628
+mid 4200000 run 1/1:   3%|▎         | 2/66 [00:00<00:08,  7.16it/s][PID 68085] 从 Chiyoda 到 Minato 最优路径(方向: src->dst): [('Chiyoda', 'Minato', '4843d4c16b814b8f883be26dab824481[1530.0]')], 最小功率: 3916
+1530.0: laser-detector: Chiyoda -> Minato, cover links: ['Chiyoda', 'Minato']
+1530.0: Chiyoda -> Minato with 4199000, 467792.4067911757, 4666792.406791176
+[PID 68085] 从 Chiyoda 到 Shinjuku 最优路径(方向: src->dst): [('Chiyoda', 'Shinjuku', 'b9d6b069bcd6457b8751fbe60d65940d[1530.0]')], 最小功率: 6916
+1530.0: laser-detector: Chiyoda -> Shinjuku, cover links: ['Chiyoda', 'Shinjuku']
+1530.0: Chiyoda -> Shinjuku with 4199000, 374160.90947027877, 4573160.909470279
+mid 4200000 run 1/1:   6%|▌         | 4/66 [00:00<00:08,  7.15it/s][PID 68085] 从 Setagaya 到 Shinjuku 最优路径(方向: src->dst): [('Setagaya', 'Shinjuku', '500aca29b99e41aeb660b75881a568ff[1530.0, 1533.888888888889]')], 最小功率: 7832
+1530.0: laser-detector: Setagaya -> Shinjuku, cover links: ['Setagaya', 'Shinjuku']
+1530.0: Setagaya -> Shinjuku with 4130726.8971914793, 0.0, 4130726.8971914793
+1533.888888888889: laser-detector: Setagaya -> Shinjuku, cover links: ['Setagaya', 'Shinjuku']
+1533.888888888889: Setagaya -> Shinjuku with 68273.10280852066, 4062453.7943829587, 4130726.8971914793
+mid 4200000 run 1/1:   8%|▊         | 5/66 [00:00<00:13,  4.45it/s][PID 68085] 从 Setagaya 到 Minato 最优路径(方向: src->dst): [('Setagaya', 'Minato', 'fc95c87116b24377847d0552655c4e4a[1530.0, 1533.888888888889]')], 最小功率: 7832
+1530.0: laser-detector: Setagaya -> Minato, cover links: ['Setagaya', 'Minato']
+1530.0: Setagaya -> Minato with 3797558.5859824987, 0.0, 3797558.5859824987
+1533.888888888889: laser-detector: Setagaya -> Minato, cover links: ['Setagaya', 'Minato']
+1533.888888888889: Setagaya -> Minato with 401441.4140175013, 3396117.1719649974, 3797558.5859824987
+mid 4200000 run 1/1:   9%|▉         | 6/66 [00:01<00:16,  3.67it/s][PID 68085] 从 Koto 到 Minato 最优路径(方向: src->dst): [('Koto', 'Minato', 'bd64379167c84450bb94ab3beee6d600[1530.0]')], 最小功率: 3916
+1530.0: laser-detector: Koto -> Minato, cover links: ['Koto', 'Minato']
+1530.0: Koto -> Minato with 4199000, 57028.05967129301, 4256028.059671293
+mid 4200000 run 1/1:  11%|█         | 7/66 [00:01<00:17,  3.31it/s][PID 68085] 从 Nerima 到 Shinjuku 最优路径(方向: src->dst): [('Nerima', 'Shinjuku', '23e0809474ac49de8a123705f41e8920[1530.0]')], 最小功率: 3916
+1530.0: laser-detector: Nerima -> Shinjuku, cover links: ['Nerima', 'Shinjuku']
+1530.0: Nerima -> Shinjuku with 4199000, 2868.7495352905244, 4201868.7495352905
+mid 4200000 run 1/1:  12%|█▏        | 8/66 [00:02<00:18,  3.12it/s][PID 68085] 从 Koto 到 Shinjuku 最优路径(方向: src->dst): [('Koto', 'Minato', '1fc8992aa737461087c23d2999925d1e[1530.0, 1533.888888888889]'), ('Minato', 'Shinjuku', '69638faccf0345ef8efe9959035d03b4[1533.888888888889]')], 最小功率: 7832
+1530.0: Koto -> Minato with 57028.05967129301, 0.0, 4256028.059671293
+1533.888888888889: laser-detector: Koto -> Minato, cover links: ['Koto', 'Minato']
+1533.888888888889: Koto -> Minato with 4141971.940328707, 114056.11934258603, 4256028.059671293
+1533.888888888889: laser-detector: Minato -> Shinjuku, cover links: ['Minato', 'Shinjuku']
+1533.888888888889: Minato -> Shinjuku with 4199000, 113315.0545056276, 4312315.054505628
+[PID 68085] 从 Nerima 到 Minato 最优路径(方向: src->dst): [('Nerima', 'Shinjuku', 'dbb1aa040a534fba9d02d6cedabdb136[1530.0, 1533.888888888889]'), ('Shinjuku', 'Minato', 'f7c7a4b73da6410dbb2245f42a1023e3[1530.0, 1537.7777777777778]')], 最小功率: 7832
+1530.0: Nerima -> Shinjuku with 2868.7495352905244, 0.0, 4201868.7495352905
+1533.888888888889: laser-detector: Nerima -> Shinjuku, cover links: ['Nerima', 'Shinjuku']
+1533.888888888889: Nerima -> Shinjuku with 4196131.2504647095, 5737.499070581049, 4201868.7495352905
+1530.0: Shinjuku -> Minato with 113315.0545056276, 0.0, 4312315.054505628
+1537.7777777777778: laser-detector: Shinjuku -> Minato, cover links: ['Shinjuku', 'Minato']
+1537.7777777777778: Shinjuku -> Minato with 4085684.9454943724, 226630.1090112552, 4312315.054505628
+mid 4200000 run 1/1:  15%|█▌        | 10/66 [00:03<00:27,  2.07it/s][PID 68085] 从 Shinagawa 到 Minato 最优路径(方向: src->dst): [('Shinagawa', 'Minato', 'a39490f67877471f8f09456f2a447379[1530.0]')], 最小功率: 3916
+1530.0: laser-detector: Shinagawa -> Minato, cover links: ['Shinagawa', 'Minato']
+1530.0: Shinagawa -> Minato with 4199000, 129430.8384942878, 4328430.838494288
+mid 4200000 run 1/1:  17%|█▋        | 11/66 [00:04<00:32,  1.70it/s][PID 68085] 从 Shinagawa 到 Shinjuku 最优路径(方向: dst->src): [('Shinjuku', 'Minato', 'c791bef74e084025a5deb14f745f9dcc[1537.7777777777778, 1541.6666666666667]'), ('Minato', 'Shinagawa', '9bbceca343b747b98d599a162782ecc0[1533.888888888889]')], 最小功率: 13832
+1537.7777777777778: Shinjuku -> Minato with 226630.1090112552, 0.0, 4312315.054505628
+1541.6666666666667: laser-detector: Shinjuku -> Minato, cover links: ['Shinjuku', 'Minato']
+1541.6666666666667: Shinjuku -> Minato with 3972369.890988745, 339945.1635168828, 4312315.054505628
+1533.888888888889: laser-detector: Minato -> Shinagawa, cover links: ['Minato', 'Shinagawa']
+1533.888888888889: Minato -> Shinagawa with 4199000, 129430.8384942878, 4328430.838494288
+[PID 68085] 从 Itabashi 到 Shinjuku 最优路径(方向: src->dst): [('Itabashi', 'Shinjuku', '3ac2ce7a1d884f7c9aa2a2280d15434a[1530.0]')], 最小功率: 3916
+1530.0: laser-detector: Itabashi -> Shinjuku, cover links: ['Itabashi', 'Shinjuku']
+1530.0: Itabashi -> Shinjuku with 4199000, 12981.767401797697, 4211981.767401798
+mid 4200000 run 1/1:  20%|█▉        | 13/66 [00:07<01:09,  1.31s/it][PID 68085] 从 Itabashi 到 Minato 最优路径(方向: src->dst): [('Itabashi', 'Shinjuku', '5f3b36490f5247d89adb05962b99d7ca[1530.0, 1533.888888888889]'), ('Shinjuku', 'Minato', 'dedae244b5354d88bfb8374caef1c522[1541.6666666666667, 1545.5555555555557]')], 最小功率: 7832
+1530.0: Itabashi -> Shinjuku with 12981.767401797697, 0.0, 4211981.767401798
+1533.888888888889: laser-detector: Itabashi -> Shinjuku, cover links: ['Itabashi', 'Shinjuku']
+1533.888888888889: Itabashi -> Shinjuku with 4186018.2325982023, 25963.534803595394, 4211981.767401798
+1541.6666666666667: Shinjuku -> Minato with 339945.1635168828, 0.0, 4312315.054505628
+1545.5555555555557: laser-detector: Shinjuku -> Minato, cover links: ['Shinjuku', 'Minato']
+1545.5555555555557: Shinjuku -> Minato with 3859054.836483117, 453260.2180225104, 4312315.054505628
+mid 4200000 run 1/1:  21%|██        | 14/66 [00:12<01:58,  2.27s/it][PID 68085] 从 Bunkyo 到 Minato 最优路径(方向: src->dst): [('Bunkyo', 'Chiyoda', '40a50da80b404cb8b6dec655160426bc[1530.0]'), ('Chiyoda', 'Minato', '0e12a94240e34397909e81d198c88867[1530.0, 1533.888888888889]')], 最小功率: 10832
+1530.0: laser-detector: Bunkyo -> Chiyoda, cover links: ['Bunkyo', 'Chiyoda']
+1530.0: Bunkyo -> Chiyoda with 4200000, 948686.9010508126, 5148686.901050813
+1530.0: Chiyoda -> Minato with 467792.4067911757, 0.0, 4666792.406791176
+1533.888888888889: laser-detector: Chiyoda -> Minato, cover links: ['Chiyoda', 'Minato']
+1533.888888888889: Chiyoda -> Minato with 3732207.5932088243, 934584.8135823514, 4666792.406791176
+mid 4200000 run 1/1:  23%|██▎       | 15/66 [00:16<02:27,  2.89s/it][PID 68085] 从 Bunkyo 到 Shinjuku 最优路径(方向: src->delay,dst->delay, 中继: Chiyoda): [('Bunkyo', 'Chiyoda', 'd9f3c77b1c8141058fc34d55b743fcb8[1530.0, 1533.888888888889]'), ('Shinjuku', 'Chiyoda', '6b9a12bf1a2b4581b0a595c756b204f2[1533.888888888889]')], 最小功率: 7832
+1530.0: Bunkyo -> Chiyoda with 948686.9010508126, 0.0, 5148686.901050813
+1533.888888888889: laser-detector: Bunkyo -> Chiyoda, cover links: ['Bunkyo', 'Chiyoda']
+1533.888888888889: Bunkyo -> Chiyoda with 3251313.0989491874, 1897373.8021016251, 5148686.901050813
+1533.888888888889: laser-detector: Shinjuku -> Chiyoda, cover links: ['Shinjuku', 'Chiyoda']
+1533.888888888889: Shinjuku -> Chiyoda with 4200000, 373160.90947027877, 4573160.909470279
+[PID 68085] 从 Edogawa 到 Minato 最优路径(方向: src->dst): [('Edogawa', 'Chiyoda', '41cdd645f7064a40b0d69fd12bbf1cf7[1530.0, 1533.888888888889]'), ('Chiyoda', 'Minato', '542876f83fd04cba9de7035362efbc9f[1533.888888888889, 1537.7777777777778]')], 最小功率: 11748
+1530.0: laser-detector: Edogawa -> Chiyoda, cover links: ['Edogawa', 'Chiyoda']
+1530.0: Edogawa -> Chiyoda with 3556399.0254670978, 0.0, 3556399.0254670978
+1533.888888888889: laser-detector: Edogawa -> Chiyoda, cover links: ['Edogawa', 'Chiyoda']
+1533.888888888889: Edogawa -> Chiyoda with 643600.9745329022, 2912798.0509341955, 3556399.0254670978
+1533.888888888889: Chiyoda -> Minato with 934584.8135823514, 0.0, 4666792.406791176
+1537.7777777777778: laser-detector: Chiyoda -> Minato, cover links: ['Chiyoda', 'Minato']
+1537.7777777777778: Chiyoda -> Minato with 3265415.1864176486, 1401377.2203735271, 4666792.406791176
+mid 4200000 run 1/1:  26%|██▌       | 17/66 [00:24<02:49,  3.46s/it][PID 68085] 从 Edogawa 到 Shinjuku 最优路径(方向: src->delay,dst->delay, 中继: Chiyoda): [('Edogawa', 'Chiyoda', '74359a375bbc41dcbc44bf789e0e2462[1533.888888888889, 1537.7777777777778]'), ('Shinjuku', 'Chiyoda', '9864ffc5ae2b485e9abb0dc864900be6[1533.888888888889, 1537.7777777777778]')], 最小功率: 7832
+1533.888888888889: Edogawa -> Chiyoda with 2912798.0509341955, 0.0, 3556399.0254670978
+1537.7777777777778: laser-detector: Edogawa -> Chiyoda, cover links: ['Edogawa', 'Chiyoda']
+1537.7777777777778: Edogawa -> Chiyoda with 1287201.9490658045, 2269197.0764012933, 3556399.0254670978
+1533.888888888889: Shinjuku -> Chiyoda with 373160.90947027877, 0.0, 4573160.909470279
+1537.7777777777778: laser-detector: Shinjuku -> Chiyoda, cover links: ['Shinjuku', 'Chiyoda']
+1537.7777777777778: Shinjuku -> Chiyoda with 3826839.090529721, 746321.8189405575, 4573160.909470279
+[PID 68085] 从 Ota 到 Minato 最优路径(方向: src->dst): [('Ota', 'Shinagawa', '74422052e2ba4fdea4ef7d24411469a9[1530.0]'), ('Shinagawa', 'Minato', '9d3ed7a736334203add46e8ebdc83f16[1530.0, 1537.7777777777778]')], 最小功率: 7832
+1530.0: laser-detector: Ota -> Shinagawa, cover links: ['Ota', 'Shinagawa']
+1530.0: Ota -> Shinagawa with 4200000, 186947.95932387188, 4386947.959323872
+1530.0: Shinagawa -> Minato with 129430.8384942878, 0.0, 4328430.838494288
+1537.7777777777778: laser-detector: Shinagawa -> Minato, cover links: ['Shinagawa', 'Minato']
+1537.7777777777778: Shinagawa -> Minato with 4070569.161505712, 257861.6769885756, 4328430.838494288
+mid 4200000 run 1/1:  29%|██▉       | 19/66 [00:32<02:45,  3.51s/it][PID 68085] 从 Ota 到 Shinjuku 最优路径(方向: src->delay,dst->delay, 中继: Shinagawa): [('Ota', 'Shinagawa', '19fcab50af5b4962ba4927c733ca5198[1530.0, 1533.888888888889]'), ('Shinjuku', 'Minato', '8ea3b5ee4b0b4367a037e5b1126c623a[1545.5555555555557, 1549.4444444444443]'), ('Minato', 'Shinagawa', 'fdc52e80625b4488aa0093362c648651[1533.888888888889, 1541.6666666666667]')], 最小功率: 11748
+1530.0: Ota -> Shinagawa with 186947.95932387188, 0.0, 4386947.959323872
+1533.888888888889: laser-detector: Ota -> Shinagawa, cover links: ['Ota', 'Shinagawa']
+1533.888888888889: Ota -> Shinagawa with 4013052.040676128, 373895.91864774376, 4386947.959323872
+1545.5555555555557: Shinjuku -> Minato with 453260.2180225104, 0.0, 4312315.054505628
+1549.4444444444443: laser-detector: Shinjuku -> Minato, cover links: ['Shinjuku', 'Minato']
+1549.4444444444443: Shinjuku -> Minato with 3746739.7819774896, 565575.272528138, 4312315.054505628
+1533.888888888889: Minato -> Shinagawa with 129430.8384942878, 0.0, 4328430.838494288
+1541.6666666666667: laser-detector: Minato -> Shinagawa, cover links: ['Minato', 'Shinagawa']
+1541.6666666666667: Minato -> Shinagawa with 4070569.161505712, 257861.6769885756, 4328430.838494288
+mid 4200000 run 1/1:  30%|███       | 20/66 [00:39<03:36,  4.71s/it][PID 68085] 从 Adachi 到 Minato 最优路径(方向: src->dst): [('Adachi', 'Bunkyo', '31ae3a83bee54ebaba4a872b6f5f9f45[1530.0, 1533.888888888889]'), ('Bunkyo', 'Chiyoda', 'ed22678a0366421ea3a2c6142369f91e[1533.888888888889, 1537.7777777777778]'), ('Chiyoda', 'Minato', 'c9f639562e7247f3bfeacc96982d2a5a[1537.7777777777778, 1541.6666666666667]')], 最小功率: 21664
+1530.0: laser-detector: Adachi -> Bunkyo, cover links: ['Adachi', 'Bunkyo']
+1530.0: Adachi -> Bunkyo with 3836157.968157914, 0.0, 3836157.968157914
+1533.888888888889: laser-detector: Adachi -> Bunkyo, cover links: ['Adachi', 'Bunkyo']
+1533.888888888889: Adachi -> Bunkyo with 363842.031842086, 3472315.936315828, 3836157.968157914
+1533.888888888889: Bunkyo -> Chiyoda with 1897373.8021016251, 0.0, 5148686.901050813
+1537.7777777777778: laser-detector: Bunkyo -> Chiyoda, cover links: ['Bunkyo', 'Chiyoda']
+1537.7777777777778: Bunkyo -> Chiyoda with 2302626.197898375, 2846060.7031524377, 5148686.901050813
+1537.7777777777778: Chiyoda -> Minato with 1401377.2203735271, 0.0, 4666792.406791176
+1541.6666666666667: laser-detector: Chiyoda -> Minato, cover links: ['Chiyoda', 'Minato']
+1541.6666666666667: Chiyoda -> Minato with 2798622.779626473, 1868169.6271647029, 4666792.406791176
+mid 4200000 run 1/1:  32%|███▏      | 21/66 [00:46<04:03,  5.41s/it][PID 68085] 从 Adachi 到 Shinjuku 最优路径(方向: src->delay,dst->delay, 中继: Bunkyo): [('Adachi', 'Bunkyo', '9493d1d1b79f4cddbc7a6a0a1f85f9b3[1533.888888888889, 1537.7777777777778]'), ('Shinjuku', 'Chiyoda', 'e9b12fcabb0e4630858b69347379c0f1[1537.7777777777778, 1541.6666666666667]'), ('Chiyoda', 'Bunkyo', '638738083485422a9f9a9998fd2943fd[1541.6666666666667]')], 最小功率: 14748
+1533.888888888889: Adachi -> Bunkyo with 3472315.936315828, 0.0, 3836157.968157914
+1537.7777777777778: laser-detector: Adachi -> Bunkyo, cover links: ['Adachi', 'Bunkyo']
+1537.7777777777778: Adachi -> Bunkyo with 727684.063684172, 3108473.904473742, 3836157.968157914
+1537.7777777777778: Shinjuku -> Chiyoda with 746321.8189405575, 0.0, 4573160.909470279
+1541.6666666666667: laser-detector: Shinjuku -> Chiyoda, cover links: ['Shinjuku', 'Chiyoda']
+1541.6666666666667: Shinjuku -> Chiyoda with 3453678.1810594425, 1119482.7284108363, 4573160.909470279
+1541.6666666666667: laser-detector: Chiyoda -> Bunkyo, cover links: ['Chiyoda', 'Bunkyo']
+1541.6666666666667: Chiyoda -> Bunkyo with 4200000, 948686.9010508126, 5148686.901050813
+[PID 68085] 从 Setagaya 到 Chiyoda 最优路径(方向: src->dst): [('Setagaya', 'Minato', 'a7723766efbc49c88dc51fd620f8482d[1533.888888888889, 1537.7777777777778]'), ('Minato', 'Chiyoda', 'a20bd54f55ee420e890748517e659434[1545.5555555555557]')], 最小功率: 7832
+1533.888888888889: Setagaya -> Minato with 3396117.1719649974, 0.0, 3797558.5859824987
+1537.7777777777778: laser-detector: Setagaya -> Minato, cover links: ['Setagaya', 'Minato']
+1537.7777777777778: Setagaya -> Minato with 803882.8280350026, 2993675.757947496, 3797558.5859824987
+1545.5555555555557: laser-detector: Minato -> Chiyoda, cover links: ['Minato', 'Chiyoda']
+1545.5555555555557: Minato -> Chiyoda with 4200000, 466792.4067911757, 4666792.406791176
+mid 4200000 run 1/1:  35%|███▍      | 23/66 [00:59<04:18,  6.00s/it][PID 68085] 从 Koto 到 Chiyoda 最优路径(方向: src->dst): [('Koto', 'Chiyoda', '085cb4c3fa4140caacfc4c0eb3a4aba2[1530.0]')], 最小功率: 3916
+1530.0: laser-detector: Koto -> Chiyoda, cover links: ['Koto', 'Chiyoda']
+1530.0: Koto -> Chiyoda with 4200000, 46689.24765844084, 4246689.247658441
+mid 4200000 run 1/1:  36%|███▋      | 24/66 [01:06<04:18,  6.16s/it][PID 68085] 从 Nerima 到 Chiyoda 最优路径(方向: src->dst): [('Nerima', 'Shinjuku', '4c9b33c0531a494a9db188f782f63dfd[1533.888888888889, 1537.7777777777778]'), ('Shinjuku', 'Chiyoda', '3180530ba65f4baebb7c178da47fe7a9[1541.6666666666667, 1545.5555555555557]')], 最小功率: 10832
+1533.888888888889: Nerima -> Shinjuku with 5737.499070581049, 0.0, 4201868.7495352905
+1537.7777777777778: laser-detector: Nerima -> Shinjuku, cover links: ['Nerima', 'Shinjuku']
+1537.7777777777778: Nerima -> Shinjuku with 4194262.500929419, 7606.248605871573, 4201868.7495352905
+1541.6666666666667: Shinjuku -> Chiyoda with 1119482.7284108363, 0.0, 4573160.909470279
+1545.5555555555557: laser-detector: Shinjuku -> Chiyoda, cover links: ['Shinjuku', 'Chiyoda']
+1545.5555555555557: Shinjuku -> Chiyoda with 3080517.2715891637, 1492643.637881115, 4573160.909470279
+[PID 68085] 从 Shinagawa 到 Chiyoda 最优路径(方向: src->dst): [('Shinagawa', 'Minato', 'ae9c5a21b31044aab8650ff6a30f060b[1537.7777777777778, 1545.5555555555557]'), ('Minato', 'Chiyoda', 'b707e15982be4fd8986777332a6b99a4[1545.5555555555557, 1549.4444444444443]')], 最小功率: 10832
+1537.7777777777778: Shinagawa -> Minato with 257861.6769885756, 0.0, 4328430.838494288
+1545.5555555555557: laser-detector: Shinagawa -> Minato, cover links: ['Shinagawa', 'Minato']
+1545.5555555555557: Shinagawa -> Minato with 3942138.3230114244, 386292.5154828634, 4328430.838494288
+1545.5555555555557: Minato -> Chiyoda with 466792.4067911757, 0.0, 4666792.406791176
+1549.4444444444443: laser-detector: Minato -> Chiyoda, cover links: ['Minato', 'Chiyoda']
+1549.4444444444443: Minato -> Chiyoda with 3733207.5932088243, 933584.8135823514, 4666792.406791176
+mid 4200000 run 1/1:  39%|███▉      | 26/66 [01:18<04:08,  6.21s/it][PID 68085] 从 Itabashi 到 Chiyoda 最优路径(方向: src->dst): [('Itabashi', 'Bunkyo', '1e86a2d143154d729464016655f855d2[1530.0]'), ('Bunkyo', 'Chiyoda', 'cbcbb9b9feb949b18f89283f0403cfbe[1537.7777777777778, 1545.5555555555557]')], 最小功率: 7832
+1530.0: laser-detector: Itabashi -> Bunkyo, cover links: ['Itabashi', 'Bunkyo']
+1530.0: Itabashi -> Bunkyo with 4200000, 48273.63800746109, 4248273.638007461
+1537.7777777777778: Bunkyo -> Chiyoda with 2846060.7031524377, 0.0, 5148686.901050813
+1545.5555555555557: laser-detector: Bunkyo -> Chiyoda, cover links: ['Bunkyo', 'Chiyoda']
+1545.5555555555557: Bunkyo -> Chiyoda with 1353939.2968475623, 3794747.6042032503, 5148686.901050813
+mid 4200000 run 1/1:  41%|████      | 27/66 [01:24<04:00,  6.18s/it][PID 68085] 从 Bunkyo 到 Chiyoda 最优路径(方向: src->dst): [('Bunkyo', 'Chiyoda', '441bded6ae014ed0a77679e111c06f2a[1545.5555555555557, 1549.4444444444443]')], 最小功率: 3916
+1545.5555555555557: Bunkyo -> Chiyoda with 3794747.6042032503, 0.0, 5148686.901050813
+1549.4444444444443: laser-detector: Bunkyo -> Chiyoda, cover links: ['Bunkyo', 'Chiyoda']
+1549.4444444444443: Bunkyo -> Chiyoda with 405252.39579674974, 4743434.505254063, 5148686.901050813
+[PID 68085] 从 Edogawa 到 Chiyoda 最优路径(方向: src->dst): [('Edogawa', 'Chiyoda', '40e03dbe0d8544ecb36275ddd1871a9b[1537.7777777777778, 1541.6666666666667]')], 最小功率: 3916
+1537.7777777777778: Edogawa -> Chiyoda with 2269197.0764012933, 0.0, 3556399.0254670978
+1541.6666666666667: laser-detector: Edogawa -> Chiyoda, cover links: ['Edogawa', 'Chiyoda']
+1541.6666666666667: Edogawa -> Chiyoda with 1930802.9235987067, 1625596.101868391, 3556399.0254670978
+mid 4200000 run 1/1:  44%|████▍     | 29/66 [01:37<03:46,  6.12s/it][PID 68085] 从 Ota 到 Chiyoda 最优路径(方向: src->delay,dst->delay, 中继: Shinagawa): [('Ota', 'Shinagawa', 'ee4497767d2f45d2a51b31ec29fbb0cb[1533.888888888889, 1537.7777777777778]'), ('Chiyoda', 'Minato', 'bd5ebf38bfde42c694721d01b88926ce[1541.6666666666667, 1553.3333333333333]'), ('Minato', 'Shinagawa', '2c1978431eb544709b45c3ba5efaddea[1541.6666666666667, 1549.4444444444443]')], 最小功率: 11748
+1533.888888888889: Ota -> Shinagawa with 373895.91864774376, 0.0, 4386947.959323872
+1537.7777777777778: laser-detector: Ota -> Shinagawa, cover links: ['Ota', 'Shinagawa']
+1537.7777777777778: Ota -> Shinagawa with 3826104.0813522562, 560843.8779716156, 4386947.959323872
+1541.6666666666667: Chiyoda -> Minato with 1868169.6271647029, 0.0, 4666792.406791176
+1553.3333333333333: laser-detector: Chiyoda -> Minato, cover links: ['Chiyoda', 'Minato']
+1553.3333333333333: Chiyoda -> Minato with 2331830.372835297, 2334962.0339558786, 4666792.406791176
+1541.6666666666667: Minato -> Shinagawa with 257861.6769885756, 0.0, 4328430.838494288
+1549.4444444444443: laser-detector: Minato -> Shinagawa, cover links: ['Minato', 'Shinagawa']
+1549.4444444444443: Minato -> Shinagawa with 3942138.3230114244, 386292.5154828634, 4328430.838494288
+[PID 68085] 从 Adachi 到 Chiyoda 最优路径(方向: src->dst): [('Adachi', 'Bunkyo', 'b31919f5cd4d4103a04fb73d011eb677[1537.7777777777778, 1541.6666666666667]'), ('Bunkyo', 'Chiyoda', '0aa7d864d23847a79ceecabf88521001[1549.4444444444443]')], 最小功率: 3916
+1537.7777777777778: Adachi -> Bunkyo with 3108473.904473742, 0.0, 3836157.968157914
+1541.6666666666667: laser-detector: Adachi -> Bunkyo, cover links: ['Adachi', 'Bunkyo']
+1541.6666666666667: Adachi -> Bunkyo with 1091526.095526258, 2744631.872631656, 3836157.968157914
+1549.4444444444443: Bunkyo -> Chiyoda with 4200000, 543434.5052540628, 5148686.901050813
+mid 4200000 run 1/1:  47%|████▋     | 31/66 [02:02<05:35,  9.59s/it][PID 68085] 从 Nerima 到 Setagaya 最优路径(方向: src->delay,dst->delay, 中继: Shinjuku): [('Nerima', 'Shinjuku', 'd1274f2bce9d451e9c0a128aa1d59124[1537.7777777777778, 1541.6666666666667]'), ('Setagaya', 'Shinjuku', 'e20f16d4ce4b4ac897b5ea8023552143[1533.888888888889, 1537.7777777777778]')], 最小功率: 7832
+1537.7777777777778: Nerima -> Shinjuku with 7606.248605871573, 0.0, 4201868.7495352905
+1541.6666666666667: laser-detector: Nerima -> Shinjuku, cover links: ['Nerima', 'Shinjuku']
+1541.6666666666667: Nerima -> Shinjuku with 4192393.7513941284, 9474.998141162097, 4201868.7495352905
+1533.888888888889: Setagaya -> Shinjuku with 4062453.7943829587, 0.0, 4130726.8971914793
+1537.7777777777778: laser-detector: Setagaya -> Shinjuku, cover links: ['Setagaya', 'Shinjuku']
+1537.7777777777778: Setagaya -> Shinjuku with 137546.20561704133, 3993180.691574438, 4130726.8971914793
+mid 4200000 run 1/1:  48%|████▊     | 32/66 [02:15<05:55, 10.45s/it][PID 68085] 从 Koto 到 Setagaya 最优路径(方向: src->delay,dst->delay, 中继: Minato): [('Koto', 'Minato', '6f4ca722880e405e8c73e48f2db10e7a[1533.888888888889, 1537.7777777777778]'), ('Setagaya', 'Minato', '79bcedcda22340dab6e0ce2fbed79fa2[1537.7777777777778, 1541.6666666666667]')], 最小功率: 7832
+1533.888888888889: Koto -> Minato with 114056.11934258603, 0.0, 4256028.059671293
+1537.7777777777778: laser-detector: Koto -> Minato, cover links: ['Koto', 'Minato']
+1537.7777777777778: Koto -> Minato with 4085943.880657414, 170084.17901387904, 4256028.059671293
+1537.7777777777778: Setagaya -> Minato with 2993675.757947496, 0.0, 3797558.5859824987
+1541.6666666666667: laser-detector: Setagaya -> Minato, cover links: ['Setagaya', 'Minato']
+1541.6666666666667: Setagaya -> Minato with 1206324.2420525039, 2591234.343929995, 3797558.5859824987
+[PID 68085] 从 Shinagawa 到 Setagaya 最优路径(方向: dst->src): [('Setagaya', 'Shinagawa', '62fa53bf16324d16b2bcab1bff634675[1530.0, 1533.888888888889]')], 最小功率: 7832
+1530.0: laser-detector: Setagaya -> Shinagawa, cover links: ['Setagaya', 'Shinagawa']
+1530.0: Setagaya -> Shinagawa with 3937481.10351759, 0.0, 3937481.10351759
+1533.888888888889: laser-detector: Setagaya -> Shinagawa, cover links: ['Setagaya', 'Shinagawa']
+1533.888888888889: Setagaya -> Shinagawa with 262518.8964824099, 3674962.20703518, 3937481.10351759
+mid 4200000 run 1/1:  52%|█████▏    | 34/66 [02:38<05:52, 11.01s/it][PID 68085] 从 Itabashi 到 Setagaya 最优路径(方向: src->delay,dst->delay, 中继: Shinjuku): [('Itabashi', 'Shinjuku', 'd36a14480b3a4f73a18be7fe4b2c1d15[1533.888888888889, 1537.7777777777778]'), ('Setagaya', 'Shinjuku', '23222a7fc1b6438d972b26f52a94a82a[1537.7777777777778, 1541.6666666666667]')], 最小功率: 7832
+1533.888888888889: Itabashi -> Shinjuku with 25963.534803595394, 0.0, 4211981.767401798
+1537.7777777777778: laser-detector: Itabashi -> Shinjuku, cover links: ['Itabashi', 'Shinjuku']
+1537.7777777777778: Itabashi -> Shinjuku with 4174036.4651964046, 37945.30220539309, 4211981.767401798
+1537.7777777777778: Setagaya -> Shinjuku with 3993180.691574438, 0.0, 4130726.8971914793
+1541.6666666666667: laser-detector: Setagaya -> Shinjuku, cover links: ['Setagaya', 'Shinjuku']
+1541.6666666666667: Setagaya -> Shinjuku with 206819.308425562, 3923907.5887659173, 4130726.8971914793
+[PID 68085] 从 Bunkyo 到 Setagaya 最优路径(方向: dst->src): [('Setagaya', 'Shinjuku', 'f0033b1448674c25a92f033940f60108[1541.6666666666667, 1545.5555555555557]'), ('Shinjuku', 'Chiyoda', 'df1998bb9ea144be8f17adc338736403[1545.5555555555557, 1549.4444444444443]'), ('Chiyoda', 'Bunkyo', 'a44838ed4c394dd588938befb5545ad8[1541.6666666666667, 1553.3333333333333]')], 最小功率: 14748
+1541.6666666666667: Setagaya -> Shinjuku with 3923907.5887659173, 0.0, 4130726.8971914793
+1545.5555555555557: laser-detector: Setagaya -> Shinjuku, cover links: ['Setagaya', 'Shinjuku']
+1545.5555555555557: Setagaya -> Shinjuku with 276092.41123408265, 3854634.4859573967, 4130726.8971914793
+1545.5555555555557: Shinjuku -> Chiyoda with 1492643.637881115, 0.0, 4573160.909470279
+1549.4444444444443: laser-detector: Shinjuku -> Chiyoda, cover links: ['Shinjuku', 'Chiyoda']
+1549.4444444444443: Shinjuku -> Chiyoda with 2707356.362118885, 1865804.5473513938, 4573160.909470279
+1541.6666666666667: Chiyoda -> Bunkyo with 948686.9010508126, 0.0, 5148686.901050813
+1553.3333333333333: laser-detector: Chiyoda -> Bunkyo, cover links: ['Chiyoda', 'Bunkyo']
+1553.3333333333333: Chiyoda -> Bunkyo with 3251313.0989491874, 1897373.8021016251, 5148686.901050813
+mid 4200000 run 1/1:  55%|█████▍    | 36/66 [03:00<05:25, 10.85s/it][PID 68085] 从 Edogawa 到 Setagaya 最优路径(方向: src->delay,dst->delay, 中继: Minato): [('Edogawa', 'Chiyoda', '638486c9173d4896b067996596f3f557[1541.6666666666667, 1545.5555555555557]'), ('Chiyoda', 'Minato', '051b80162c894e86b56adaa339438680[1553.3333333333333, 1557.2222222222222]'), ('Setagaya', 'Minato', '8ba28eb75e314292992093f7c286ff89[1541.6666666666667, 1545.5555555555557]')], 最小功率: 11748
+1541.6666666666667: Edogawa -> Chiyoda with 1625596.101868391, 0.0, 3556399.0254670978
+1545.5555555555557: laser-detector: Edogawa -> Chiyoda, cover links: ['Edogawa', 'Chiyoda']
+1545.5555555555557: Edogawa -> Chiyoda with 2574403.898131609, 981995.1273354888, 3556399.0254670978
+1553.3333333333333: Chiyoda -> Minato with 2334962.0339558786, 0.0, 4666792.406791176
+1557.2222222222222: laser-detector: Chiyoda -> Minato, cover links: ['Chiyoda', 'Minato']
+1557.2222222222222: Chiyoda -> Minato with 1865037.9660441214, 2801754.4407470543, 4666792.406791176
+1541.6666666666667: Setagaya -> Minato with 2591234.343929995, 0.0, 3797558.5859824987
+1545.5555555555557: laser-detector: Setagaya -> Minato, cover links: ['Setagaya', 'Minato']
+1545.5555555555557: Setagaya -> Minato with 1608765.6560700051, 2188792.9299124936, 3797558.5859824987
+mid 4200000 run 1/1:  56%|█████▌    | 37/66 [03:22<06:58, 14.42s/it][PID 68085] 从 Ota 到 Setagaya 最优路径(方向: src->dst): [('Ota', 'Setagaya', 'e2e61df5142349d9ae589252e7ed9183[1530.0, 1533.888888888889]')], 最小功率: 13832
+1530.0: laser-detector: Ota -> Setagaya, cover links: ['Ota', 'Setagaya']
+1530.0: Ota -> Setagaya with 3481003.681291051, 0.0, 3481003.681291051
+1533.888888888889: laser-detector: Ota -> Setagaya, cover links: ['Ota', 'Setagaya']
+1533.888888888889: Ota -> Setagaya with 718996.3187089488, 2762007.3625821024, 3481003.681291051
+[PID 68085] 从 Adachi 到 Setagaya 最优路径(方向: src->delay,dst->delay, 中继: Minato): [('Adachi', 'Bunkyo', '78629a61b6254d95a1548d12adb6172a[1541.6666666666667, 1545.5555555555557]'), ('Bunkyo', 'Chiyoda', 'ff5e80f880df456d982bfaf40212444d[1549.4444444444443, 1557.2222222222222]'), ('Chiyoda', 'Minato', '122e943d385c446b87d7c67bfbc16f4c[1557.2222222222222, 1561.111111111111]'), ('Setagaya', 'Minato', '72e6e1a136224d89bbaae5f6dd20b3c6[1545.5555555555557, 1549.4444444444443]')], 最小功率: 15664
+1541.6666666666667: Adachi -> Bunkyo with 2744631.872631656, 0.0, 3836157.968157914
+1545.5555555555557: laser-detector: Adachi -> Bunkyo, cover links: ['Adachi', 'Bunkyo']
+1545.5555555555557: Adachi -> Bunkyo with 1455368.127368344, 2380789.84078957, 3836157.968157914
+1549.4444444444443: Bunkyo -> Chiyoda with 543434.5052540628, 0.0, 5148686.901050813
+1557.2222222222222: laser-detector: Bunkyo -> Chiyoda, cover links: ['Bunkyo', 'Chiyoda']
+1557.2222222222222: Bunkyo -> Chiyoda with 3656565.494745937, 1492121.4063048754, 5148686.901050813
+1557.2222222222222: Chiyoda -> Minato with 2801754.4407470543, 0.0, 4666792.406791176
+1561.111111111111: laser-detector: Chiyoda -> Minato, cover links: ['Chiyoda', 'Minato']
+1561.111111111111: Chiyoda -> Minato with 1398245.5592529457, 3268546.84753823, 4666792.406791176
+1545.5555555555557: Setagaya -> Minato with 2188792.9299124936, 0.0, 3797558.5859824987
+1549.4444444444443: laser-detector: Setagaya -> Minato, cover links: ['Setagaya', 'Minato']
+1549.4444444444443: Setagaya -> Minato with 2011207.0700875064, 1786351.5158949923, 3797558.5859824987
+mid 4200000 run 1/1:  59%|█████▉    | 39/66 [04:05<08:06, 18.00s/it][PID 68085] 从 Koto 到 Nerima 最优路径(方向: src->delay,dst->delay, 中继: Shinjuku): [('Koto', 'Chiyoda', '7018acb7872c4278b6c7f95490acb2d1[1530.0, 1533.888888888889]'), ('Chiyoda', 'Shinjuku', '28090a68f77d4b1fb7c531a00b368377[1530.0, 1553.3333333333333]'), ('Nerima', 'Shinjuku', '82e09fa86eea4a0e8cdacb58c476eb75[1541.6666666666667, 1545.5555555555557]')], 最小功率: 11748
+1530.0: Koto -> Chiyoda with 46689.24765844084, 0.0, 4246689.247658441
+1533.888888888889: laser-detector: Koto -> Chiyoda, cover links: ['Koto', 'Chiyoda']
+1533.888888888889: Koto -> Chiyoda with 4153310.752341559, 93378.49531688169, 4246689.247658441
+1530.0: Chiyoda -> Shinjuku with 374160.90947027877, 0.0, 4573160.909470279
+1553.3333333333333: laser-detector: Chiyoda -> Shinjuku, cover links: ['Chiyoda', 'Shinjuku']
+1553.3333333333333: Chiyoda -> Shinjuku with 3825839.090529721, 747321.8189405575, 4573160.909470279
+1541.6666666666667: Nerima -> Shinjuku with 9474.998141162097, 0.0, 4201868.7495352905
+1545.5555555555557: laser-detector: Nerima -> Shinjuku, cover links: ['Nerima', 'Shinjuku']
+1545.5555555555557: Nerima -> Shinjuku with 4190525.001858838, 11343.747676452622, 4201868.7495352905
+[PID 68085] 从 Shinagawa 到 Koto 最优路径(方向: src->dst): [('Shinagawa', 'Minato', '5c86281323144296ae7f598e73369bc1[1545.5555555555557, 1553.3333333333333]'), ('Minato', 'Koto', '79d9f53f105343429dc282d6ce16864e[1541.6666666666667]')], 最小功率: 13832
+1545.5555555555557: Shinagawa -> Minato with 386292.5154828634, 0.0, 4328430.838494288
+1553.3333333333333: laser-detector: Shinagawa -> Minato, cover links: ['Shinagawa', 'Minato']
+1553.3333333333333: Shinagawa -> Minato with 3813707.4845171366, 514723.3539771512, 4328430.838494288
+1541.6666666666667: laser-detector: Minato -> Koto, cover links: ['Minato', 'Koto']
+1541.6666666666667: Minato -> Koto with 4200000, 56028.05967129301, 4256028.059671293
+mid 4200000 run 1/1:  62%|██████▏   | 41/66 [04:45<07:53, 18.92s/it][PID 68085] 从 Shinagawa 到 Nerima 最优路径(方向: dst->src): [('Nerima', 'Setagaya', '2c349e1d0dc64bf3a68e5c0765c839fc[1530.0, 1533.888888888889]'), ('Setagaya', 'Shinagawa', '54e44db01cf1444abe8063e068e09e00[1533.888888888889, 1537.7777777777778]')], 最小功率: 14748
+1530.0: laser-detector: Nerima -> Setagaya, cover links: ['Nerima', 'Setagaya']
+1530.0: Nerima -> Setagaya with 3652451.7086666976, 0.0, 3652451.7086666976
+1533.888888888889: laser-detector: Nerima -> Setagaya, cover links: ['Nerima', 'Setagaya']
+1533.888888888889: Nerima -> Setagaya with 547548.2913333024, 3104903.417333395, 3652451.7086666976
+1533.888888888889: Setagaya -> Shinagawa with 3674962.20703518, 0.0, 3937481.10351759
+1537.7777777777778: laser-detector: Setagaya -> Shinagawa, cover links: ['Setagaya', 'Shinagawa']
+1537.7777777777778: Setagaya -> Shinagawa with 525037.7929648198, 3412443.3105527703, 3937481.10351759
+mid 4200000 run 1/1:  64%|██████▎   | 42/66 [05:03<07:26, 18.62s/it][PID 68085] 从 Itabashi 到 Nerima 最优路径(方向: src->dst): [('Itabashi', 'Nerima', '5958f41b9fca49859039c598172c80ef[1530.0]')], 最小功率: 6916
+1530.0: laser-detector: Itabashi -> Nerima, cover links: ['Itabashi', 'Nerima']
+1530.0: Itabashi -> Nerima with 4200000, 209369.38676315825, 4409369.386763158
+[PID 68085] 从 Itabashi 到 Koto 最优路径(方向: src->delay,dst->delay, 中继: Chiyoda): [('Itabashi', 'Bunkyo', 'a22ab7c44ccf44a08be832859dee7746[1530.0, 1533.888888888889]'), ('Bunkyo', 'Chiyoda', '841fd72a9b3e42cb92a322b631a44fe3[1557.2222222222222, 1561.111111111111]'), ('Koto', 'Chiyoda', 'dd81ba6b4088431fadf1ae6e27b4959a[1533.888888888889, 1537.7777777777778]')], 最小功率: 14748
+1530.0: Itabashi -> Bunkyo with 48273.63800746109, 0.0, 4248273.638007461
+1533.888888888889: laser-detector: Itabashi -> Bunkyo, cover links: ['Itabashi', 'Bunkyo']
+1533.888888888889: Itabashi -> Bunkyo with 4151726.361992539, 96547.27601492219, 4248273.638007461
+1557.2222222222222: Bunkyo -> Chiyoda with 1492121.4063048754, 0.0, 5148686.901050813
+1561.111111111111: laser-detector: Bunkyo -> Chiyoda, cover links: ['Bunkyo', 'Chiyoda']
+1561.111111111111: Bunkyo -> Chiyoda with 2707878.5936951246, 2440808.307355688, 5148686.901050813
+1533.888888888889: Koto -> Chiyoda with 93378.49531688169, 0.0, 4246689.247658441
+1537.7777777777778: laser-detector: Koto -> Chiyoda, cover links: ['Koto', 'Chiyoda']
+1537.7777777777778: Koto -> Chiyoda with 4106621.5046831183, 140067.74297532253, 4246689.247658441
+mid 4200000 run 1/1:  67%|██████▋   | 44/66 [05:36<06:26, 17.56s/it][PID 68085] 从 Edogawa 到 Koto 最优路径(方向: src->dst): [('Edogawa', 'Koto', '80eddf55f40b40b092a1cf9cf6c02acb[1530.0]')], 最小功率: 3916
+1530.0: laser-detector: Edogawa -> Koto, cover links: ['Edogawa', 'Koto']
+1530.0: Edogawa -> Koto with 4200000, 114102.72996971942, 4314102.729969719
+[PID 68085] 从 Bunkyo 到 Koto 最优路径(方向: src->dst): [('Bunkyo', 'Chiyoda', '82b2cb69e41648519d1732ee2e44f4f9[1553.3333333333333, 1561.111111111111]'), ('Chiyoda', 'Koto', 'd8be33197b354807b376fc1baa11bbb0[1541.6666666666667]')], 最小功率: 7832
+1553.3333333333333: laser-detector: Bunkyo -> Chiyoda, cover links: ['Bunkyo', 'Chiyoda']
+1553.3333333333333: Bunkyo -> Chiyoda with 1897373.8021016251, 0.0, 5148686.901050813
+1561.111111111111: Bunkyo -> Chiyoda with 2302626.197898375, 138182.10945731308, 5148686.901050813
+1541.6666666666667: laser-detector: Chiyoda -> Koto, cover links: ['Chiyoda', 'Koto']
+1541.6666666666667: Chiyoda -> Koto with 4200000, 46689.24765844084, 4246689.247658441
+mid 4200000 run 1/1:  70%|██████▉   | 46/66 [06:26<07:20, 22.03s/it][PID 68085] 从 Bunkyo 到 Nerima 最优路径(方向: src->dst): [('Bunkyo', 'Itabashi', '253c56232b7a4a44997bc5d92269c299[1537.7777777777778]'), ('Itabashi', 'Nerima', '99fa9f80a1e644b2b1154c5f8a588915[1530.0, 1533.888888888889]')], 最小功率: 10832
+1537.7777777777778: laser-detector: Bunkyo -> Itabashi, cover links: ['Bunkyo', 'Itabashi']
+1537.7777777777778: Bunkyo -> Itabashi with 4200000, 48273.63800746109, 4248273.638007461
+1530.0: Itabashi -> Nerima with 209369.38676315825, 0.0, 4409369.386763158
+1533.888888888889: laser-detector: Itabashi -> Nerima, cover links: ['Itabashi', 'Nerima']
+1533.888888888889: Itabashi -> Nerima with 3990630.6132368417, 418738.7735263165, 4409369.386763158
+[PID 68085] 从 Edogawa 到 Nerima 最优路径(方向: src->dst): [('Edogawa', 'Chiyoda', 'bbf72a8056c54c369318565b898e79cc[1545.5555555555557, 1549.4444444444443]'), ('Chiyoda', 'Shinjuku', '241df476138a4cfbadd3873b319db4ba[1553.3333333333333, 1557.2222222222222]'), ('Shinjuku', 'Nerima', '9b44d144aa5e4448a5d7292008f26bde[1549.4444444444443]')], 最小功率: 14748
+1545.5555555555557: Edogawa -> Chiyoda with 981995.1273354888, 0.0, 3556399.0254670978
+1549.4444444444443: laser-detector: Edogawa -> Chiyoda, cover links: ['Edogawa', 'Chiyoda']
+1549.4444444444443: Edogawa -> Chiyoda with 3218004.872664511, 338394.15280258656, 3556399.0254670978
+1553.3333333333333: Chiyoda -> Shinjuku with 747321.8189405575, 0.0, 4573160.909470279
+1557.2222222222222: laser-detector: Chiyoda -> Shinjuku, cover links: ['Chiyoda', 'Shinjuku']
+1557.2222222222222: Chiyoda -> Shinjuku with 3452678.1810594425, 1120482.7284108363, 4573160.909470279
+1549.4444444444443: laser-detector: Shinjuku -> Nerima, cover links: ['Shinjuku', 'Nerima']
+1549.4444444444443: Shinjuku -> Nerima with 4200000, 1868.7495352905244, 4201868.7495352905
+mid 4200000 run 1/1:  73%|███████▎  | 48/66 [07:28<08:01, 26.75s/it][PID 68085] 从 Ota 到 Nerima 最优路径(方向: src->delay,dst->delay, 中继: Setagaya): [('Ota', 'Setagaya', '7cf1592fb1584a3aa41c8590c64624fb[1533.888888888889, 1537.7777777777778]'), ('Nerima', 'Setagaya', '15278d588c93490d93fb94956eaf2ef8[1533.888888888889, 1537.7777777777778]')], 最小功率: 7832
+1533.888888888889: Ota -> Setagaya with 2762007.3625821024, 0.0, 3481003.681291051
+1537.7777777777778: laser-detector: Ota -> Setagaya, cover links: ['Ota', 'Setagaya']
+1537.7777777777778: Ota -> Setagaya with 1437992.6374178976, 2043011.0438731536, 3481003.681291051
+1533.888888888889: Nerima -> Setagaya with 3104903.417333395, 0.0, 3652451.7086666976
+1537.7777777777778: laser-detector: Nerima -> Setagaya, cover links: ['Nerima', 'Setagaya']
+1537.7777777777778: Nerima -> Setagaya with 1095096.5826666048, 2557355.126000093, 3652451.7086666976
+[PID 68085] 从 Ota 到 Koto 最优路径(方向: src->dst): [('Ota', 'Setagaya', '49d25bfb039a46419eb02e45827a5d39[1537.7777777777778, 1541.6666666666667]'), ('Setagaya', 'Minato', '43844bae4b9d4bfe8aa6ff31e6734607[1549.4444444444443, 1553.3333333333333]'), ('Minato', 'Koto', '1fb2d6c6c4b74379943e3682e5b09bbe[1541.6666666666667, 1545.5555555555557]')], 最小功率: 11748
+1537.7777777777778: Ota -> Setagaya with 2043011.0438731536, 0.0, 3481003.681291051
+1541.6666666666667: laser-detector: Ota -> Setagaya, cover links: ['Ota', 'Setagaya']
+1541.6666666666667: Ota -> Setagaya with 2156988.9561268464, 1324014.7251642048, 3481003.681291051
+1549.4444444444443: Setagaya -> Minato with 1786351.5158949923, 0.0, 3797558.5859824987
+1553.3333333333333: laser-detector: Setagaya -> Minato, cover links: ['Setagaya', 'Minato']
+1553.3333333333333: Setagaya -> Minato with 2413648.4841050077, 1383910.101877491, 3797558.5859824987
+1541.6666666666667: Minato -> Koto with 56028.05967129301, 0.0, 4256028.059671293
+1545.5555555555557: laser-detector: Minato -> Koto, cover links: ['Minato', 'Koto']
+1545.5555555555557: Minato -> Koto with 4143971.940328707, 112056.11934258603, 4256028.059671293
+mid 4200000 run 1/1:  76%|███████▌  | 50/66 [08:24<07:16, 27.31s/it][PID 68085] 从 Adachi 到 Koto 最优路径(方向: src->delay,dst->delay, 中继: Bunkyo): [('Adachi', 'Bunkyo', 'b0f950d04ff54a37930da658796a6650[1545.5555555555557, 1549.4444444444443]'), ('Koto', 'Chiyoda', 'b9dddd37205e41d9916994dc53a1a22f[1537.7777777777778, 1545.5555555555557]'), ('Chiyoda', 'Bunkyo', '6f7ff7756379494ea5e6aba8ebaaac1f[1565.0]')], 最小功率: 14748
+1545.5555555555557: Adachi -> Bunkyo with 2380789.84078957, 0.0, 3836157.968157914
+1549.4444444444443: laser-detector: Adachi -> Bunkyo, cover links: ['Adachi', 'Bunkyo']
+1549.4444444444443: Adachi -> Bunkyo with 1819210.15921043, 2016947.808947484, 3836157.968157914
+1537.7777777777778: Koto -> Chiyoda with 140067.74297532253, 0.0, 4246689.247658441
+1545.5555555555557: laser-detector: Koto -> Chiyoda, cover links: ['Koto', 'Chiyoda']
+1545.5555555555557: Koto -> Chiyoda with 4059932.2570246775, 186756.99063376337, 4246689.247658441
+1565.0: laser-detector: Chiyoda -> Bunkyo, cover links: ['Chiyoda', 'Bunkyo']
+1565.0: Chiyoda -> Bunkyo with 4200000, 948686.9010508126, 5148686.901050813
+mid 4200000 run 1/1:  77%|███████▋  | 51/66 [08:51<06:46, 27.09s/it][PID 68085] 从 Adachi 到 Nerima 最优路径(方向: src->dst): [('Adachi', 'Bunkyo', '0c2d9e15cc56485cae6fcf16898203d9[1549.4444444444443, 1553.3333333333333]'), ('Bunkyo', 'Itabashi', '471cd5386fa44642bc2f6f713f501f57[1537.7777777777778, 1541.6666666666667]'), ('Itabashi', 'Nerima', '14e724516202403bbae49eb130a7cf6e[1533.888888888889, 1537.7777777777778]')], 最小功率: 11748
+1549.4444444444443: Adachi -> Bunkyo with 2016947.808947484, 0.0, 3836157.968157914
+1553.3333333333333: laser-detector: Adachi -> Bunkyo, cover links: ['Adachi', 'Bunkyo']
+1553.3333333333333: Adachi -> Bunkyo with 2183052.191052516, 1653105.777105398, 3836157.968157914
+1537.7777777777778: Bunkyo -> Itabashi with 48273.63800746109, 0.0, 4248273.638007461
+1541.6666666666667: laser-detector: Bunkyo -> Itabashi, cover links: ['Bunkyo', 'Itabashi']
+1541.6666666666667: Bunkyo -> Itabashi with 4151726.361992539, 96547.27601492219, 4248273.638007461
+1533.888888888889: Itabashi -> Nerima with 418738.7735263165, 0.0, 4409369.386763158
+1537.7777777777778: laser-detector: Itabashi -> Nerima, cover links: ['Itabashi', 'Nerima']
+1537.7777777777778: Itabashi -> Nerima with 3781261.2264736835, 628108.1602894748, 4409369.386763158
+[PID 68085] 从 Itabashi 到 Shinagawa 最优路径(方向: src->dst): [('Itabashi', 'Nerima', 'e5f17512ca764408be01f41bfed3b7f7[1537.7777777777778, 1541.6666666666667]'), ('Nerima', 'Setagaya', '40819c1df1344e2abdb54fe906d83b48[1537.7777777777778, 1541.6666666666667]'), ('Setagaya', 'Shinagawa', 'e2447f73f69747e1bed8de3eae7b55ec[1537.7777777777778, 1541.6666666666667]')], 最小功率: 11748
+1537.7777777777778: Itabashi -> Nerima with 628108.1602894748, 0.0, 4409369.386763158
+1541.6666666666667: laser-detector: Itabashi -> Nerima, cover links: ['Itabashi', 'Nerima']
+1541.6666666666667: Itabashi -> Nerima with 3571891.8397105252, 837477.547052633, 4409369.386763158
+1537.7777777777778: Nerima -> Setagaya with 2557355.126000093, 0.0, 3652451.7086666976
+1541.6666666666667: laser-detector: Nerima -> Setagaya, cover links: ['Nerima', 'Setagaya']
+1541.6666666666667: Nerima -> Setagaya with 1642644.8739999072, 2009806.8346667904, 3652451.7086666976
+1537.7777777777778: Setagaya -> Shinagawa with 3412443.3105527703, 0.0, 3937481.10351759
+1541.6666666666667: laser-detector: Setagaya -> Shinagawa, cover links: ['Setagaya', 'Shinagawa']
+1541.6666666666667: Setagaya -> Shinagawa with 787556.6894472297, 3149924.4140703604, 3937481.10351759
+mid 4200000 run 1/1:  80%|████████  | 53/66 [09:36<05:21, 24.76s/it][PID 68085] 从 Bunkyo 到 Shinagawa 最优路径(方向: dst->src): [('Shinagawa', 'Minato', '1c56b9f366fd4153b3f70fb3a78b26ab[1553.3333333333333, 1557.2222222222222]'), ('Minato', 'Shinjuku', '5c90c5e58f0d46d8b19744d93006716f[1533.888888888889, 1553.3333333333333]'), ('Shinjuku', 'Itabashi', '5390e21d657f4e8e80d73022caa944a7[1541.6666666666667]'), ('Itabashi', 'Bunkyo', '7fbe5a43712145828adb06fe1f1b657c[1533.888888888889, 1545.5555555555557]')], 最小功率: 15664
+1553.3333333333333: Shinagawa -> Minato with 514723.3539771512, 0.0, 4328430.838494288
+1557.2222222222222: laser-detector: Shinagawa -> Minato, cover links: ['Shinagawa', 'Minato']
+1557.2222222222222: Shinagawa -> Minato with 3686276.646022849, 642154.192471439, 4328430.838494288
+1533.888888888889: Minato -> Shinjuku with 113315.0545056276, 0.0, 4312315.054505628
+1553.3333333333333: laser-detector: Minato -> Shinjuku, cover links: ['Minato', 'Shinjuku']
+1553.3333333333333: Minato -> Shinjuku with 4087684.9454943724, 224630.1090112552, 4312315.054505628
+1541.6666666666667: laser-detector: Shinjuku -> Itabashi, cover links: ['Shinjuku', 'Itabashi']
+1541.6666666666667: Shinjuku -> Itabashi with 4201000, 10981.767401797697, 4211981.767401798
+1533.888888888889: Itabashi -> Bunkyo with 96547.27601492219, 0.0, 4248273.638007461
+1545.5555555555557: laser-detector: Itabashi -> Bunkyo, cover links: ['Itabashi', 'Bunkyo']
+1545.5555555555557: Itabashi -> Bunkyo with 4104452.723985078, 143820.91402238328, 4248273.638007461
+[PID 68085] 从 Edogawa 到 Shinagawa 最优路径(方向: src->delay,dst->delay, 中继: Koto): [('Edogawa', 'Koto', '1f6ea501b0bd43028c395d371b0e05dd[1530.0, 1533.888888888889]'), ('Shinagawa', 'Minato', '29d6979feec0490e861c4307d58528f6[1557.2222222222222, 1561.111111111111]'), ('Minato', 'Koto', '27f62da92af94be48567578b396a26b2[1545.5555555555557, 1549.4444444444443]')], 最小功率: 11748
+1530.0: Edogawa -> Koto with 114102.72996971942, 0.0, 4314102.729969719
+1533.888888888889: laser-detector: Edogawa -> Koto, cover links: ['Edogawa', 'Koto']
+1533.888888888889: Edogawa -> Koto with 4086897.2700302806, 227205.45993943885, 4314102.729969719
+1557.2222222222222: Shinagawa -> Minato with 642154.192471439, 0.0, 4328430.838494288
+1561.111111111111: laser-detector: Shinagawa -> Minato, cover links: ['Shinagawa', 'Minato']
+1561.111111111111: Shinagawa -> Minato with 3558845.807528561, 769585.0309657268, 4328430.838494288
+1545.5555555555557: Minato -> Koto with 112056.11934258603, 0.0, 4256028.059671293
+1549.4444444444443: laser-detector: Minato -> Koto, cover links: ['Minato', 'Koto']
+1549.4444444444443: Minato -> Koto with 4088943.880657414, 167084.17901387904, 4256028.059671293
+mid 4200000 run 1/1:  83%|████████▎ | 55/66 [10:15<04:00, 21.90s/it][PID 68085] 从 Ota 到 Shinagawa 最优路径(方向: src->dst): [('Ota', 'Shinagawa', '8417eafd0b7940a39d86ba9460254f2b[1537.7777777777778, 1541.6666666666667]')], 最小功率: 3916
+1537.7777777777778: Ota -> Shinagawa with 560843.8779716156, 0.0, 4386947.959323872
+1541.6666666666667: laser-detector: Ota -> Shinagawa, cover links: ['Ota', 'Shinagawa']
+1541.6666666666667: Ota -> Shinagawa with 3640156.1220283844, 746791.8372954875, 4386947.959323872
+[PID 68085] 从 Adachi 到 Shinagawa 最优路径(方向: src->delay,dst->delay, 中继: Minato): [('Adachi', 'Bunkyo', '9054c8dd32d04f89960e682ba0c201c2[1553.3333333333333, 1557.2222222222222]'), ('Bunkyo', 'Itabashi', '7ff5e67bc4cc46abb2284830cae0dad1[1541.6666666666667, 1549.4444444444443]'), ('Itabashi', 'Shinjuku', 'fe8b380b2bb041089d1c9ebdc06e7178[1537.7777777777778, 1545.5555555555557]'), ('Shinjuku', 'Minato', '28ce2a4919484672a0cbe0cee0e789ff[1549.4444444444443, 1557.2222222222222]'), ('Shinagawa', 'Minato', '4f2adf1172094d9ea47dcd0302285231[1561.111111111111, 1565.0]')], 最小功率: 19580
+1553.3333333333333: Adachi -> Bunkyo with 1653105.777105398, 0.0, 3836157.968157914
+1557.2222222222222: laser-detector: Adachi -> Bunkyo, cover links: ['Adachi', 'Bunkyo']
+1557.2222222222222: Adachi -> Bunkyo with 2547894.222894602, 1288263.745263312, 3836157.968157914
+1541.6666666666667: Bunkyo -> Itabashi with 96547.27601492219, 0.0, 4248273.638007461
+1549.4444444444443: laser-detector: Bunkyo -> Itabashi, cover links: ['Bunkyo', 'Itabashi']
+1549.4444444444443: Bunkyo -> Itabashi with 4104452.723985078, 143820.91402238328, 4248273.638007461
+1537.7777777777778: Itabashi -> Shinjuku with 37945.30220539309, 0.0, 4211981.767401798
+1545.5555555555557: laser-detector: Itabashi -> Shinjuku, cover links: ['Itabashi', 'Shinjuku']
+1545.5555555555557: Itabashi -> Shinjuku with 4163054.697794607, 48927.06960719079, 4211981.767401798
+1549.4444444444443: Shinjuku -> Minato with 565575.272528138, 0.0, 4312315.054505628
+1557.2222222222222: laser-detector: Shinjuku -> Minato, cover links: ['Shinjuku', 'Minato']
+1557.2222222222222: Shinjuku -> Minato with 3635424.727471862, 676890.3270337656, 4312315.054505628
+1561.111111111111: Shinagawa -> Minato with 769585.0309657268, 0.0, 4328430.838494288
+1565.0: laser-detector: Shinagawa -> Minato, cover links: ['Shinagawa', 'Minato']
+1565.0: Shinagawa -> Minato with 3431414.969034273, 897015.8694600146, 4328430.838494288
+mid 4200000 run 1/1:  86%|████████▋ | 57/66 [10:49<02:53, 19.24s/it][PID 68085] 从 Bunkyo 到 Itabashi 最优路径(方向: src->dst): [('Bunkyo', 'Itabashi', '42cc6486a5b146f9b68eb6ac87a3d5cc[1549.4444444444443, 1553.3333333333333]')], 最小功率: 3916
+1549.4444444444443: Bunkyo -> Itabashi with 143820.91402238328, 0.0, 4248273.638007461
+1553.3333333333333: laser-detector: Bunkyo -> Itabashi, cover links: ['Bunkyo', 'Itabashi']
+1553.3333333333333: Bunkyo -> Itabashi with 4057179.0859776167, 191094.55202984437, 4248273.638007461
+[PID 68085] 从 Edogawa 到 Itabashi 最优路径(方向: src->dst): [('Edogawa', 'Chiyoda', 'a5826c08efd0473e83d8b6f25d61cc06[1549.4444444444443, 1553.3333333333333, 1557.2222222222222]'), ('Chiyoda', 'Shinjuku', '4b54b44bb0494b63a41a817501cbb8cf[1557.2222222222222, 1561.111111111111]'), ('Shinjuku', 'Itabashi', '5ad3c8b73960465184a7188b71b2caed[1541.6666666666667, 1549.4444444444443]')], 最小功率: 15664
+1549.4444444444443: Edogawa -> Chiyoda with 338394.15280258656, 0.0, 3556399.0254670978
+1553.3333333333333: laser-detector: Edogawa -> Chiyoda, cover links: ['Edogawa', 'Chiyoda']
+1553.3333333333333: Edogawa -> Chiyoda with 3556399.0254670978, 0.0, 3556399.0254670978
+1557.2222222222222: laser-detector: Edogawa -> Chiyoda, cover links: ['Edogawa', 'Chiyoda']
+1557.2222222222222: Edogawa -> Chiyoda with 306206.8217303157, 3250192.203736782, 3556399.0254670978
+1557.2222222222222: Chiyoda -> Shinjuku with 1120482.7284108363, 0.0, 4573160.909470279
+1561.111111111111: laser-detector: Chiyoda -> Shinjuku, cover links: ['Chiyoda', 'Shinjuku']
+1561.111111111111: Chiyoda -> Shinjuku with 3080517.2715891637, 1492643.637881115, 4573160.909470279
+1541.6666666666667: Shinjuku -> Itabashi with 10981.767401797697, 0.0, 4211981.767401798
+1549.4444444444443: laser-detector: Shinjuku -> Itabashi, cover links: ['Shinjuku', 'Itabashi']
+1549.4444444444443: Shinjuku -> Itabashi with 4190018.2325982023, 21963.534803595394, 4211981.767401798
+mid 4200000 run 1/1:  89%|████████▉ | 59/66 [11:21<02:02, 17.54s/it][PID 68085] 从 Ota 到 Itabashi 最优路径(方向: src->dst): [('Ota', 'Setagaya', 'ca707cdd62184b79bbfec6b0b8e2a9dc[1541.6666666666667, 1545.5555555555557]'), ('Setagaya', 'Shinjuku', '02f9d3894161408bac1d55ea32ca5add[1545.5555555555557, 1549.4444444444443]'), ('Shinjuku', 'Itabashi', '5f9c2bab34d2440a8237d1becf7d89d6[1549.4444444444443, 1553.3333333333333]')], 最小功率: 14748
+1541.6666666666667: Ota -> Setagaya with 1324014.7251642048, 0.0, 3481003.681291051
+1545.5555555555557: laser-detector: Ota -> Setagaya, cover links: ['Ota', 'Setagaya']
+1545.5555555555557: Ota -> Setagaya with 2876985.274835795, 604018.406455256, 3481003.681291051
+1545.5555555555557: Setagaya -> Shinjuku with 3854634.4859573967, 0.0, 4130726.8971914793
+1549.4444444444443: laser-detector: Setagaya -> Shinjuku, cover links: ['Setagaya', 'Shinjuku']
+1549.4444444444443: Setagaya -> Shinjuku with 346365.5140426033, 3784361.383148876, 4130726.8971914793
+1549.4444444444443: Shinjuku -> Itabashi with 21963.534803595394, 0.0, 4211981.767401798
+1553.3333333333333: laser-detector: Shinjuku -> Itabashi, cover links: ['Shinjuku', 'Itabashi']
+1553.3333333333333: Shinjuku -> Itabashi with 4179036.4651964046, 32945.30220539309, 4211981.767401798
+mid 4200000 run 1/1:  91%|█████████ | 60/66 [11:36<01:40, 16.83s/it][PID 68085] 从 Adachi 到 Itabashi 最优路径(方向: src->dst): [('Adachi', 'Bunkyo', '8c3e3768ab39438983109ddfafe7a52c[1557.2222222222222, 1561.111111111111]'), ('Bunkyo', 'Itabashi', '410ab5b94976453687779eb0b050ea44[1553.3333333333333, 1557.2222222222222]')], 最小功率: 7832
+1557.2222222222222: Adachi -> Bunkyo with 1288263.745263312, 0.0, 3836157.968157914
+1561.111111111111: laser-detector: Adachi -> Bunkyo, cover links: ['Adachi', 'Bunkyo']
+1561.111111111111: Adachi -> Bunkyo with 2912736.254736688, 923421.713421226, 3836157.968157914
+1553.3333333333333: Bunkyo -> Itabashi with 191094.55202984437, 0.0, 4248273.638007461
+1557.2222222222222: laser-detector: Bunkyo -> Itabashi, cover links: ['Bunkyo', 'Itabashi']
+1557.2222222222222: Bunkyo -> Itabashi with 4009905.4479701556, 238368.19003730547, 4248273.638007461
+mid 4200000 run 1/1:  92%|█████████▏| 61/66 [11:51<01:21, 16.32s/it][PID 68085] 从 Bunkyo 到 Edogawa 最优路径(方向: dst->src): [('Edogawa', 'Adachi', 'a77fa562be0748839c2d582b5cd1c17a[1530.0, 1533.888888888889]'), ('Adachi', 'Bunkyo', 'b08ff76ad8874fd3a5fe41f897c65e19[1561.111111111111, 1565.0]')], 最小功率: 17748
+1530.0: laser-detector: Edogawa -> Adachi, cover links: ['Edogawa', 'Adachi']
+1530.0: Edogawa -> Adachi with 3683311.784949646, 0.0, 3683311.784949646
+1533.888888888889: laser-detector: Edogawa -> Adachi, cover links: ['Edogawa', 'Adachi']
+1533.888888888889: Edogawa -> Adachi with 517688.21505035413, 3165623.5698992917, 3683311.784949646
+1561.111111111111: Adachi -> Bunkyo with 923421.713421226, 0.0, 3836157.968157914
+1565.0: laser-detector: Adachi -> Bunkyo, cover links: ['Adachi', 'Bunkyo']
+1565.0: Adachi -> Bunkyo with 3277578.286578774, 558579.68157914, 3836157.968157914
+[PID 68085] 从 Ota 到 Bunkyo 最优路径(方向: src->delay,dst->delay, 中继: Setagaya): [('Ota', 'Setagaya', '0696f9a838234421b037580982a8301a[1545.5555555555557, 1549.4444444444443, 1553.3333333333333]'), ('Bunkyo', 'Itabashi', '48daccd9b96448a4b849c4f83a1b090c[1557.2222222222222, 1561.111111111111]'), ('Itabashi', 'Nerima', 'a4bf3c5fe5a445a0bbb900d4df349488[1541.6666666666667, 1545.5555555555557]'), ('Nerima', 'Setagaya', '7620fca928094e94857db787ae4b6ae2[1541.6666666666667, 1545.5555555555557]')], 最小功率: 22580
+1545.5555555555557: Ota -> Setagaya with 604018.406455256, 0.0, 3481003.681291051
+1549.4444444444443: laser-detector: Ota -> Setagaya, cover links: ['Ota', 'Setagaya']
+1549.4444444444443: Ota -> Setagaya with 3481003.681291051, 0.0, 3481003.681291051
+1553.3333333333333: laser-detector: Ota -> Setagaya, cover links: ['Ota', 'Setagaya']
+1553.3333333333333: Ota -> Setagaya with 115977.91225369275, 3365025.7690373585, 3481003.681291051
+1557.2222222222222: Bunkyo -> Itabashi with 238368.19003730547, 0.0, 4248273.638007461
+1561.111111111111: laser-detector: Bunkyo -> Itabashi, cover links: ['Bunkyo', 'Itabashi']
+1561.111111111111: Bunkyo -> Itabashi with 3962631.8099626945, 285641.82804476656, 4248273.638007461
+1541.6666666666667: Itabashi -> Nerima with 837477.547052633, 0.0, 4409369.386763158
+1545.5555555555557: laser-detector: Itabashi -> Nerima, cover links: ['Itabashi', 'Nerima']
+1545.5555555555557: Itabashi -> Nerima with 3363522.452947367, 1045846.9338157913, 4409369.386763158
+1541.6666666666667: Nerima -> Setagaya with 2009806.8346667904, 0.0, 3652451.7086666976
+1545.5555555555557: laser-detector: Nerima -> Setagaya, cover links: ['Nerima', 'Setagaya']
+1545.5555555555557: Nerima -> Setagaya with 2191193.1653332096, 1461258.543333488, 3652451.7086666976
+mid 4200000 run 1/1:  95%|█████████▌| 63/66 [12:11<00:39, 13.10s/it][PID 68085] 从 Ota 到 Edogawa 最优路径(方向: src->delay,dst->delay, 中继: Minato): [('Ota', 'Setagaya', '7de826758ce542aba93ec9d45b2cc645[1553.3333333333333, 1557.2222222222222]'), ('Setagaya', 'Minato', 'cf946dab3d3d453c8a14af48f4c337da[1553.3333333333333, 1557.2222222222222]'), ('Edogawa', 'Chiyoda', 'cdcb97d58db748648cdb4785c20f72b0[1557.2222222222222, 1561.111111111111]'), ('Chiyoda', 'Minato', 'ecdb14331cf1488989f61aaefca336ca[1561.111111111111, 1565.0]')], 最小功率: 15664
+1553.3333333333333: Ota -> Setagaya with 3365025.7690373585, 0.0, 3481003.681291051
+1557.2222222222222: laser-detector: Ota -> Setagaya, cover links: ['Ota', 'Setagaya']
+1557.2222222222222: Ota -> Setagaya with 835974.2309626415, 2645029.4503284097, 3481003.681291051
+1553.3333333333333: Setagaya -> Minato with 1383910.101877491, 0.0, 3797558.5859824987
+1557.2222222222222: laser-detector: Setagaya -> Minato, cover links: ['Setagaya', 'Minato']
+1557.2222222222222: Setagaya -> Minato with 2817089.898122509, 980468.6878599897, 3797558.5859824987
+1557.2222222222222: Edogawa -> Chiyoda with 3250192.203736782, 0.0, 3556399.0254670978
+1561.111111111111: laser-detector: Edogawa -> Chiyoda, cover links: ['Edogawa', 'Chiyoda']
+1561.111111111111: Edogawa -> Chiyoda with 950807.7962632179, 2605591.22920388, 3556399.0254670978
+1561.111111111111: Chiyoda -> Minato with 3268546.84753823, 0.0, 4666792.406791176
+1565.0: laser-detector: Chiyoda -> Minato, cover links: ['Chiyoda', 'Minato']
+1565.0: Chiyoda -> Minato with 932453.15246177, 3734339.2543294057, 4666792.406791176
+[PID 68085] 从 Adachi 到 Bunkyo 最优路径(方向: dst->src): [('Bunkyo', 'Itabashi', '1edf9813a693412f8581949203b208f7[1561.111111111111, 1565.0]'), ('Itabashi', 'Shinjuku', '4b35d66806f143f493826c3d8127df72[1545.5555555555557, 1557.2222222222222]'), ('Shinjuku', 'Chiyoda', '9abe8e17270e4824927e7f0b296fd079[1549.4444444444443, 1565.0]'), ('Chiyoda', 'Edogawa', '2e385deec49c4c7c93b05f7647f1aa04[1561.111111111111, 1565.0]'), ('Edogawa', 'Adachi', 'c8b708a855bb4091bc6291b7be3f9803[1533.888888888889, 1537.7777777777778]')], 最小功率: 29496
+1561.111111111111: Bunkyo -> Itabashi with 285641.82804476656, 0.0, 4248273.638007461
+1565.0: laser-detector: Bunkyo -> Itabashi, cover links: ['Bunkyo', 'Itabashi']
+1565.0: Bunkyo -> Itabashi with 3915358.1719552334, 332915.46605222765, 4248273.638007461
+1545.5555555555557: Itabashi -> Shinjuku with 48927.06960719079, 0.0, 4211981.767401798
+1557.2222222222222: laser-detector: Itabashi -> Shinjuku, cover links: ['Itabashi', 'Shinjuku']
+1557.2222222222222: Itabashi -> Shinjuku with 4152072.930392809, 59908.837008988485, 4211981.767401798
+1549.4444444444443: Shinjuku -> Chiyoda with 1865804.5473513938, 0.0, 4573160.909470279
+1565.0: laser-detector: Shinjuku -> Chiyoda, cover links: ['Shinjuku', 'Chiyoda']
+1565.0: Shinjuku -> Chiyoda with 2335195.452648606, 2237965.4568216726, 4573160.909470279
+1561.111111111111: laser-detector: Chiyoda -> Edogawa, cover links: ['Chiyoda', 'Edogawa']
+1561.111111111111: Chiyoda -> Edogawa with 2605591.22920388, 0.0, 3556399.0254670978
+1565.0: laser-detector: Chiyoda -> Edogawa, cover links: ['Chiyoda', 'Edogawa']
+1565.0: Chiyoda -> Edogawa with 1595408.7707961202, 1960990.2546709776, 3556399.0254670978
+1533.888888888889: Edogawa -> Adachi with 3165623.5698992917, 0.0, 3683311.784949646
+1537.7777777777778: laser-detector: Edogawa -> Adachi, cover links: ['Edogawa', 'Adachi']
+1537.7777777777778: Edogawa -> Adachi with 1035376.4301007083, 2647935.3548489376, 3683311.784949646
+mid 4200000 run 1/1:  98%|█████████▊| 65/66 [12:28<00:10, 10.79s/it][PID 68085] 从 Adachi 到 Edogawa 最优路径(方向: dst->src): [('Edogawa', 'Adachi', 'decf025d565e4bc5a294cf4abde50a57[1537.7777777777778, 1541.6666666666667]')], 最小功率: 3916
+1537.7777777777778: Edogawa -> Adachi with 2647935.3548489376, 0.0, 3683311.784949646
+1541.6666666666667: laser-detector: Edogawa -> Adachi, cover links: ['Edogawa', 'Adachi']
+1541.6666666666667: Edogawa -> Adachi with 1553064.6451510624, 2130247.1397985835, 3683311.784949646
+mid 4200000 run 1/1: 100%|██████████| 66/66 [12:36<00:00,  9.76s/it][PID 68085] 从 Adachi 到 Ota 最优路径(方向: dst->src): [('Ota', 'Setagaya', '055cb4c53ac74230af267c19e8e806f2[1557.2222222222222, 1561.111111111111]'), ('Setagaya', 'Minato', '2826c458ce964e4581c5a89134787024[1557.2222222222222, 1561.111111111111]'), ('Minato', 'Koto', '5c5f96f01b82413f8e5b3936b8754763[1549.4444444444443, 1553.3333333333333]'), ('Koto', 'Edogawa', '2fdb78a724ca4996adf9b81b2c25c69c[1537.7777777777778]'), ('Edogawa', 'Adachi', '3987267da3b242918b8e2b17e33b6592[1541.6666666666667, 1545.5555555555557]')], 最小功率: 22580
+1557.2222222222222: Ota -> Setagaya with 2645029.4503284097, 0.0, 3481003.681291051
+1561.111111111111: laser-detector: Ota -> Setagaya, cover links: ['Ota', 'Setagaya']
+1561.111111111111: Ota -> Setagaya with 1555970.5496715903, 1925033.1316194609, 3481003.681291051
+1557.2222222222222: Setagaya -> Minato with 980468.6878599897, 0.0, 3797558.5859824987
+1561.111111111111: laser-detector: Setagaya -> Minato, cover links: ['Setagaya', 'Minato']
+1561.111111111111: Setagaya -> Minato with 3220531.3121400103, 577027.2738424884, 3797558.5859824987
+1549.4444444444443: Minato -> Koto with 167084.17901387904, 0.0, 4256028.059671293
+1553.3333333333333: laser-detector: Minato -> Koto, cover links: ['Minato', 'Koto']
+1553.3333333333333: Minato -> Koto with 4033915.820986121, 222112.23868517205, 4256028.059671293
+1537.7777777777778: laser-detector: Koto -> Edogawa, cover links: ['Koto', 'Edogawa']
+1537.7777777777778: Koto -> Edogawa with 4201000, 113102.72996971942, 4314102.729969719
+1541.6666666666667: Edogawa -> Adachi with 2130247.1397985835, 0.0, 3683311.784949646
+1545.5555555555557: laser-detector: Edogawa -> Adachi, cover links: ['Edogawa', 'Adachi']
+1545.5555555555557: Edogawa -> Adachi with 2070752.8602014165, 1612558.9247482293, 3683311.784949646
+
+--- 最终结果（每个 mid 经过 1 次运行后取平均）---
+Protocol: BB84, Bypass: False, Detector: SNSPD, Map: Tokyo, Traffic ^:High
+{'traffic': 4200000, 'total_avg_power': 10528.727272727272, 'avg_spectrum_occupied': 0.7333333333333334, 'avg_component_power': {'source': 9.454545454545448, 'detector': 7090.90909090907, 'other': 2155.6363636363626, 'ice_box': 1272.7272727272732}}
+[PID 68085] Finished processing mid 4201000
+mid 4200000 run 1/1: 100%|██████████| 66/66 [12:36<00:00, 11.46s/it]
