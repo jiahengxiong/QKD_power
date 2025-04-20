@@ -162,6 +162,6 @@ cases = [
     {"Protocol": "CV-QKD", "Bypass": False, "Detector": "ThorlabsPDB", "Topology": "Large", "Traffic": "High"}
 ]"""
 Traffic_cases = {'Paris':{'Low': 35000, 'Medium':100000, 'High':300000},
-                 'Tokyo':{'Low': 400000, 'Medium':1100000, 'High':4100000},
+                 'Tokyo':{'Low': 400000, 'Medium':1050000, 'High':4000000},
                  'Large': {'Low': 10000, 'Medium': 30000, 'High': 100000},
                  'Test': {'Low': 10000, 'Medium': 30000, 'High': 100000}}

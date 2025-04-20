@@ -399,8 +399,9 @@ def calculate_data_auxiliary_edge(G, path, wavelength_combination, wavelength_ca
                          'weight':
                                  power
                                  * (traffic/max_traffic)
-                                 * LD/(used_LD)
-                                 * bypass
+                                 * (10 + LD/(used_LD))
+                                 * (10 + 1e-2*(len(wavelength_combination))**1.0 * ((len(path) - 1))**1.0)
+                                 #* bypass
 
                                  # + spectrum
                                  + 1e-2*(len(wavelength_combination))**1.0 * ((len(path) - 1))**1.0

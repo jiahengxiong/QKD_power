@@ -73,8 +73,8 @@ def gen_traffic_matrix(mid, map_name, wavelength_list=None, protocol='BB84', det
     # 计算总流量与 traffic 候选值
     base_traffic = config.Traffic_cases[map_name][mid]
     total_traffic = base_traffic * (len(node_list) * (len(node_list) - 1)) / 2
-    min_traffic = 0.9*base_traffic - 1000
-    max_traffic = 0.9*base_traffic + 1000
+    min_traffic = 1*base_traffic - 1000
+    max_traffic = 1*base_traffic + 1000
     traffic_list = list(map(int, np.linspace(min_traffic, max_traffic, 3)))
 
     traffic_matrix = []

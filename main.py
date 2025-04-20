@@ -316,7 +316,7 @@ def main():
     wavelength_list = np.linspace(1530, 1565, 10).tolist()
 
     # 每个 mid 内部的运行次数
-    num_runs = 1  # 可根据需要调整
+    num_runs = 5  # 可根据需要调整
 
     manager = Manager()
     # 创建共享字典用于 key_rate（按原逻辑使用）
