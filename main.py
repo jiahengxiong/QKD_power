@@ -365,7 +365,7 @@ def main():
 
 
 
-    with Pool(processes=5) as pool:
+    with Pool(processes=30) as pool:
         pool.starmap(process_mid, args_list)
 
     # 将最终结果从共享字典转换为普通字典
