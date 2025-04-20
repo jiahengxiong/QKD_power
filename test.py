@@ -1,32 +1,17 @@
-from mpmath import mp, mpf, sqrt
+result = {'traffic': 1050000, 'total_avg_power': 80.44272953414745, 'avg_spectrum_occupied': 0.06095238095238094, 'avg_component_power': {'source': 0.4047942107643599, 'detector': 3.0359565807326994, 'other': 77.0019787426504, 'ice_box': 0.0}}
 
-# 设置小数精度（比如100位）
-mp.dps = 999999999999999  # Decimal Places
+target = result['total_avg_power']
+component = result['avg_component_power']
+sum = 0
+for key, value in component.items():
+    sum += value
+for key, value in component.items():
+    result['avg_component_power'][key] = target * value / sum
 
-def liuhui_pi(iterations=20):
-    """
-    用刘徽割圆术（单位圆）高精度逼近π
-    :param iterations: 割圆次数，每次边数翻倍
-    :return: 逼近的π值（面积）
-    """
-    r = mpf(1)            # 单位圆半径
-    n = 6                 # 从正六边形开始
-    s = mpf(1)            # 初始边长（可以设为单位边长近似）
+sum = 0
+for key, value in result['avg_component_power'].items():
+    sum += value
 
-    # 实际从角度计算初始边长更合理
-    s = 2 * r * mp.sin(mp.pi / n)
 
-    for _ in range(iterations):
-        # 割圆术边长递推公式：
-        # 新边长 s' = sqrt(2 - sqrt(4 - s^2))
-        s = sqrt(2 - sqrt(4 - s**2))
-        n *= 2
-
-    perimeter = n * s
-    area = (perimeter * r) / 2
-    return area
-
-# 调用
-pi_approx = liuhui_pi(iterations=999)
-
-print(f"用割圆术计算得到的π值（精度100位）：\n{pi_approx}")
+print(result)
+print(result['total_avg_power'], sum)

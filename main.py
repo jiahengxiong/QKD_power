@@ -276,6 +276,11 @@ def process_mid(traffic_type, map_name, protocol, detector, bypass, key_rate_lis
                     flag = False
                     del auxiliary_graph
                     gc.collect()
+                    with open('result.txt', 'a') as file:
+                        file.write(f'\n--- 最终结果（每个 mid 经过 {num_runs} 次运行后取平均）---\n')
+                        file.write(
+                            f'Protocol: {config.protocol}, Bypass: {config.bypass}, Detector: {config.detector}, Map: {map_name}, Traffic:{traffic_type}\n')
+                        file.write(f'无可用路径\n')
                     return
                 del auxiliary_graph
                 gc.collect()
@@ -302,8 +307,6 @@ def process_mid(traffic_type, map_name, protocol, detector, bypass, key_rate_lis
             file.write(
                 f'Protocol: {config.protocol}, Bypass: {config.bypass}, Detector: {config.detector}, Map: {map_name}, Traffic:{traffic_type}\n')
             file.write(f'{shared_results}\n')
-            file.write(f'Traffic Matrix\n')
-            file.write(f'{traffic_matrix}\n')
 
 
     print(f"[PID {os.getpid()}] Finished processing mid {mid}")
