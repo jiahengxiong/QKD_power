@@ -20,6 +20,11 @@ class Network:
 
     def get_physical_topology(self, map_name):
         G = nx.Graph()
+        if map_name == "Test":
+            edges = [(0, 1, 10),
+                     (1, 2, 10),]
+            for node1, node2, distance in edges:
+                G.add_edge(node1, node2, distance=distance, type='fiber')
         if map_name == "Tokyo":
             edges = [
                 ("Setagaya", "Ota", 12.045),
@@ -157,6 +162,27 @@ class Network:
 
     def get_topology(self, map_name):
         G = nx.MultiGraph()
+        if map_name == "Test":
+            edges = [(0, 1, 10),
+                     (1, 2, 10),]
+            for node1, node2, distance in edges:
+                for wavelength in self.wavelength_list:
+                    self.num_wavelength += 1
+                    G.add_edge(node1, node2, distance=distance, key=uuid.uuid4().hex,
+                               wavelength=wavelength, laser=0, detector=0,
+                               capacity=compute_key_rate(distance=distance, protocol=self.protocol,
+                                                         receiver=self.receiver),
+                               used_capacity=0, occupied=False,
+                               free_capacity=compute_key_rate(distance=distance, protocol=self.protocol,
+                                                              receiver=self.receiver))
+            for node in G.nodes:
+                G.nodes[node]['laser'] = {}
+                G.nodes[node]['laser_capacity'] = {}
+                G.nodes[node]['ice_box'] = 0
+                G.nodes[node]['num_detector'] = 0
+                for wavelength in self.wavelength_list:
+                    G.nodes[node]['laser'][wavelength] = []
+                    G.nodes[node]['laser_capacity'][wavelength] = {}
         if map_name == "Tokyo":
             self.num_wavelength = 0
             edges = [

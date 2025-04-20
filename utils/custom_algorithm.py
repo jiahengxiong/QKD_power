@@ -58,7 +58,7 @@ import networkx as nx
 from networkx.exception import NodeNotFound, NetworkXNoPath
 
 
-def Dijkstra_single_path(graph, src, dst):
+"""def Dijkstra_single_path(graph, src, dst):
     try:
         # 使用Dijkstra算法获取最短路径的节点序列
         min_cost_path = nx.dijkstra_path(graph, src, dst, weight='weight')
@@ -85,9 +85,9 @@ def Dijkstra_single_path(graph, src, dst):
         path_key.append((u, v, min_edge_key))
         weight += edges_data[min_edge_key]['weight']
 
-    return path_key, weight
+    return path_key, weight"""
 
-"""def Dijkstra_single_path(graph, src, dst):
+def Dijkstra_single_path(graph, src, dst):
     import heapq
 
     heap = []
@@ -109,7 +109,7 @@ def Dijkstra_single_path(graph, src, dst):
                 path_edges.append((prev_node, current_node, key))
                 current_node = prev_node
             path_edges.reverse()
-            return path_edges
+            return path_edges, current_weight
 
         # Step 1: 按目标节点分组，找到每个目标节点的最小成本边
         edges_by_v = {}
@@ -131,7 +131,7 @@ def Dijkstra_single_path(graph, src, dst):
                     predecessors[v] = (u, key)
                     heapq.heappush(heap, (new_weight, v))
 
-    return []"""
+    return [], current_weight
 
 
 def Dijkstra_double_path(graph, src, delay, dst):

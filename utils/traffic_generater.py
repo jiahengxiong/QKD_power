@@ -62,6 +62,13 @@ def gen_traffic_matrix(mid, map_name, wavelength_list=None, protocol='BB84', det
     G = network.physical_topology
     node_list = list(G.nodes())
     random.shuffle(node_list)
+    if map_name == 'Test':
+        traffic_matrix = []
+        for i in range(999999):
+            traffic_matrix.append((i, 0, 2, 100000))
+            traffic_matrix.append((i, 0, 1, 100000))
+
+        return traffic_matrix
 
     # 计算总流量与 traffic 候选值
     base_traffic = config.Traffic_cases[map_name][mid]

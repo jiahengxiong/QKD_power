@@ -1,26 +1,32 @@
-traffic = [(61, 'Koto', 'Edogawa', 361000), (4, 'Shinjuku', 'Setagaya', 359000), (6, 'Chiyoda', 'Edogawa', 360000),
-           [73, 'Chiyoda', 'Koto', 116000.0], (34, 'Chiyoda', 'Koto', 361000), (52, 'Nerima', 'Itabashi', 361000),
-           (3, 'Shinjuku', 'Itabashi', 361000), (1, 'Bunkyo', 'Adachi', 360000), (66, 'Shinagawa', 'Ota', 361000),
-           (2, 'Setagaya', 'Minato', 359000), (37, 'Setagaya', 'Shinagawa', 361000),
-           (0, 'Itabashi', 'Shinjuku', 361000), (42, 'Koto', 'Edogawa', 361000), (60, 'Itabashi', 'Bunkyo', 359000),
-           (46, 'Chiyoda', 'Edogawa', 361000), (11, 'Nerima', 'Shinjuku', 360000), (29, 'Setagaya', 'Minato', 359000),
-           (38, 'Adachi', 'Edogawa', 361000), (15, 'Chiyoda', 'Shinjuku', 361000), (7, 'Minato', 'Chiyoda', 361000),
-           (64, 'Nerima', 'Itabashi', 360000), (51, 'Shinjuku', 'Nerima', 361000), (35, 'Shinagawa', 'Minato', 360000),
-           (17, 'Koto', 'Edogawa', 359000), (5, 'Koto', 'Minato', 360000), (8, 'Shinjuku', 'Setagaya', 360000),
-           (33, 'Shinagawa', 'Ota', 359000), (9, 'Setagaya', 'Nerima', 359000), (25, 'Shinjuku', 'Setagaya', 359000),
-           (70, 'Itabashi', 'Adachi', 359000), (22, 'Shinjuku', 'Bunkyo', 360000), (20, 'Setagaya', 'Chiyoda', 361000),
-           (31, 'Chiyoda', 'Adachi', 360000), (30, 'Itabashi', 'Chiyoda', 359000), (32, 'Itabashi', 'Setagaya', 359000),
-           (50, 'Itabashi', 'Adachi', 360000), (14, 'Shinagawa', 'Nerima', 360000), (16, 'Edogawa', 'Bunkyo', 361000),
-           (69, 'Bunkyo', 'Edogawa', 360000), (56, 'Setagaya', 'Chiyoda', 359000), (12, 'Nerima', 'Bunkyo', 361000),
-           (39, 'Minato', 'Itabashi', 360000), (13, 'Nerima', 'Minato', 359000), (44, 'Nerima', 'Minato', 359000),
-           (54, 'Ota', 'Shinjuku', 361000), (40, 'Koto', 'Bunkyo', 359000), (72, 'Chiyoda', 'Itabashi', 361000),
-           (43, 'Shinagawa', 'Koto', 359000), (27, 'Shinagawa', 'Shinjuku', 360000), (19, 'Adachi', 'Chiyoda', 360000),
-           (26, 'Setagaya', 'Chiyoda', 361000), (49, 'Adachi', 'Chiyoda', 361000), (41, 'Minato', 'Nerima', 360000),
-           (71, 'Chiyoda', 'Setagaya', 361000), (18, 'Koto', 'Setagaya', 361000), (59, 'Itabashi', 'Ota', 359000),
-           (63, 'Bunkyo', 'Setagaya', 359000), (23, 'Ota', 'Itabashi', 360000), (65, 'Chiyoda', 'Ota', 359000),
-           (24, 'Ota', 'Itabashi', 360000), (36, 'Itabashi', 'Shinagawa', 360000), (10, 'Koto', 'Itabashi', 360000),
-           (47, 'Nerima', 'Koto', 361000), (55, 'Ota', 'Koto', 360000), (62, 'Shinagawa', 'Edogawa', 360000),
-           (53, 'Koto', 'Itabashi', 361000), (28, 'Minato', 'Adachi', 361000), (58, 'Shinjuku', 'Adachi', 359000),
-           (48, 'Ota', 'Bunkyo', 359000), (68, 'Shinagawa', 'Adachi', 360000), (57, 'Setagaya', 'Adachi', 360000),
-           (67, 'Ota', 'Edogawa', 360000), (45, 'Adachi', 'Shinagawa', 359000), (21, 'Ota', 'Adachi', 361000)]
-print(len(traffic))
+from mpmath import mp, mpf, sqrt
+
+# 设置小数精度（比如100位）
+mp.dps = 999999999999999  # Decimal Places
+
+def liuhui_pi(iterations=20):
+    """
+    用刘徽割圆术（单位圆）高精度逼近π
+    :param iterations: 割圆次数，每次边数翻倍
+    :return: 逼近的π值（面积）
+    """
+    r = mpf(1)            # 单位圆半径
+    n = 6                 # 从正六边形开始
+    s = mpf(1)            # 初始边长（可以设为单位边长近似）
+
+    # 实际从角度计算初始边长更合理
+    s = 2 * r * mp.sin(mp.pi / n)
+
+    for _ in range(iterations):
+        # 割圆术边长递推公式：
+        # 新边长 s' = sqrt(2 - sqrt(4 - s^2))
+        s = sqrt(2 - sqrt(4 - s**2))
+        n *= 2
+
+    perimeter = n * s
+    area = (perimeter * r) / 2
+    return area
+
+# 调用
+pi_approx = liuhui_pi(iterations=999)
+
+print(f"用割圆术计算得到的π值（精度100位）：\n{pi_approx}")

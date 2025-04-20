@@ -3,7 +3,7 @@ global detector
 global ice_box_capacity
 global bypass
 global key_rate_list
-# cases = [{'Topology': 'Paris', 'Protocol': 'BB84', 'Bypass': False, 'Detector': 'APD', 'Traffic': 'Low'}]
+# cases = [{'Topology': 'Test', 'Protocol': 'BB84', 'Bypass': True, 'Detector': 'APD', 'Traffic': 'Low'}]
 
 
 cases = [
@@ -163,4 +163,5 @@ cases = [
 ]"""
 Traffic_cases = {'Paris':{'Low': 35000, 'Medium':100000, 'High':300000},
                  'Tokyo':{'Low': 400000, 'Medium':1100000, 'High':4100000},
-                 'Large': {'Low': 10000, 'Medium': 30000, 'High': 100000}}
+                 'Large': {'Low': 10000, 'Medium': 30000, 'High': 100000},
+                 'Test': {'Low': 10000, 'Medium': 30000, 'High': 100000}}
