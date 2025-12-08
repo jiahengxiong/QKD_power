@@ -133,7 +133,7 @@ def compute_key_rate(distance, protocol, receiver):
         Vel = 0.01  # Electrical noise
         beta_PSK = 0.95  # Information reconciliation efficiency for PSK
         beta_GM = 0.95  # Information reconciliation efficiency for GM
-        sourcerate = 1e8  # Laser frequency
+        # sourcerate = 1e8  # Laser frequency
         xi = 0.005  # Excess noise
 
         #############################################################################

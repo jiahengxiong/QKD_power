@@ -1,0 +1,70 @@
+
+
+----------Test Tokyo-------
+
+
+--- 最终结果（每个 mid 经过 5 次运行后取平均）---
+Protocol: BB84, Bypass: True, Detector: SNSPD, Map: Tokyo, Traffic:Low
+{'traffic': 475000, 'total_avg_power': 2019.827408412483, 'avg_spectrum_occupied': 0.19142857142857145, 'avg_component_power': {'source': 1.7953867028493882, 'detector': 1346.5400271370424, 'other': 409.34816824966083, 'ice_box': 262.14382632293075}}
+
+--- 最终结果（每个 mid 经过 5 次运行后取平均）---
+Protocol: BB84, Bypass: True, Detector: SNSPD, Map: Tokyo, Traffic:Medium
+{'traffic': 950000, 'total_avg_power': 3044.7623699683404, 'avg_spectrum_occupied': 0.3133333333333334, 'avg_component_power': {'source': 2.750972410673903, 'detector': 2063.2293080054287, 'other': 627.2217096336501, 'ice_box': 351.56037991858886}}
+
+--- 最终结果（每个 mid 经过 5 次运行后取平均）---
+Protocol: BB84, Bypass: False, Detector: SNSPD, Map: Tokyo, Traffic:Low
+{'traffic': 475000, 'total_avg_power': 2074.947987336047, 'avg_spectrum_occupied': 0.13619047619047617, 'avg_component_power': {'source': 1.759384893713251, 'detector': 1319.5386702849391, 'other': 401.1397557666215, 'ice_box': 352.5101763907734}}
+
+--- 最终结果（每个 mid 经过 5 次运行后取平均）---
+Protocol: BB84, Bypass: False, Detector: SNSPD, Map: Tokyo, Traffic:Medium
+{'traffic': 950000, 'total_avg_power': 3226.7873360470376, 'avg_spectrum_occupied': 0.2200000000000001, 'avg_component_power': {'source': 2.7992763455450023, 'detector': 2099.4572591587525, 'other': 638.2350067842606, 'ice_box': 486.2957937584803}}
+
+--- 最终结果（每个 mid 经过 5 次运行后取平均）---
+Protocol: BB84, Bypass: True, Detector: APD, Map: Tokyo, Traffic:Low
+{'traffic': 475000, 'total_avg_power': 1630.9090909090924, 'avg_spectrum_occupied': 0.4866666666666667, 'avg_component_power': {'source': 4.181818181818182, 'detector': 673.272727272727, 'other': 953.454545454546, 'ice_box': 0.0}}
+
+--- 最终结果（每个 mid 经过 5 次运行后取平均）---
+Protocol: BB84, Bypass: False, Detector: APD, Map: Tokyo, Traffic:Low
+{'traffic': 475000, 'total_avg_power': 1921.8833107191326, 'avg_spectrum_occupied': 0.38761904761904775, 'avg_component_power': {'source': 4.927905924920851, 'detector': 793.3928539122563, 'other': 1123.5625508819544, 'ice_box': 0.0}}
+
+--- 最终结果（每个 mid 经过 5 次运行后取平均）---
+Protocol: BB84, Bypass: True, Detector: APD, Map: Tokyo, Traffic:Medium
+{'traffic': 950000, 'total_avg_power': 2802.355495251019, 'avg_spectrum_occupied': 0.7714285714285715, 'avg_component_power': {'source': 7.18552691090005, 'detector': 1156.869832654907, 'other': 1638.3001356852105, 'ice_box': 0.0}}
+
+--- 最终结果（每个 mid 经过 5 次运行后取平均）---
+Protocol: BB84, Bypass: False, Detector: APD, Map: Tokyo, Traffic:Medium
+{'traffic': 950000, 'total_avg_power': 3176.9389416553604, 'avg_spectrum_occupied': 0.639047619047619, 'avg_component_power': {'source': 8.145997286295799, 'detector': 1311.5055630936229, 'other': 1857.2873812754417, 'ice_box': 0.0}}
+
+--- 最终结果（每个 mid 经过 5 次运行后取平均）---
+Protocol: BB84, Bypass: True, Detector: SNSPD, Map: Tokyo, Traffic:High
+{'traffic': 3800000, 'total_avg_power': 8624.61564902759, 'avg_spectrum_occupied': 0.8542857142857143, 'avg_component_power': {'source': 8.05011307100859, 'detector': 6037.584803256443, 'other': 1835.4257801899607, 'ice_box': 743.5549525101763}}
+
+--- 最终结果（每个 mid 经过 5 次运行后取平均）---
+Protocol: BB84, Bypass: False, Detector: SNSPD, Map: Tokyo, Traffic:High
+{'traffic': 3800000, 'total_avg_power': 9467.441157847126, 'avg_spectrum_occupied': 0.6780952380952382, 'avg_component_power': {'source': 8.763274536408863, 'detector': 6572.455902306635, 'other': 1998.02659430122, 'ice_box': 888.1953867028494}}
+
+--- 最终结果（每个 mid 经过 5 次运行后取平均）---
+Protocol: CV-QKD, Bypass: True, Detector: ThorlabsPDB, Map: Tokyo, Traffic:Medium
+{'traffic': 1050000, 'total_avg_power': 80.44272953414745, 'avg_spectrum_occupied': 0.06095238095238094, 'avg_component_power': {'source': 0.4047942107643599, 'detector': 3.0359565807326994, 'other': 77.0019787426504, 'ice_box': 0.0}}
+
+--- 最终结果（每个 mid 经过 5 次运行后取平均）---
+Protocol: CV-QKD, Bypass: True, Detector: ThorlabsPDB, Map: Tokyo, Traffic:High
+{'traffic': 3950000, 'total_avg_power': 115.22634554500226, 'avg_spectrum_occupied': 0.08952380952380949, 'avg_component_power': {'source': 0.5798281320669376, 'detector': 4.348710990502035, 'other': 110.29780642243331, 'ice_box': 0.0}}
+
+--- 最终结果（每个 mid 经过 5 次运行后取平均）---
+Protocol: CV-QKD, Bypass: False, Detector: ThorlabsPDB, Map: Tokyo, Traffic:Low
+{'traffic': 400000, 'total_avg_power': 78.08786974219811, 'avg_spectrum_occupied': 0.059047619047619036, 'avg_component_power': {'source': 0.39294436906377195, 'detector': 2.9470827679782894, 'other': 74.74784260515605, 'ice_box': 0.0}}
+
+--- 最终结果（每个 mid 经过 5 次运行后取平均）---
+Protocol: CV-QKD, Bypass: True, Detector: ThorlabsPDB, Map: Tokyo, Traffic:Low
+{'traffic': 400000, 'total_avg_power': 74.9600407055631, 'avg_spectrum_occupied': 0.059047619047619036, 'avg_component_power': {'source': 0.3772048846675711, 'detector': 2.8290366350067835, 'other': 71.75379918588875, 'ice_box': 0.0}}
+
+
+--- 最终结果（每个 mid 经过 5 次运行后取平均）---
+Protocol: CV-QKD, Bypass: False, Detector: ThorlabsPDB, Map: Tokyo, Traffic:Medium
+{'traffic': 1050000, 'total_avg_power': 81.64712347354137, 'avg_spectrum_occupied': 0.06095238095238094, 'avg_component_power': {'source': 0.41085481682496594, 'detector': 3.0814111261872448, 'other': 78.15485753052918, 'ice_box': 0.0}}
+
+--- 最终结果（每个 mid 经过 5 次运行后取平均）---
+Protocol: CV-QKD, Bypass: False, Detector: ThorlabsPDB, Map: Tokyo, Traffic:High
+{'traffic': 3950000, 'total_avg_power': 117.63513342379012, 'avg_spectrum_occupied': 0.09047619047619045, 'avg_component_power': {'source': 0.5919493441881498, 'detector': 4.4396200814111255, 'other': 112.60356399819088, 'ice_box': 0.0}}
+

@@ -183,6 +183,7 @@ class Network:
                 for wavelength in self.wavelength_list:
                     G.nodes[node]['laser'][wavelength] = []
                     G.nodes[node]['laser_capacity'][wavelength] = {}
+                    G.nodes[node]['detector'] = []
         if map_name == "Tokyo":
             self.num_wavelength = 0
             edges = [
@@ -221,12 +222,14 @@ class Network:
 
             for node in G.nodes:
                 G.nodes[node]['laser'] = {}
+                G.nodes[node]['detector'] = {}
                 G.nodes[node]['laser_capacity'] = {}
                 G.nodes[node]['ice_box'] = 0
                 G.nodes[node]['num_detector'] = 0
                 for wavelength in self.wavelength_list:
                     G.nodes[node]['laser'][wavelength] = []
                     G.nodes[node]['laser_capacity'][wavelength] = {}
+                    G.nodes[node]['detector'][wavelength] = []
         if map_name == "Paris":
             self.num_wavelength = 0
             edges = [
@@ -255,12 +258,14 @@ class Network:
                                                               receiver=self.receiver))
             for node in G.nodes:
                 G.nodes[node]['laser'] = {}
+                G.nodes[node]['detector'] = {}
                 G.nodes[node]['laser_capacity'] = {}
                 G.nodes[node]['ice_box'] = 0
                 G.nodes[node]['num_detector'] = 0
                 for wavelength in self.wavelength_list:
                     G.nodes[node]['laser'][wavelength] = []
                     G.nodes[node]['laser_capacity'][wavelength] = {}
+                    G.nodes[node]['detector'][wavelength] = []
         if map_name == "G50":
             edge_list = [(1, 2), (1, 5), (2, 7), (6, 7), (3, 7), (2, 6), (4, 8), (5, 9), (9, 11), (6, 11), (6, 12),
                          (7, 13), (7, 14), (3, 14), (4, 17), (8, 17), (8, 10), (10, 15), (10, 11), (11, 12), (12, 13),
@@ -293,12 +298,14 @@ class Network:
                                )
             for node in G.nodes:
                 G.nodes[node]['laser'] = {}
+                G.nodes[node]['detector'] = {}
                 G.nodes[node]['laser_capacity'] = {}
                 G.nodes[node]['ice_box'] = 0
                 G.nodes[node]['num_detector'] = 0
                 for wavelength in self.wavelength_list:
                     G.nodes[node]['laser'][wavelength] = []
                     G.nodes[node]['laser_capacity'][wavelength] = {}
+                    G.nodes[node]['detector'][wavelength] = []
         if map_name == "Large":
             self.num_wavelength = 0
             edge_list = [
@@ -356,12 +363,14 @@ class Network:
                                )
             for node in G.nodes:
                 G.nodes[node]['laser'] = {}
+                G.nodes[node]['detector'] = {}
                 G.nodes[node]['laser_capacity'] = {}
                 G.nodes[node]['ice_box'] = 0
                 G.nodes[node]['num_detector'] = 0
                 for wavelength in self.wavelength_list:
                     G.nodes[node]['laser'][wavelength] = []
                     G.nodes[node]['laser_capacity'][wavelength] = {}
+                    G.nodes[node]['detector'][wavelength] = []
         return G
 
     def print_topology(self):

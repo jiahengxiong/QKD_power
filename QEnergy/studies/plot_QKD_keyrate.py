@@ -155,7 +155,7 @@ for d in distances:
     kr_bb84 = compute_key_rate(d, protocol='BB84', receiver='SNSPD')
     key_rates_BB84.append(kr_bb84)
 
-    kr_e91 = compute_key_rate(d, protocol='E91', receiver='SNSPD')
+    kr_e91 = compute_key_rate(d, protocol='BB84', receiver='APD')
     key_rates_E91.append(kr_e91)
 
     # 对于 CV-QKD，不需要传入探测器参数（内部已有固定设置）
@@ -163,18 +163,27 @@ for d in distances:
     key_rates_CVQKD.append(kr_cvqkd)
 
 # 绘图展示各个协议下的秘钥率随距离的变化
+import matplotlib.pyplot as plt
+
 plt.figure(figsize=(10, 6))
-plt.plot(distances, key_rates_BB84, label='BB84')
-plt.plot(distances, key_rates_E91, label='E91')
+plt.plot(distances, key_rates_BB84, label='BB84 + SNSPD')
+plt.plot(distances, key_rates_E91, label='BB84 + APD')
 plt.plot(distances, key_rates_CVQKD, label='CV-QKD')
-plt.xlabel('Distance [km]')
-plt.ylabel('Secret Key Rate')
-plt.title('Secret Key Rate vs Distance for QKD Protocols')
+
+plt.xlabel('Distance [km]', fontsize=20)
+plt.ylabel('Secret Key Rate [bit/s]', fontsize=20)
+plt.title('Secret Key Rate vs Distance for QKD Protocols', fontsize=20)
+
+# 设置坐标轴刻度字体大小
+plt.tick_params(axis='both', which='major', labelsize=20)
+
 # 设置 y 轴为对数坐标
 plt.yscale('log')
-plt.legend()
+
+plt.legend(fontsize=20)
 plt.grid(True)
 plt.tight_layout()
+
 
 # 保存图像（可选）
 plt.savefig(EXPORT_DIR / "KeyRate_vs_Distance.png")

@@ -1,5 +1,6 @@
 # from utils.tools import build_auxiliary_graph, generate_traffic
 import gc
+import random
 
 import networkx as nx
 from utils.traffic_generater import gen_traffic_matrix
@@ -55,26 +56,6 @@ def find_min_weight_path_with_relay(auxiliary_graph, src, dst):
 
     paths = []  # 存储所有可能路径和属性
 
-    # 3. 检查中继路径：src->delay 和 dst->delay 或 dst->delay 和 src->delay
-    for delay in auxiliary_graph.nodes:
-        if delay != src and delay != dst:  # 排除 src 和 dst 本身
-            # 情形1：src -> delay 和 dst -> delay
-            if nx.has_path(auxiliary_graph, src, delay) and nx.has_path(auxiliary_graph, dst, delay):
-                path1_edges, path2_edges, weight = Dijkstra_double_path(graph=auxiliary_graph, src=src, dst=dst,
-                                                                        delay=delay)
-                path_edges = path1_edges + path2_edges
-                if path_edges:
-                    power_sum = calculate_path_power(path_edges)
-                    paths.append(('src->delay,dst->delay', path_edges, delay, power_sum, weight))
-
-            # 情形2：dst -> delay 和 src -> delay
-            if nx.has_path(auxiliary_graph, dst, delay) and nx.has_path(auxiliary_graph, src, delay):
-                path1_edges, path2_edges, weight = Dijkstra_double_path(graph=auxiliary_graph, src=dst, dst=src,
-                                                                        delay=delay)
-                path_edges = path1_edges + path2_edges
-                if path_edges:
-                    power_sum = calculate_path_power(path_edges)
-                    paths.append(('dst->delay,src->delay', path_edges, delay, power_sum, weight))
 
     # 1. 检查 src -> dst 的直接路径
     if nx.has_path(auxiliary_graph, src, dst):
@@ -91,10 +72,33 @@ def find_min_weight_path_with_relay(auxiliary_graph, src, dst):
             power_sum = calculate_path_power(path_edges)
             paths.append(('dst->src', path_edges, None, power_sum, weight))
 
+        # 3. 检查中继路径：src->delay 和 dst->delay 或 dst->delay 和 src->delay
+        for delay in auxiliary_graph.nodes:
+            if delay != src and delay != dst:  # 排除 src 和 dst 本身
+                # 情形1：src -> delay 和 dst -> delay
+                if nx.has_path(auxiliary_graph, src, delay) and nx.has_path(auxiliary_graph, dst, delay):
+                    path1_edges, path2_edges, weight = Dijkstra_double_path(graph=auxiliary_graph, src=src, dst=dst,
+                                                                            delay=delay)
+                    path_edges = path1_edges + path2_edges
+                    if path_edges:
+                        power_sum = calculate_path_power(path_edges)
+                        paths.append(('src->delay,dst->delay', path_edges, delay, power_sum, weight))
+
+                # 情形2：dst -> delay 和 src -> delay
+                if nx.has_path(auxiliary_graph, dst, delay) and nx.has_path(auxiliary_graph, src, delay):
+                    path1_edges, path2_edges, weight = Dijkstra_double_path(graph=auxiliary_graph, src=dst, dst=src,
+                                                                            delay=delay)
+                    path_edges = path1_edges + path2_edges
+                    if path_edges:
+                        power_sum = calculate_path_power(path_edges)
+                        paths.append(('dst->delay,src->delay', path_edges, delay, power_sum, weight))
+
+
 
     # 如果没有找到功率为0的路径，则返回功率最小的候选路径
     if paths:
-        best_path_info = min(paths, key=lambda x: x[3])
+        # random.shuffle(paths)
+        best_path_info = min(paths, key=lambda x: x[4])
         return best_path_info
     else:
         return False
@@ -125,6 +129,7 @@ def serve_traffic(G, AG, path_edge_list, request_traffic, pbar):
                     f"{wavelength}: laser-detector: {laser_postion} -> {detector_postion}, cover links: {cover_links}")
                 if cover_links not in G.nodes[laser_postion]['laser'][wavelength]:
                     G.nodes[laser_postion]['laser'][wavelength].append(cover_links)
+                    G.nodes[detector_postion]['detector'][wavelength].append(cover_links)
                     # todo: add the key rate of new laser_detector (cover links)
                     G.nodes[laser_postion]['laser_capacity'][wavelength][tuple(cover_links)] = calculate_keyrate(
                         laser_detector_position={'laser': laser_postion, 'detector': detector_postion}, path=path, G=G)
@@ -154,6 +159,13 @@ def serve_traffic(G, AG, path_edge_list, request_traffic, pbar):
             # add laser-detector cover links, add detector
             """if cover_links not in G.nodes[laser_postion]['key_rate'].keys():
                 G.nodes[laser_postion]['key_rate'][cover_links] = compute_key_rate(laser_postion, detector_postion)"""
+            for transverse_laser_detector in edge_laser_detector_list[wavelength]:
+                for i in range(len(transverse_laser_detector) - 1):
+                    edges = G.get_edge_data(transverse_laser_detector[i], transverse_laser_detector[i+1])
+                    for edge_key, edge_attrs in edges.items():
+                        if edge_attrs.get('wavelength') == wavelength:
+                            G.edges[transverse_laser_detector[i], transverse_laser_detector[i+1], edge_key]['free_capacity'] = min(G.edges[transverse_laser_detector[i], transverse_laser_detector[i+1], edge_key]['free_capacity'],G.nodes[transverse_laser_detector[0]]['laser_capacity'][wavelength][tuple(transverse_laser_detector)])
+
     return occupied_wavelength
 
 
@@ -307,6 +319,7 @@ def process_mid(traffic_type, map_name, protocol, detector, bypass, key_rate_lis
             file.write(
                 f'Protocol: {config.protocol}, Bypass: {config.bypass}, Detector: {config.detector}, Map: {map_name}, Traffic:{traffic_type}\n')
             file.write(f'{shared_results}\n')
+            file.write(f"{traffic_matrix}\n")
 
 
     print(f"[PID {os.getpid()}] Finished processing mid {mid}")
@@ -319,7 +332,7 @@ def main():
     wavelength_list = np.linspace(1530, 1565, 10).tolist()
 
     # 每个 mid 内部的运行次数
-    num_runs = 5  # 可根据需要调整
+    num_runs = 1  # 可根据需要调整
 
     manager = Manager()
     # 创建共享字典用于 key_rate（按原逻辑使用）
@@ -327,15 +340,32 @@ def main():
     config.key_rate_list = shared_key_rate
     topology_list = ['Large', 'Paris', 'Tokyo']
     protocol_list = ['BB84', 'CV-QKD']
-    traffic_type_list = ['High', 'Medium', 'Low']
+    initial_traffic_list = ['Low']
+    traffic_type_list = ['Low', 'High', 'Medium',]
     request_dic = {}
+    # for run in range(num_runs):
+    #     request_dic[run] = {}
+    #     for traffic_type in traffic_type_list:
+    #         request_dic[run][traffic_type] = {}
+    #         for topology in topology_list:
+    #             request_list = gen_traffic_matrix(traffic_type, topology)
+    #             request_dic[run][traffic_type][topology] = request_list
     for run in range(num_runs):
         request_dic[run] = {}
         for traffic_type in traffic_type_list:
             request_dic[run][traffic_type] = {}
             for topology in topology_list:
-                request_list = gen_traffic_matrix(traffic_type, topology)
-                request_dic[run][traffic_type][topology] = request_list
+                if traffic_type == 'Low':
+                    request_list = gen_traffic_matrix(traffic_type, topology)
+                    request_dic[run][traffic_type][topology] = request_list
+                else:
+                    request_list =  request_dic[run]['Low'][topology]
+                    request_dic[run][traffic_type][topology] = []
+                    for request in request_list:
+                        gap = config.Traffic_cases[topology][traffic_type] - config.Traffic_cases[topology]['Low']
+                        request_dic[run][traffic_type][topology].append((request[0], request[1], request[2], request[3]+gap))
+
+
     # print(request_dic[0]['Low']['Test'])
     # print(request_dic)
 
@@ -368,7 +398,7 @@ def main():
 
 
 
-    with Pool(processes=30) as pool:
+    with Pool(processes=1) as pool:
         pool.starmap(process_mid, args_list)
 
     # 将最终结果从共享字典转换为普通字典

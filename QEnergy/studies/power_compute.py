@@ -118,6 +118,7 @@ def compute_power(distance, protocol, receiver):
             detector_power = detector_power + detector.power
         for other in othercomponentBB84:
             other_power = other_power + other.power
+            # print(other.power)
         power = {'total':power01, 'source':source_power, 'detector':detector_power, 'other':other_power}
 
     if protocol == 'E91':
@@ -156,7 +157,7 @@ def compute_power(distance, protocol, receiver):
         Vel = 0.01  # Electrical noise
         beta_PSK = 0.95  # Information reconciliation efficiency for PSK
         beta_GM = 0.95  # Information reconciliation efficiency for GM
-        sourcerate = 1e8  # Laser frequency
+        #sourcerate = 1e8  # Laser frequency
         xi = 0.005  # Excess noise
 
         #############################################################################
@@ -211,40 +212,17 @@ def compute_power(distance, protocol, receiver):
         for other in other_component:
             other_power = other_power + other.power
         total_power = CVQKD_experiment.power()
-        power = {'source':source_power, 'detector':detector_power, 'other':other_power, 'total':total_power}
+
+        taudsp = 10 ** -3
+        # cvqkd_rate = 100e6
+        keyrate = CVQKD_experiment.compute_secret_key_rate()
+        power_dsp = taudsp  * sourcerate
+        print(power_dsp)
+        power = {'source':source_power, 'detector':detector_power, 'other':other_power, 'total':total_power }
 
 
     return power
-    """tskr = Experiment01.time_skr(petabit)
-    tskr2 = Experiment02.time_skr(petabit)
-    tskr3 = Experiment03.time_skr(petabit)
 
-    EnergyBB84 = [Experiment01.total_energy(t) / 1000000 for t in tskr]
-    EnergyE91 = [Experiment02.total_energy(t) / 1000000 for t in tskr2]
-    EnergyMDI = [Experiment03.total_energy(t) / 1000000 for t in tskr3]
-
-    EEBB84 = [r / power01 for r in rate01]
-    EEE91 = [r / power02 for r in rate02]
-    EEMDI = [r / power03 for r in rate03]"""
-
-
-"""fig, ax1 = plt.subplots(1, figsize=FIGSIZE_FULL)
-left, bottom, width, height = [0.55, 0.35, 0.38, 0.38]
-ax2 = fig.add_axes([left, bottom, width, height])
-ax1.plot(dist, EEBB84, label="BB84")
-ax1.plot(dist, EEE91, label="E91")
-ax1.plot(dist, EEMDI, label="MDI")
-ax2.plot(dist, EnergyBB84, label="BB84")
-ax2.plot(dist, EnergyE91, label="E91")
-ax2.plot(dist, EnergyMDI, label="MDI")
-
-ax1.set(xlabel="Distance [km]", ylabel="Energy efficiency [Rate/Watt]")
-ax2.set(xlabel="Distance [km]", ylabel="$E^{\\text{1 Petabit}}$ [MJ]")
-ax1.tick_params(axis="both", which="major")
-
-ax1.legend(loc="best")
-plt.savefig(EXPORT_DIR / "EE.pdf", format="pdf")
-plt.show()"""
 if __name__ == "__main__":
-    power = compute_power(40, 'E91', 'APD')
+    power = compute_power(10, 'BB84', 'SNSPD')
     print(power)

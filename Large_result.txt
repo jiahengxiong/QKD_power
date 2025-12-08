@@ -1,0 +1,65 @@
+------ Large ---------
+
+
+--- 最终结果（每个 mid 经过 5 次运行后取平均）---
+Protocol: BB84, Bypass: True, Detector: SNSPD, Map: Large, Traffic:Low
+{'traffic': 12500, 'total_avg_power': 910.3826086956531, 'avg_spectrum_occupied': 0.1279069767441859, 'avg_component_power': {'source': 0.7478260869565211, 'detector': 560.8695652173914, 'other': 170.50434782608704, 'ice_box': 178.26086956521743}}
+
+--- 最终结果（每个 mid 经过 5 次运行后取平均）---
+Protocol: BB84, Bypass: True, Detector: SNSPD, Map: Large, Traffic:Medium
+{'traffic': 25000, 'total_avg_power': 1359.4666666666685, 'avg_spectrum_occupied': 0.21720930232558114, 'avg_component_power': {'source': 1.1710144927536223, 'detector': 878.2608695652159, 'other': 266.99130434782643, 'ice_box': 213.04347826086965}}
+
+--- 最终结果（每个 mid 经过 5 次运行后取平均）---
+Protocol: BB84, Bypass: False, Detector: SNSPD, Map: Large, Traffic:Low
+{'traffic': 12500, 'total_avg_power': 933.2666666666676, 'avg_spectrum_occupied': 0.11209302325581383, 'avg_component_power': {'source': 0.7623188405797094, 'detector': 571.7391304347826, 'other': 173.80869565217398, 'ice_box': 186.9565217391305}}
+
+--- 最终结果（每个 mid 经过 5 次运行后取平均）---
+Protocol: BB84, Bypass: False, Detector: SNSPD, Map: Large, Traffic:Medium
+{'traffic': 25000, 'total_avg_power': 1377.1565217391324, 'avg_spectrum_occupied': 0.1786046511627904, 'avg_component_power': {'source': 1.1913043478260863, 'detector': 893.4782608695638, 'other': 271.61739130434813, 'ice_box': 210.8695652173914}}
+
+--- 最终结果（每个 mid 经过 5 次运行后取平均）---
+Protocol: BB84, Bypass: True, Detector: APD, Map: Large, Traffic:Low
+{'traffic': 12500, 'total_avg_power': 767.5652173913056, 'avg_spectrum_occupied': 0.33209302325581325, 'avg_component_power': {'source': 1.968115942028988, 'detector': 316.8666666666666, 'other': 448.7304347826081, 'ice_box': 0.0}}
+
+--- 最终结果（每个 mid 经过 5 次运行后取平均）---
+Protocol: CV-QKD, Bypass: True, Detector: ThorlabsPDB, Map: Large, Traffic:Low
+{'traffic': 12500, 'total_avg_power': 45.21713768115942, 'avg_spectrum_occupied': 0.06186046511627907, 'avg_component_power': {'source': 0.22753623188405805, 'detector': 1.706521739130435, 'other': 43.28307971014495, 'ice_box': 0.0}}
+
+--- 最终结果（每个 mid 经过 5 次运行后取平均）---
+Protocol: BB84, Bypass: False, Detector: APD, Map: Large, Traffic:Low
+{'traffic': 12500, 'total_avg_power': 781.1304347826101, 'avg_spectrum_occupied': 0.3199999999999993, 'avg_component_power': {'source': 2.00289855072464, 'detector': 322.4666666666666, 'other': 456.6608695652167, 'ice_box': 0.0}}
+
+--- 最终结果（每个 mid 经过 5 次运行后取平均）---
+Protocol: CV-QKD, Bypass: False, Detector: ThorlabsPDB, Map: Large, Traffic:Low
+{'traffic': 12500, 'total_avg_power': 47.80920289855072, 'avg_spectrum_occupied': 0.0655813953488372, 'avg_component_power': {'source': 0.24057971014492763, 'detector': 1.804347826086957, 'other': 45.76427536231888, 'ice_box': 0.0}}
+
+--- 最终结果（每个 mid 经过 5 次运行后取平均）---
+Protocol: CV-QKD, Bypass: True, Detector: ThorlabsPDB, Map: Large, Traffic:High
+{'traffic': 90000, 'total_avg_power': 97.05844202898565, 'avg_spectrum_occupied': 0.16744186046511605, 'avg_component_power': {'source': 0.4884057971014486, 'detector': 3.66304347826087, 'other': 92.90699275362319, 'ice_box': 0.0}}
+
+--- 最终结果（每个 mid 经过 5 次运行后取平均）---
+Protocol: CV-QKD, Bypass: False, Detector: ThorlabsPDB, Map: Large, Traffic:High
+{'traffic': 90000, 'total_avg_power': 103.10659420289872, 'avg_spectrum_occupied': 0.1576744186046509, 'avg_component_power': {'source': 0.5188405797101442, 'detector': 3.8913043478260874, 'other': 98.69644927536231, 'ice_box': 0.0}}
+
+--- 最终结果（每个 mid 经过 5 次运行后取平均）---
+Protocol: BB84, Bypass: True, Detector: SNSPD, Map: Large, Traffic:High
+{'traffic': 90000, 'total_avg_power': 3681.6869565217457, 'avg_spectrum_occupied': 0.55860465116279, 'avg_component_power': {'source': 3.356521739130444, 'detector': 2517.391304347827, 'other': 765.2869565217412, 'ice_box': 395.65217391304367}}
+--- 最终结果（每个 mid 经过 5 次运行后取平均）---
+Protocol: BB84, Bypass: True, Detector: APD, Map: Large, Traffic:Medium
+{'traffic': 25000, 'total_avg_power': 1389.30434782609, 'avg_spectrum_occupied': 0.6083720930232552, 'avg_component_power': {'source': 3.56231884057972, 'detector': 573.5333333333326, 'other': 812.2086956521765, 'ice_box': 0.0}}
+
+--- 最终结果（每个 mid 经过 5 次运行后取平均）---
+Protocol: BB84, Bypass: False, Detector: APD, Map: Large, Traffic:Medium
+{'traffic': 25000, 'total_avg_power': 1409.6521739130465, 'avg_spectrum_occupied': 0.5762790697674413, 'avg_component_power': {'source': 3.6144927536231983, 'detector': 581.9333333333327, 'other': 824.1043478260897, 'ice_box': 0.0}}
+
+--- 最终结果（每个 mid 经过 5 次运行后取平均）---
+Protocol: BB84, Bypass: False, Detector: SNSPD, Map: Large, Traffic:High
+{'traffic': 90000, 'total_avg_power': 3689.718840579718, avg_component_power': {'source': 3.3536231884058063, 'detector': 2515.217391304349, 'other': 764.6260869565237, 'ice_box': 406.52173913043504}}
+
+--- 最终结果（每个 mid 经过 5 次运行后取平均）---
+Protocol: CV-QKD, Bypass: False, Detector: ThorlabsPDB, Map: Large, Traffic:Medium
+{'traffic': 25000, 'total_avg_power': 53.28134057971015, 'avg_spectrum_occupied': 0.07674418604651159, 'avg_component_power': {'source': 0.26811594202898553, 'detector': 2.0108695652173916, 'other': 51.00235507246382, 'ice_box': 0.0}}
+
+--- 最终结果（每个 mid 经过 5 次运行后取平均）---
+Protocol: CV-QKD, Bypass: True, Detector: ThorlabsPDB, Map: Large, Traffic:Medium
+{'traffic': 25000, 'total_avg_power': 52.41731884057972, 'avg_spectrum_occupied': 0.08046511627906974, 'avg_component_power': {'source': 0.263768115942029, 'detector': 1.978260869565218, 'other': 50.175289855072506, 'ice_box': 0.0}}

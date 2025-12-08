@@ -44,8 +44,20 @@ def combine_wavelength_slices(wavelength_list, topology, traffic, network_slice)
         combined_capacity[(v, u)] = 0
     selected_wavelengths = []  # 记录选中的λᵢ组合
 
+    # AG = copy.deepcopy(network_wavelength)
+
     for wavelength in wavelength_list:
         network_wavelength = network_slice[wavelength]
+        # AG = copy.deepcopy(network_wavelength)
+        # for node in list(AG.nodes):
+        #     laser_cover_link = AG.nodes[node]['laser'][wavelength]
+        #     if len(laser_cover_link) < 1:
+        #         continue
+        #     print(laser_cover_link)
+        #     laser_detector_capacity = AG.nodes[node]['laser_capacity'][wavelength][tuple(laser_cover_link)]
+        #     for i in range(len(laser_cover_link)-1):
+        #         AG.network_wavelength.edges[laser_cover_link[i], laser_cover_link[i+1]]['free_capacity'] = min(AG.network_wavelength.edges[laser_cover_link[i], laser_cover_link[i+1]]['free_capacity'], laser_detector_capacity)
+
         free_capacity_list = [0]
         for edge in network_wavelength.edges:
             free_capacity_list.append(network_wavelength.edges[edge]['free_capacity'])
@@ -112,6 +124,7 @@ def build_multiple_wavelength_slices(wavelength_combinations, topology, traffic)
                     edges_to_remove.append((src, dst, k))
     for src, dst, key in edges_to_remove:
         virtual_graph.remove_edge(src, dst, key=key)
+    # todo: remove the edges between laser and detector, and add the edge between laser and detectors
 
     return virtual_graph
 
@@ -128,7 +141,7 @@ def find_min_free_capacity(wavelength_slice, path):
 
 
 def find_laser_detector_position(wavelength_slice, path, wavelength):
-    # todo: justify the remaining key rate in a pair of Laser-Detector if biiger than traffic
+    # todo: justify the remaining key rate in a pair of Laser-Detector if bigger than traffic
     path_edge = []
     for i in range(len(path) - 1):
         path_edge.append((path[i], path[i + 1]))
@@ -156,6 +169,36 @@ def find_laser_detector_position(wavelength_slice, path, wavelength):
             for j in range(i + 1, len(path))
             if [path[i], path[j]] not in laser_detector
         ]
+        bypass_link = []
+        for node in path:
+            laser_cover_link = wavelength_slice.nodes[node]['laser'][wavelength]
+            # print(wavelength_slice.nodes[node]['detector'])
+            detector_cover_link = wavelength_slice.nodes[node]['detector'][wavelength]
+            for i in range(len(laser_cover_link)-1):
+                bypass_link.append([laser_cover_link[i], laser_cover_link[i+1]])
+            for i in range(len(detector_cover_link)-1):
+                bypass_link.append([detector_cover_link[i], detector_cover_link[i+1]])
+
+        covered_pair = []
+        for pair in pairs:
+            pair_cover_link = path[path.index(pair[0]):path.index(pair[1])+1]
+            for i in range(len(pair_cover_link) - 1):
+                if (pair_cover_link[i], pair_cover_link[i+1]) in bypass_link or (pair_cover_link[i+1], pair_cover_link[i]) in bypass_link\
+                        or [pair_cover_link[i], pair_cover_link[i+1]] in bypass_link or [pair_cover_link[i+1], pair_cover_link[i]] in bypass_link:
+                    if pair not in covered_pair:
+                        covered_pair.append(pair)
+
+
+            # print(pair, pair_cover_link)
+            # for link in pair_cover_link:
+            #     print(link)
+            #     if link in bypass_link or (link[1], link[0]) in bypass_link:
+            #         covered_pair.append(pair)
+            #         break
+        for pair in covered_pair:
+            pairs.remove(pair)
+
+
         for pair in pairs:
             possible_laser_detector = copy.deepcopy(laser_detector)
             possible_laser_detector.append(list(pair))
@@ -358,7 +401,7 @@ def calculate_data_auxiliary_edge(G, path, wavelength_combination, wavelength_ca
                 other_power = other_power + component_power['other']
                 ice_box_power = ice_box_power + component_power['ice_box']
                 if laser_detector[0] is not None:
-                    LD = LD+(path.index(laser_detector[1]) - path.index(laser_detector[0]))
+                    LD = LD+(path.index(laser_detector[1]) - path.index(laser_detector[0]) - 1)
                 used_LD = len(wavelength_used_laser_detector[wavelength]) + used_LD
                 for i in range(len(path) - 1):
                     src = path[i]
@@ -397,20 +440,21 @@ def calculate_data_auxiliary_edge(G, path, wavelength_combination, wavelength_ca
                          'path': path, 'laser_detector_position': wavelength_laser_detector,
                          'wavelength_traffic': wavelength_traffic_limitation,
                          'weight':
-                                 power
-                                 * (traffic/max_traffic)
-                                 * (10 + LD/(used_LD))
-                                 * (10 + 1e-2*(len(wavelength_combination))**1.0 * ((len(path) - 1))**1.0)
-                                 #* bypass
+                             power
+                             * (traffic/max_traffic)
+                             # * (10 + (LD)/used_LD)
+                             # * (10 + (1e-4)*(len(wavelength_combination)) ** 1.0 * (len(path) - 1) ** 1.0/(spectrum+1))
+                             *(10 + (1e-2)*(len(wavelength_combination)) ** 1.0 * (len(path) - 1) ** 1.0)
+                             # * bypass
 
-                                 # + spectrum
-                                 + 1e-2*(len(wavelength_combination))**1.0 * ((len(path) - 1))**1.0
-                                 # - 10**(-3)
-                                 # + 1e-2 * distance
-                                 # + 10 * len(wavelength_combination)
-                                 # + 1e-8 * sum(wavelength_combination)
-                                 # + 1e-4 * min(wavelength_combination) * (len(path) - 1)**1.01
-                                   + 1e-6 * max(wavelength_combination)
+                             # + spectrum
+                             + (len(wavelength_combination)) ** 1.0 * (len(path) - 1) ** 1.0
+                             # - 10**(-3)
+                             # + 1e-2 * distance
+                             # + 10 * len(wavelength_combination)
+                             # + 1e-8 * sum(wavelength_combination)
+                             # + 1e-4 * min(wavelength_combination) * (len(path) - 1)**1.01
+                             # + 1e-6 * max(wavelength_combination)
                                  # + 1e-16 * max_traffic
                          ,
                          'wavelength_list': wavelength_combination,
@@ -481,11 +525,17 @@ def build_multi_wavelength_auxiliary_graph(multi_wavelength_slice, network_slice
                         free_capacity_constraint = free_capacity_constraint + min_free_capacity
                     if free_capacity_constraint < traffic:
                         continue
+                    flag = True
                     for wavelength in wavelength_combinations:
                         wavelength_slice = network_slice[wavelength]
                         laser_detector_position[wavelength] = find_laser_detector_position(
                             wavelength_slice=wavelength_slice, path=path,
                             wavelength=wavelength)
+                        if len(laser_detector_position[wavelength]) < 1:
+                            flag = False
+                            break
+                    if flag is False:
+                        continue
 
                     # todo: add edge in auxiliary_graph
                     data = calculate_data_auxiliary_edge(G=virtual_physical_topology, path=path,

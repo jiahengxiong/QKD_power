@@ -162,6 +162,7 @@ taudsp2 = 0.018
 Edsp = []
 Edsp2 = []
 for t in skrCV:
+    print(t)
     Edsp.append(taudsp * gigabit / t * cvqkd_rate / MJ)
     Edsp2.append(taudsp2 * gigabit / t * cvqkd_rate / MJ)
 
