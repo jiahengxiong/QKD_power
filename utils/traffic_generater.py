@@ -51,11 +51,11 @@ def sort_traffic_matrix(topology, traffic_matrix):
     # 排序规则：接收方增强度降序 > 发送方增强度降序 > 最短跳数升序 > 物理距离升序 > traffic_value升序
     processed_matrix.sort(
         key=lambda x: (
-            # -enhanced_degrees.get(x[1], 0),  # 接收方增强度降序
-            # -enhanced_degrees.get(x[0], 0),  # 发送方增强度降序
+            -enhanced_degrees.get(x[1], 0),  # 接收方增强度降序
+            -enhanced_degrees.get(x[0], 0),  # 发送方增强度降序
             shortest_paths.get((x[0], x[1]), float('inf')),  # 最短跳数升序
-            # physical_distances.get((x[0], x[1]), float('inf')),  # 物理距离升序
-            # x[2]  # traffic_value升序
+            physical_distances.get((x[0], x[1]), float('inf')),  # 物理距离升序
+            x[2]  # traffic_value升序
         )
     )
 
@@ -109,23 +109,23 @@ def gen_traffic_matrix(mid, map_name, wavelength_list=None, protocol='BB84', det
 
     # 生成流量值列表
     traffic_values = (
-            [base_traffic - 1000] * low_count +
-            [base_traffic + 1000] * high_count +
+            [base_traffic - 0] * low_count +
+            [base_traffic + 0] * high_count +
             [base_traffic] * base_count
     )
-    random.shuffle(traffic_values)
+    # random.shuffle(traffic_values)
 
     for (src, dst), traffic in zip(pair_list, traffic_values):
         traffic_matrix.append((id, src, dst, traffic))
         id += 1
 
-    random.shuffle(traffic_matrix)
+    # random.shuffle(traffic_matrix)
     # ✅ 根据 src-dst 最短路径长度排序（距离短的排在前面）
     traffic_matrix.sort(key=lambda x: nx.shortest_path_length(G, x[1], x[2]))
-    # traffic_matrix = sort_traffic_matrix(G, traffic_matrix)
+    traffic_matrix = sort_traffic_matrix(G, traffic_matrix)
 
     return traffic_matrix
 
-if __name__ == '__main__':
-    print(gen_traffic_matrix('Low', 'Large', [1], 'BB84', 'APD'))
-    print(len(gen_traffic_matrix('Low', 'Large', [1], 'BB84', 'APD')))
+# if __name__ == '__main__':
+#     print(gen_traffic_matrix('Low', 'Large', [1], 'BB84', 'APD'))
+#     print(len(gen_traffic_matrix('Low', 'Large', [1], 'BB84', 'APD')))

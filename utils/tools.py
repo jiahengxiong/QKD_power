@@ -4,7 +4,7 @@ import itertools
 import uuid
 from itertools import product
 from multiprocessing import Pool
-
+import math
 
 import config
 from QEnergy.studies.key_rate_compute import compute_key_rate
@@ -40,52 +40,55 @@ def build_network_slice(wavelength_list, topology, traffic):
 def combine_wavelength_slices(wavelength_list, topology, traffic, network_slice):
     combined_capacity = {}
     for u, v, _ in topology.edges(keys=True):
-        combined_capacity[(u, v)] = 0 # 累积每条边的容量
+        combined_capacity[(u, v)] = 0
         combined_capacity[(v, u)] = 0
-    selected_wavelengths = []  # 记录选中的λᵢ组合
 
-    # AG = copy.deepcopy(network_wavelength)
+    selected_wavelengths = []
+    last_selected_idx = None
 
-    for wavelength in wavelength_list:
+    # -----------------------------
+    # 原逻辑：容量累积 + traffic 满足则 break
+    # -----------------------------
+    for i, wavelength in enumerate(wavelength_list):
         network_wavelength = network_slice[wavelength]
-        # AG = copy.deepcopy(network_wavelength)
-        # for node in list(AG.nodes):
-        #     laser_cover_link = AG.nodes[node]['laser'][wavelength]
-        #     if len(laser_cover_link) < 1:
-        #         continue
-        #     print(laser_cover_link)
-        #     laser_detector_capacity = AG.nodes[node]['laser_capacity'][wavelength][tuple(laser_cover_link)]
-        #     for i in range(len(laser_cover_link)-1):
-        #         AG.network_wavelength.edges[laser_cover_link[i], laser_cover_link[i+1]]['free_capacity'] = min(AG.network_wavelength.edges[laser_cover_link[i], laser_cover_link[i+1]]['free_capacity'], laser_detector_capacity)
 
-        free_capacity_list = [0]
-        for edge in network_wavelength.edges:
-            free_capacity_list.append(network_wavelength.edges[edge]['free_capacity'])
+        free_capacity_list = [network_wavelength.edges[edge]['free_capacity']
+                              for edge in network_wavelength.edges]
 
-        if max(free_capacity_list) <= 0:
+        if max(free_capacity_list, default=0) <= 0:
             continue
-        else:
-            # 将该波长的容量加到总图上
-            for edge in network_wavelength.edges:
-                if network_wavelength.has_edge(*edge):
-                    cap = network_wavelength.edges[edge].get('free_capacity', 0)
-                    # print(combined_capacity)
-                    combined_capacity[edge] += cap
-                    combined_capacity[(edge[1], edge[0])] += cap
 
-            selected_wavelengths.append(wavelength)
+        # 累积容量
+        for edge in network_wavelength.edges:
+            cap = network_wavelength.edges[edge].get('free_capacity', 0)
+            combined_capacity[edge] += cap
+            combined_capacity[(edge[1], edge[0])] += cap
 
-            # 判断是否当前组合可以满足traffic（取整图min）
-            min_cap = min(combined_capacity.values())
-            if min_cap >= traffic:
-                break
+        selected_wavelengths.append(wavelength)
+        last_selected_idx = i
 
+        # 判断是否已经满足 traffic
+        if min(combined_capacity.values(), default=0) >= traffic:
+            break
 
+    # -----------------------------
+    # ✅ 这里才是你要求的修改部分：
+    # 在生成 combinations 之前，多加一个“下一条 λ”
+    # -----------------------------
+    combination_wls = list(selected_wavelengths)  # 复制
 
+    if last_selected_idx is not None and last_selected_idx + 1 < len(wavelength_list):
+        extra_wl = wavelength_list[last_selected_idx + 1]
+        combination_wls.append(extra_wl)
+
+    # -----------------------------
+    # 生成所有非空组合
+    # -----------------------------
     all_combinations = []
-    for r in range(1, len(selected_wavelengths) + 1):
-        combinations = itertools.combinations(selected_wavelengths, r)
-        all_combinations.extend([list(comb) for comb in combinations])
+    for r in range(1, len(combination_wls) + 1):
+        for comb in itertools.combinations(combination_wls, r):
+            all_combinations.append(list(comb))
+
     return all_combinations
 
 
@@ -462,16 +465,76 @@ def calculate_data_auxiliary_edge(G, path, wavelength_combination, wavelength_ca
 
     return data
 
-def get_k_shortest_paths(graph, src, dst, k=5, weight='distance'):
-    virtual_physical_topology_simple = nx.Graph(graph)
+
+
+def get_k_shortest_paths(graph, src, dst, k=5, weight="distance"):
+    # 如果是 MultiGraph / MultiDiGraph，先压成简单图
+    if isinstance(graph, (nx.MultiGraph, nx.MultiDiGraph)):
+        G = nx.Graph()  # 或 nx.DiGraph() 看你原拓扑有向不有向
+        for u, v, data in graph.edges(data=True):
+            w = data.get(weight, 1.0)
+            if G.has_edge(u, v):
+                # 保留权重更小的那条边
+                if w < G[u][v].get(weight, math.inf):
+                    G[u][v][weight] = w
+            else:
+                G.add_edge(u, v, **{weight: w})
+    else:
+        G = graph
+
     try:
-        gen = nx.shortest_simple_paths(virtual_physical_topology_simple, source=src, target=dst)
-        return list(itertools.islice(gen, k))  # 最多 k 条，少于也可以
+        gen = nx.shortest_simple_paths(G, source=src, target=dst, weight=weight)
+        return list(itertools.islice(gen, k))  # 取前 k 条
     except nx.NetworkXNoPath:
-        return []  # 找不到任何路径就返回空列表
+        return []
+
+def check_path_coverage(path_links, wavelength_covered_links):
+    # 将每条边规范化成无向的 frozenset
+    norm = lambda e: frozenset(e)
+
+    path_set = {norm(edge) for edge in path_links}
+    wl_set   = {norm(edge) for edge in wavelength_covered_links}
+
+    # 条件 1：两者交集为空 → True
+    if path_set.isdisjoint(wl_set):
+        return True
+
+    # 条件 2：path_links 完全包含 wavelength_covered_links → True
+    if wl_set.issubset(path_set):
+        return True
+
+    # 其他情况 → False
+    return False
+
+
+def filter_paths(wavelength_combinations, path_list, served_request):
+    for path in path_list:
+        path_links = list(zip(path, path[1:]))  # 当前 path 对应的边序列
+
+        ok_for_all_wavelengths = True
+        for wavelength in wavelength_combinations:
+            if wavelength not in list(served_request.keys()):
+                continue
+
+            wavelength_covered_links_list = served_request[wavelength]
+            for wavelength_covered_links in wavelength_covered_links_list:
+
+                # 只要有一个 wavelength 不满足，就淘汰这条 path
+                if not check_path_coverage(path_links, wavelength_covered_links):
+                    ok_for_all_wavelengths = False
+                    break
+            if ok_for_all_wavelengths is not True:
+                break
+
+        # 如果对所有 wavelength 都满足条件，就返回这条 path
+        if ok_for_all_wavelengths:
+            return [path]
+
+    # 没有任何一条 path 对所有 wavelength 都合法
+    return []
 
 def build_multi_wavelength_auxiliary_graph(multi_wavelength_slice, network_slice, traffic, physical_topology,
-                                           wavelength_combinations, auxiliary_graph):
+                                           wavelength_combinations, auxiliary_graph, served_request):
     virtual_physical_topology = copy.deepcopy(physical_topology)
     for (src, dst) in physical_topology.edges():
         if multi_wavelength_slice.has_edge(src, dst) is False:
@@ -484,10 +547,12 @@ def build_multi_wavelength_auxiliary_graph(multi_wavelength_slice, network_slice
                 # all_original_paths = list(nx.all_simple_paths(source=src, target=dst, G=virtual_physical_topology))
                 if config.bypass is True:
                     if nx.has_path(source=src, target=dst, G=virtual_physical_topology):
-                        # k = 5
-                        # all_paths = get_k_shortest_paths(virtual_physical_topology, src, dst, k)
-                        all_paths = [
-                            nx.dijkstra_path(virtual_physical_topology, source=src, target=dst, weight='distance')]
+                        k = 100
+                        all_paths = get_k_shortest_paths(virtual_physical_topology, src, dst, k)
+                        all_paths = filter_paths(wavelength_combinations, all_paths, served_request)
+                        # todo: filter some paths
+                        # all_paths = [
+                        #     nx.dijkstra_path(virtual_physical_topology, source=src, target=dst, weight='distance')]
                     else:
                         all_paths = []
                     # no_bypass_path = []
@@ -571,7 +636,7 @@ def build_multi_wavelength_auxiliary_graph(multi_wavelength_slice, network_slice
 """
 
 
-def build_auxiliary_graph(topology, wavelength_list, traffic, physical_topology,shared_key_rate_list):
+def build_auxiliary_graph(topology, wavelength_list, traffic, physical_topology,shared_key_rate_list,served_request):
     auxiliary_graph = nx.MultiDiGraph()
     network_slice = build_network_slice(wavelength_list=wavelength_list, topology=topology, traffic=traffic)
     physical_topology = copy.deepcopy(topology)
@@ -596,7 +661,8 @@ def build_auxiliary_graph(topology, wavelength_list, traffic, physical_topology,
             ice_box_capacity,
             bypass,
             shared_key_rate_list,
-            auxiliary_graph
+            auxiliary_graph,
+            served_request
         )
 
         # for wavelength_combinations in wavelength_combination_list:
@@ -639,7 +705,7 @@ def build_auxiliary_graph(topology, wavelength_list, traffic, physical_topology,
 
 
 def process_wavelength_combination(wavelength_combinations, topology, traffic, network_slice, physical_topology,
-                                   protocol, detector, ice_box_capacity, bypass, shared_key_rate_list, AG):
+                                   protocol, detector, ice_box_capacity, bypass, shared_key_rate_list, AG, served_request):
     # 在每个进程中创建自己的局部图
     multi_wavelength_slice = build_multiple_wavelength_slices(wavelength_combinations=wavelength_combinations,
                                                               topology=topology, traffic=traffic)
@@ -656,7 +722,7 @@ def process_wavelength_combination(wavelength_combinations, topology, traffic, n
                                            network_slice=network_slice, traffic=traffic,
                                            physical_topology=physical_topology,
                                            wavelength_combinations=wavelength_combinations,
-                                           auxiliary_graph=AG)
+                                           auxiliary_graph=AG, served_request=served_request)
     # print(f"Finished processing wavelength combination: {wavelength_combinations}")
 
     # return local_auxiliary_graph  # 返回局部图

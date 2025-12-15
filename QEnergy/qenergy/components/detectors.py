@@ -64,7 +64,8 @@ class DetectorSNSPD1550(Detector):
     require_cryo = True
     dark_count = 100
     time_jitter = 20 * 10**-12
-    power = 3000  # all electronics and compressors included, except computer
+    # power = 3000  # all electronics and compressors included, except computer
+    power = 0
     fixed_energy = (
         24 * 60 * 60 * 3000
     )  # Approximately 24h long setup on initial cooling

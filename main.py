@@ -104,7 +104,7 @@ def find_min_weight_path_with_relay(auxiliary_graph, src, dst):
         return False
 
 
-def serve_traffic(G, AG, path_edge_list, request_traffic, pbar):
+def serve_traffic(G, AG, path_edge_list, request_traffic, pbar, served_request):
     occupied_wavelength = 0
     for (src, dst, key) in path_edge_list:
         edge_data = AG.get_edge_data(u=src, v=dst, key=key)
@@ -114,6 +114,8 @@ def serve_traffic(G, AG, path_edge_list, request_traffic, pbar):
         edge_traffic = request_traffic
         edge_laser_detector_list = edge_data['transverse_laser_detector']
         for wavelength in wavelength_list:
+            if wavelength not in list(served_request.keys()):
+                served_request[wavelength] = []
             laser_postion = edge_data['laser_detector_position'][wavelength][0]
             detector_postion = edge_data['laser_detector_position'][wavelength][1]
             traffic_limitation = edge_data['wavelength_traffic'][wavelength]
@@ -128,6 +130,8 @@ def serve_traffic(G, AG, path_edge_list, request_traffic, pbar):
                 pbar.write(
                     f"{wavelength}: laser-detector: {laser_postion} -> {detector_postion}, cover links: {cover_links}")
                 if cover_links not in G.nodes[laser_postion]['laser'][wavelength]:
+                    new_list = list(zip(cover_links, cover_links[1:]))
+                    served_request[wavelength].append(new_list)
                     G.nodes[laser_postion]['laser'][wavelength].append(cover_links)
                     G.nodes[detector_postion]['detector'][wavelength].append(cover_links)
                     # todo: add the key rate of new laser_detector (cover links)
@@ -232,7 +236,7 @@ def process_mid(traffic_type, map_name, protocol, detector, bypass, key_rate_lis
         # 根据当前 mid 生成流量矩阵（所有 run 使用相同的 pairs）
         # traffic_matrix = assign_traffic_values(pairs=pairs, mid=mid)
         traffic_matrix = request_list[run][traffic_type][map_name]
-        served_request = []
+        served_request = {}
         # print(traffic_matrix)
         max_traffic = mid + 1000
 
@@ -253,7 +257,8 @@ def process_mid(traffic_type, map_name, protocol, detector, bypass, key_rate_lis
                     wavelength_list=wavelength_list,
                     traffic=traffic,
                     physical_topology=physical_topology,
-                    shared_key_rate_list=key_rate_list
+                    shared_key_rate_list=key_rate_list,
+                    served_request=served_request
                 )
                 result = find_min_weight_path_with_relay(auxiliary_graph=auxiliary_graph, src=src, dst=dst)
 
@@ -269,7 +274,8 @@ def process_mid(traffic_type, map_name, protocol, detector, bypass, key_rate_lis
                                                         AG=auxiliary_graph,
                                                         path_edge_list=best_path_edges,
                                                         request_traffic=traffic,
-                                                        pbar=pbar)
+                                                        pbar=pbar,
+                                                        served_request = served_request)
                     num_request = len(list(physical_topology.nodes())) * (len(list(physical_topology.nodes()))-1)/2
                     total_power_each_run += min_power / len(traffic_matrix)
                     spectrum_occupied += occupied_wavelength / network.num_wavelength
@@ -398,7 +404,7 @@ def main():
 
 
 
-    with Pool(processes=1) as pool:
+    with Pool(processes=16) as pool:
         pool.starmap(process_mid, args_list)
 
     # 将最终结果从共享字典转换为普通字典

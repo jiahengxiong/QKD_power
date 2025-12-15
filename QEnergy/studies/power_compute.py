@@ -217,12 +217,12 @@ def compute_power(distance, protocol, receiver):
         # cvqkd_rate = 100e6
         keyrate = CVQKD_experiment.compute_secret_key_rate()
         power_dsp = taudsp  * sourcerate
-        print(power_dsp)
+        # print(power_dsp)
         power = {'source':source_power, 'detector':detector_power, 'other':other_power, 'total':total_power }
 
 
     return power
 
-if __name__ == "__main__":
-    power = compute_power(10, 'BB84', 'SNSPD')
-    print(power)
+# if __name__ == "__main__":
+#     power = compute_power(10, 'BB84', 'SNSPD')
+#     print(power)
