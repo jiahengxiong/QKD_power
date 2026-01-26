@@ -223,6 +223,6 @@ def compute_power(distance, protocol, receiver):
 
     return power
 
-# if __name__ == "__main__":
-#     power = compute_power(10, 'BB84', 'SNSPD')
-#     print(power)
+if __name__ == "__main__":
+    power = compute_power(10, 'BB84', 'SNSPD')
+    print(power)

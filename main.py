@@ -15,6 +15,9 @@ from multiprocessing import Process, Manager
 from tqdm import tqdm
 import sys
 import numpy as np
+import ctypes
+
+
 
 
 def average_component_power(component_power_run):
@@ -120,6 +123,10 @@ def serve_traffic(G, AG, path_edge_list, request_traffic, pbar, served_request):
             detector_postion = edge_data['laser_detector_position'][wavelength][1]
             traffic_limitation = edge_data['wavelength_traffic'][wavelength]
             trans_traffic = min(edge_traffic, traffic_limitation)
+            
+            if trans_traffic <= 0:
+                print(f"ERROR!!! trans_traffic = {trans_traffic}")
+                continue
 
             if laser_postion is not None and detector_postion is not None:
                 laser_index = path.index(laser_postion)
@@ -137,7 +144,7 @@ def serve_traffic(G, AG, path_edge_list, request_traffic, pbar, served_request):
                     # todo: add the key rate of new laser_detector (cover links)
                     G.nodes[laser_postion]['laser_capacity'][wavelength][tuple(cover_links)] = calculate_keyrate(
                         laser_detector_position={'laser': laser_postion, 'detector': detector_postion}, path=path, G=G)
-                G.nodes[detector_postion]['num_detector'] += 1
+                    G.nodes[detector_postion]['num_detector'] += 1
 
             # add traffic in each wavelength slice
             for i in range(len(path) - 1):
@@ -243,6 +250,7 @@ def process_mid(traffic_type, map_name, protocol, detector, bypass, key_rate_lis
         # 使用 tqdm 显示当前 run 中该 mid 的进度，输出到 sys.stderr
         with tqdm(total=len(traffic_matrix), file=sys.stderr, colour="red",
                   desc=f"mid {mid} run {run + 1}/{num_runs}") as pbar:
+            remain_num_request = len(traffic_matrix)
             for request in traffic_matrix:
                 # request = traffic_matrix[request_index]
                 # if request in served_request:
@@ -258,7 +266,8 @@ def process_mid(traffic_type, map_name, protocol, detector, bypass, key_rate_lis
                     traffic=traffic,
                     physical_topology=physical_topology,
                     shared_key_rate_list=key_rate_list,
-                    served_request=served_request
+                    served_request=served_request,
+                    remain_num_request=remain_num_request
                 )
                 result = find_min_weight_path_with_relay(auxiliary_graph=auxiliary_graph, src=src, dst=dst)
 
@@ -302,6 +311,8 @@ def process_mid(traffic_type, map_name, protocol, detector, bypass, key_rate_lis
                     return
                 del auxiliary_graph
                 gc.collect()
+                ctypes.CDLL("libc.so.6").malloc_trim(0)
+                remain_num_request = remain_num_request - 1
 
         if flag:
             total_power_run.append(total_power_each_run)
@@ -325,7 +336,7 @@ def process_mid(traffic_type, map_name, protocol, detector, bypass, key_rate_lis
             file.write(
                 f'Protocol: {config.protocol}, Bypass: {config.bypass}, Detector: {config.detector}, Map: {map_name}, Traffic:{traffic_type}\n')
             file.write(f'{shared_results}\n')
-            file.write(f"{traffic_matrix}\n")
+            # file.write(f"{traffic_matrix}\n")
 
 
     print(f"[PID {os.getpid()}] Finished processing mid {mid}")
