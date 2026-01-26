@@ -824,9 +824,7 @@ def generate_traffic(mid, topology):
         physical_distances[(sender, receiver)] = distance
 
     # 对有向对进行排序，新增物理距离作为排序条件
-    # 修改策略：从 Shortest First 改为 Longest First (-shortest_paths[x])
-    # 启发式：长路径更难满足约束，应优先分配资源
-    pairs.sort(key=lambda x: (-degrees[x[1]],  -shortest_paths[x], -degrees[x[0]], -physical_distances[x]))
+    pairs.sort(key=lambda x: (-degrees[x[1]],  shortest_paths[x], -degrees[x[0]], physical_distances[x]))
 
     # 生成流量值列表，按比例生成，不打乱顺序
     num_pairs = len(pairs)

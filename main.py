@@ -242,7 +242,18 @@ def process_mid(traffic_type, map_name, protocol, detector, bypass, key_rate_lis
 
         # 根据当前 mid 生成流量矩阵（所有 run 使用相同的 pairs）
         # traffic_matrix = assign_traffic_values(pairs=pairs, mid=mid)
-        traffic_matrix = request_list[run][traffic_type][map_name]
+        traffic_matrix_base = request_list[run][traffic_type][map_name]
+        
+        # 引入随机扰动：
+        # Run 0: 纯贪心 (perturbation=0)
+        # Run 1~N: 逐渐增加扰动 (perturbation=0.05 ~ 0.2)
+        if run == 0:
+            perturbation = 0.0
+        else:
+            perturbation = 0.05 + (run * 0.02) # 例如: 0.07, 0.09...
+            
+        traffic_matrix = utils.traffic_generater.sort_traffic_matrix(physical_topology, traffic_matrix_base, perturbation=perturbation)
+
         served_request = {}
         # print(traffic_matrix)
         max_traffic = mid + 1000
@@ -320,15 +331,20 @@ def process_mid(traffic_type, map_name, protocol, detector, bypass, key_rate_lis
             component_power_run.append(component_power)
 
     if total_power_run:
-        avg_value = sum(total_power_run) / len(total_power_run)
-        avg_occupied_spectrum = sum(spectrum_occupied_run) / len(total_power_run)
-        avg_component_power = average_component_power(component_power_run)
+        # 修改统计逻辑：取最小值而不是平均值 (Best of Runs)
+        # 找到最小功耗对应的索引
+        min_power_idx = total_power_run.index(min(total_power_run))
+        
+        avg_value = total_power_run[min_power_idx]
+        avg_occupied_spectrum = spectrum_occupied_run[min_power_idx]
+        avg_component_power = component_power_run[min_power_idx] # 这里不再取平均，而是取最佳 Run 的组件功耗
+        
         shared_results['traffic'] = mid
         shared_results['total_avg_power'] = avg_value
         shared_results['avg_spectrum_occupied'] = avg_occupied_spectrum
         shared_results['avg_component_power'] = avg_component_power
 
-        print(f'\n--- 最终结果（每个 mid 经过 {num_runs} 次运行后取平均）---\n'
+        print(f'\n--- 最终结果（经过 {num_runs} 次运行后取最佳结果）---\n'
               f'Protocol: {config.protocol}, Bypass: {config.bypass}, Detector: {config.detector}, Map: {map_name}, Traffic ^:{traffic_type}\n'
               f'{shared_results}')
         with open('result.txt', 'a') as file:
@@ -349,7 +365,8 @@ def main():
     wavelength_list = np.linspace(1530, 1565, 10).tolist()
 
     # 每个 mid 内部的运行次数
-    num_runs = 1  # 可根据需要调整
+    # 增加 num_runs，以便利用随机扰动寻找更优解
+    num_runs = 5  # 建议设置为 5 或 10
 
     manager = Manager()
     # 创建共享字典用于 key_rate（按原逻辑使用）

@@ -11,8 +11,9 @@ import random
 import numpy as np
 
 
-def sort_traffic_matrix(topology, traffic_matrix):
+def sort_traffic_matrix(topology, traffic_matrix, perturbation=0.0):
     import networkx as nx
+    import random
 
     # 原始度数
     raw_degrees = dict(topology.degree())
@@ -58,6 +59,16 @@ def sort_traffic_matrix(topology, traffic_matrix):
             -x[3]  # traffic_value降序 (High Traffic First)
         )
     )
+
+    # 引入随机扰动，跳出局部最优
+    if perturbation > 0:
+        n = len(processed_matrix)
+        # 交换次数与 perturbation 成正比
+        num_swaps = int(n * perturbation)
+        for _ in range(num_swaps):
+            i = random.randint(0, n - 1)
+            j = random.randint(0, n - 1)
+            processed_matrix[i], processed_matrix[j] = processed_matrix[j], processed_matrix[i]
 
     return processed_matrix
 
