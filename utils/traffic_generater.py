@@ -48,14 +48,14 @@ def sort_traffic_matrix(topology, traffic_matrix):
             distance = float('inf')
         physical_distances[(src, dst)] = distance
 
-    # 排序规则：接收方增强度降序 > 发送方增强度降序 > 最短跳数升序 > 物理距离升序 > traffic_value升序
+    # 排序规则：接收方增强度降序 > 发送方增强度降序 > 最短跳数降序 > 物理距离降序 > traffic_value降序
     processed_matrix.sort(
         key=lambda x: (
-            -enhanced_degrees.get(x[1], 0),  # 接收方增强度降序
-            -enhanced_degrees.get(x[0], 0),  # 发送方增强度降序
-            shortest_paths.get((x[0], x[1]), float('inf')),  # 最短跳数升序
-            physical_distances.get((x[0], x[1]), float('inf')),  # 物理距离升序
-            x[2]  # traffic_value升序
+            -enhanced_degrees.get(x[2], 0),  # 接收方(dst)增强度降序 (x[2] is dst)
+            -enhanced_degrees.get(x[1], 0),  # 发送方(src)增强度降序 (x[1] is src)
+            -shortest_paths.get((x[1], x[2]), float('inf')),  # 最短跳数降序 (Longest Path First)
+            -physical_distances.get((x[1], x[2]), float('inf')),  # 物理距离降序
+            -x[3]  # traffic_value降序 (High Traffic First)
         )
     )
 
