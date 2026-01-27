@@ -329,12 +329,13 @@ def process_mid(traffic_type, map_name, protocol, detector, bypass, key_rate_lis
                 if i not in tried_path_indices:
                     tried_path_indices[i] = 0
                     # 保存当前状态快照
+                    # 优化：对于简单的字典，使用 .copy() 替代 copy.deepcopy() 以节省内存
                     state_stack.append({
                         'topology': topology.copy(),
                         'served_request': copy.deepcopy(served_request),
                         'total_power_each_run': total_power_each_run,
                         'spectrum_occupied': spectrum_occupied,
-                        'component_power': copy.deepcopy(component_power),
+                        'component_power': component_power.copy(),
                         'link_future_demand': link_future_demand.copy(),
                         'node_future_demand': node_future_demand.copy(),
                         'remain_num_request': remain_num_request
@@ -437,6 +438,10 @@ def process_mid(traffic_type, map_name, protocol, detector, bypass, key_rate_lis
                     remain_num_request -= 1
                     i += 1
                     pbar.update(1)
+                    
+                    # 每次前进时尝试回收内存
+                    if i % 20 == 0:
+                        gc.collect()
                     
                     # 如果处理完了所有请求，记录一个可行方案
                     if i == len(traffic_matrix):
