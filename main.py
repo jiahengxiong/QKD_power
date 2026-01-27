@@ -42,11 +42,19 @@ def average_component_power(component_power_run):
 
 def find_min_weight_path_with_relay(auxiliary_graph, src, dst, top_k=3):
     # 辅助函数：计算路径总功率
-    def calculate_path_power(path_edges):
+    def calculate_path_power(path_edges_with_data):
         total_power = 0
-        for u, v, key in path_edges:
-            total_power += auxiliary_graph[u][v][key]['power']
+        for u, v, data in path_edges_with_data:
+            total_power += data['power']
         return total_power
+    
+    # 辅助函数：将 (u, v, key) 列表转换为 (u, v, data) 列表
+    def attach_edge_data(path_keys):
+        path_with_data = []
+        for u, v, key in path_keys:
+            data = auxiliary_graph.get_edge_data(u, v, key)
+            path_with_data.append((u, v, data))
+        return path_with_data
 
     paths = []  # 存储所有可能路径和属性
 
@@ -54,15 +62,17 @@ def find_min_weight_path_with_relay(auxiliary_graph, src, dst, top_k=3):
     if nx.has_path(auxiliary_graph, src, dst):
         path_edges, weight = Dijkstra_single_path(src=src, dst=dst, graph=auxiliary_graph)
         if path_edges:
-            power_sum = calculate_path_power(path_edges)
-            paths.append(('src->dst', path_edges, None, power_sum, weight))
+            path_with_data = attach_edge_data(path_edges)
+            power_sum = calculate_path_power(path_with_data)
+            paths.append(('src->dst', path_with_data, None, power_sum, weight))
 
     # 2. 检查 dst -> src 的直接路径
     if nx.has_path(auxiliary_graph, dst, src):
         path_edges, weight = Dijkstra_single_path(src=dst, dst=src, graph=auxiliary_graph)
         if path_edges:
-            power_sum = calculate_path_power(path_edges)
-            paths.append(('dst->src', path_edges, None, power_sum, weight))
+            path_with_data = attach_edge_data(path_edges)
+            power_sum = calculate_path_power(path_with_data)
+            paths.append(('dst->src', path_with_data, None, power_sum, weight))
 
         # 3. 检查中继路径
         for delay in auxiliary_graph.nodes:
@@ -70,34 +80,34 @@ def find_min_weight_path_with_relay(auxiliary_graph, src, dst, top_k=3):
                 # 情形1：src -> delay 和 dst -> delay
                 if nx.has_path(auxiliary_graph, src, delay) and nx.has_path(auxiliary_graph, dst, delay):
                     path1_edges, path2_edges, weight = Dijkstra_double_path(graph=auxiliary_graph, src=src, dst=dst, delay=delay)
-                    path_edges = path1_edges + path2_edges
-                    if path_edges:
-                        power_sum = calculate_path_power(path_edges)
-                        paths.append(('src->delay,dst->delay', path_edges, delay, power_sum, weight))
+                    if path1_edges and path2_edges:
+                        path_edges = path1_edges + path2_edges
+                        path_with_data = attach_edge_data(path_edges)
+                        power_sum = calculate_path_power(path_with_data)
+                        paths.append(('src->delay,dst->delay', path_with_data, delay, power_sum, weight))
 
                 # 情形2：dst -> delay 和 src -> delay
                 if nx.has_path(auxiliary_graph, dst, delay) and nx.has_path(auxiliary_graph, src, delay):
                     path1_edges, path2_edges, weight = Dijkstra_double_path(graph=auxiliary_graph, src=dst, dst=src, delay=delay)
-                    path_edges = path1_edges + path2_edges
-                    if path_edges:
-                        power_sum = calculate_path_power(path_edges)
-                        paths.append(('dst->delay,src->delay', path_edges, delay, power_sum, weight))
+                    if path1_edges and path2_edges:
+                        path_edges = path1_edges + path2_edges
+                        path_with_data = attach_edge_data(path_edges)
+                        power_sum = calculate_path_power(path_with_data)
+                        paths.append(('dst->delay,src->delay', path_with_data, delay, power_sum, weight))
 
     if not paths:
         return []
 
     # 按权重 (weight) 排序，权重越小越优
-    # index 4 是 weight
     sorted_paths = sorted(paths, key=lambda x: x[4])
     
     # 返回前 top_k 条候选路径
     return sorted_paths[:top_k]
 
 
-def serve_traffic(G, AG, path_edge_list, request_traffic, pbar, served_request):
+def serve_traffic(G, path_with_data, request_traffic, pbar, served_request):
     occupied_wavelength = 0
-    for (src, dst, key) in path_edge_list:
-        edge_data = AG.get_edge_data(u=src, v=dst, key=key)
+    for (src, dst, edge_data) in path_with_data:
         # print(f' src: {src}, dst: {dst}, key: {key}, edge_data: {edge_data}')
         wavelength_list = edge_data['wavelength_list']
         path = edge_data['path']
@@ -383,6 +393,8 @@ def process_mid(traffic_type, map_name, protocol, detector, bypass, key_rate_lis
                         link_future_demand=link_future_demand,
                         node_future_demand=node_future_demand
                     )
+                    # 现在 find_min_weight_path_with_relay 返回的是 (direction, path_with_data, relay, min_power, weight)
+                    # path_with_data 是 [(u, v, edge_data), ...]，不再依赖 AG 的 key
                     candidates_cache[i] = find_min_weight_path_with_relay(auxiliary_graph, src, dst, top_k=2)
                     del auxiliary_graph
 
@@ -391,35 +403,25 @@ def process_mid(traffic_type, map_name, protocol, detector, bypass, key_rate_lis
                 # 尝试当前索引对应的候选路径
                 if tried_path_indices[i] < len(candidates):
                     result = candidates[tried_path_indices[i]]
-                    direction, best_path_edges, relay, min_power, weight = result
+                    direction, path_with_data, relay, min_power, weight = result
                     
-                    # 这里的 auxiliary_graph 需要重新构建以执行 serve_traffic
-                    # (或者我们可以优化为在 candidates 中保存必要的辅助数据，但为了稳定先重构)
-                    aux_g = utils.tools.build_auxiliary_graph(
-                        topology=topology,
-                        wavelength_list=wavelength_list,
-                        traffic=traffic,
-                        physical_topology=physical_topology,
-                        shared_key_rate_list=key_rate_list,
-                        served_request=served_request,
-                        remain_num_request=remain_num_request,
-                        link_future_demand=link_future_demand,
-                        node_future_demand=node_future_demand
-                    )
+                    if relay:
+                        pbar.write(f"[PID {os.getpid()}] 请求 {i}/{len(traffic_matrix)} (路径尝试 {tried_path_indices[i]+1}): {src}->{dst} (中继: {relay}), 功率: {min_power}")
+                    else:
+                        pbar.write(f"[PID {os.getpid()}] 请求 {i}/{len(traffic_matrix)} (路径尝试 {tried_path_indices[i]+1}): {src}->{dst}, 功率: {min_power}")
                     
-                    occupied_wavelength = serve_traffic(topology, aux_g, best_path_edges, traffic, pbar, served_request)
+                    # 执行分配 (不再需要重新构建辅助图)
+                    occupied_wavelength = serve_traffic(topology, path_with_data, traffic, pbar, served_request)
                     
-                    # 更新状态
+                    # 更新统计数据
                     total_power_each_run += min_power / len(traffic_matrix)
                     spectrum_occupied += occupied_wavelength / network.num_wavelength
-                    for (u, v, key) in best_path_edges:
-                        edge_data = aux_g.get_edge_data(u=u, v=v, key=key)
+                    for (u, v, edge_data) in path_with_data:
                         component_power['source'] += edge_data['source_power'] / len(traffic_matrix)
                         component_power['detector'] += edge_data['detector_power'] / len(traffic_matrix)
                         component_power['other'] += edge_data['other_power'] / len(traffic_matrix)
                         component_power['ice_box'] += edge_data['ice_box_power'] / len(traffic_matrix)
 
-                    del aux_g
                     remain_num_request -= 1
                     i += 1
                     pbar.update(1)
