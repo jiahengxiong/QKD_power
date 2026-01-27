@@ -346,7 +346,7 @@ except ImportError:
     pass
 
 def calculate_data_auxiliary_edge(G, path, wavelength_combination, wavelength_capacity, laser_detector_position,
-                                  traffic, network_slice, remain_num_request, link_future_demand=None, topology=None):
+                                  traffic, network_slice, remain_num_request, link_future_demand=None, topology=None, node_future_demand=None):
     data = []
     keys = laser_detector_position.keys()
     values = laser_detector_position.values()
@@ -467,7 +467,16 @@ def calculate_data_auxiliary_edge(G, path, wavelength_combination, wavelength_ca
                     # 只有当冰箱数量确实增加时，才计入 3000W
                     marginal_fridges = fridges_after - fridges_before
                     if marginal_fridges > 0:
-                        ice_box_power += marginal_fridges * unit_cooling_power
+                        # === 核心改进：引入未来热度奖励因子 ===
+                        # 如果该节点未来有很多请求结束，说明它是一个潜在的“探测器聚集地”。
+                        # 此时开冰箱的代价应该被“摊薄”（给予折扣奖励）。
+                        future_node_demand = node_future_demand.get(node, 0) if node_future_demand else 0
+                        # 归一化折扣因子：需求越高，折扣越大，最低 0.5 (即 1500W)
+                        # 参考基准：当前请求流量 * 剩余请求数
+                        reference_demand = traffic * (remain_num_request + 1)
+                        discount = max(0.5, 1.0 - (future_node_demand / (reference_demand * 5.0 + 1.0)))
+                        
+                        ice_box_power += marginal_fridges * unit_cooling_power * discount
             else:
                 # APD 或其他类型不需要冰箱
                 ice_box_power = 0
@@ -609,10 +618,10 @@ def build_temp_graph_for_path(topology, path, wavelength_combinations):
 # 核心重构：build_auxiliary_graph
 # ==========================================
 
-def build_auxiliary_graph(topology, wavelength_list, traffic, physical_topology, shared_key_rate_list, served_request,remain_num_request, link_future_demand=None):
+def build_auxiliary_graph(topology, wavelength_list, traffic, physical_topology, shared_key_rate_list, served_request,remain_num_request, link_future_demand=None, node_future_demand=None):
     """
     终极修正版 V8：DFS 回溯 + 智能剪枝 (Backtracking with Pruning)
-    新增：link_future_demand (动态热力图)
+    新增：link_future_demand (链路热力图), node_future_demand (节点热力图)
     """
     auxiliary_graph = nx.MultiDiGraph()
     
@@ -724,7 +733,8 @@ def build_auxiliary_graph(topology, wavelength_list, traffic, physical_topology,
                         traffic=traffic,
                         network_slice=network_slice,
                         remain_num_request=remain_num_request,
-                        link_future_demand=getattr(config, 'link_future_demand', {}), # 传递热力图
+                        link_future_demand=link_future_demand, # 传递链路热力图
+                        node_future_demand=node_future_demand, # 传递节点热力图
                         topology=topology # 新增：传递原始拓扑以计算总容量
                     )
                     del temp_G

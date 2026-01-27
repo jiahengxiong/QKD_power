@@ -1,5 +1,6 @@
 # from utils.tools import build_auxiliary_graph, generate_traffic
 import gc
+import math
 import random
 import itertools
 import networkx as nx
@@ -39,7 +40,7 @@ def average_component_power(component_power_run):
     return average
 
 
-def find_min_weight_path_with_relay(auxiliary_graph, src, dst):
+def find_min_weight_path_with_relay(auxiliary_graph, src, dst, temperature=0):
     # 辅助函数：计算路径总功率
     def calculate_path_power(path_edges):
         total_power = 0
@@ -47,25 +48,13 @@ def find_min_weight_path_with_relay(auxiliary_graph, src, dst):
             total_power += auxiliary_graph[u][v][key]['power']
         return total_power
 
-    # 辅助函数：查找路径及其边信息，选择每对节点之间权重最小的边
-    def extract_path_edges(path):
-        edges = []
-        for i in range(len(path) - 1):
-            u, v = path[i], path[i + 1]
-            # 获取所有多重边中权重最小的那一条
-            min_edge = min(auxiliary_graph[u][v].items(), key=lambda x: x[1]['weight'])
-            edges.append((u, v, min_edge[0]))
-        return edges
-
     paths = []  # 存储所有可能路径和属性
-
 
     # 1. 检查 src -> dst 的直接路径
     if nx.has_path(auxiliary_graph, src, dst):
         path_edges, weight = Dijkstra_single_path(src=src, dst=dst, graph=auxiliary_graph)
         if path_edges:
             power_sum = calculate_path_power(path_edges)
-            # 若找到功率为0的路径，直接返回
             paths.append(('src->dst', path_edges, None, power_sum, weight))
 
     # 2. 检查 dst -> src 的直接路径
@@ -75,13 +64,12 @@ def find_min_weight_path_with_relay(auxiliary_graph, src, dst):
             power_sum = calculate_path_power(path_edges)
             paths.append(('dst->src', path_edges, None, power_sum, weight))
 
-        # 3. 检查中继路径：src->delay 和 dst->delay 或 dst->delay 和 src->delay
+        # 3. 检查中继路径
         for delay in auxiliary_graph.nodes:
-            if delay != src and delay != dst:  # 排除 src 和 dst 本身
+            if delay != src and delay != dst:
                 # 情形1：src -> delay 和 dst -> delay
                 if nx.has_path(auxiliary_graph, src, delay) and nx.has_path(auxiliary_graph, dst, delay):
-                    path1_edges, path2_edges, weight = Dijkstra_double_path(graph=auxiliary_graph, src=src, dst=dst,
-                                                                            delay=delay)
+                    path1_edges, path2_edges, weight = Dijkstra_double_path(graph=auxiliary_graph, src=src, dst=dst, delay=delay)
                     path_edges = path1_edges + path2_edges
                     if path_edges:
                         power_sum = calculate_path_power(path_edges)
@@ -89,22 +77,33 @@ def find_min_weight_path_with_relay(auxiliary_graph, src, dst):
 
                 # 情形2：dst -> delay 和 src -> delay
                 if nx.has_path(auxiliary_graph, dst, delay) and nx.has_path(auxiliary_graph, src, delay):
-                    path1_edges, path2_edges, weight = Dijkstra_double_path(graph=auxiliary_graph, src=dst, dst=src,
-                                                                            delay=delay)
+                    path1_edges, path2_edges, weight = Dijkstra_double_path(graph=auxiliary_graph, src=dst, dst=src, delay=delay)
                     path_edges = path1_edges + path2_edges
                     if path_edges:
                         power_sum = calculate_path_power(path_edges)
                         paths.append(('dst->delay,src->delay', path_edges, delay, power_sum, weight))
 
-
-
-    # 如果没有找到功率为0的路径，则返回功率最小的候选路径
-    if paths:
-        # random.shuffle(paths)
-        best_path_info = min(paths, key=lambda x: x[4])
-        return best_path_info
-    else:
+    if not paths:
         return False
+
+    # 模拟退火选择逻辑
+    # 按权重排序 (index 4 是 weight)
+    sorted_paths = sorted(paths, key=lambda x: x[4])
+    best_path = sorted_paths[0]
+
+    if temperature > 0:
+        # 尝试以前 5 个候选路径进行 SA 探索
+        for candidate in sorted_paths[1:5]:
+            delta_w = candidate[4] - best_path[4]
+            # Metropolis 准则
+            try:
+                prob = math.exp(-delta_w / (temperature + 1e-9))
+                if random.random() < prob:
+                    return candidate
+            except OverflowError:
+                continue
+
+    return best_path
 
 
 def serve_traffic(G, AG, path_edge_list, request_traffic, pbar, served_request):
@@ -247,12 +246,8 @@ def process_mid(traffic_type, map_name, protocol, detector, bypass, key_rate_lis
         # 引入随机扰动：
         # Run 0: 纯贪心 (perturbation=0)
         # Run 1~N: 逐渐增加扰动 (perturbation=0.05 ~ 0.2)
-        if run == 0:
-            perturbation = 0.0
-        else:
-            perturbation = 0.05 + (run * 0.02) # 例如: 0.07, 0.09...
-            
-        traffic_matrix = utils.traffic_generater.sort_traffic_matrix(physical_topology, traffic_matrix_base, perturbation=perturbation)
+        # 不再调整服务顺序，直接使用原始流量矩阵
+        traffic_matrix = traffic_matrix_base
 
         served_request = {}
         # print(traffic_matrix)
@@ -266,11 +261,10 @@ def process_mid(traffic_type, map_name, protocol, detector, bypass, key_rate_lis
             # --- 1. 构建剩余需求热力图 (Future Demand Heatmap) ---
             # 预计算所有剩余请求的最短路径，统计每条物理链路被“未来”经过的次数
             # 这不需要非常精确（比如考虑波长），只需要基于物理距离的拓扑统计
-            # link_future_demand = {(u, v): count}
+            # link_future_demand = {(u, v): traffic_weighted_count}
             
             link_future_demand = {}
-            # 预计算所有点对的最短路径 (缓存以加速)
-            # all_shortest_paths = dict(nx.all_pairs_dijkstra_path(physical_topology, weight='distance'))
+            node_future_demand = {} # 新增：宿节点热度统计
             
             # 初始统计所有请求
             request_paths_cache = {} # id -> list of (edges, weight)
@@ -279,7 +273,10 @@ def process_mid(traffic_type, map_name, protocol, detector, bypass, key_rate_lis
             raw_weights = [0.8, 0.1, 0.05, 0.03, 0.02]
             
             for req in traffic_matrix:
-                r_id, r_src, r_dst, _ = req
+                r_id, r_src, r_dst, r_traffic = req # 获取请求流量
+                
+                # 统计宿节点热度
+                node_future_demand[r_dst] = node_future_demand.get(r_dst, 0) + r_traffic
                 
                 # 计算 K 条最短路径 (K=5)
                 try:
@@ -304,13 +301,19 @@ def process_mid(traffic_type, map_name, protocol, detector, bypass, key_rate_lis
                     path_data_list.append((edges, weight))
                     
                     for u, v in edges:
-                        # 按权重增加热度
-                        link_future_demand[(u, v)] = link_future_demand.get((u, v), 0) + weight
-                        link_future_demand[(v, u)] = link_future_demand.get((v, u), 0) + weight
+                        # 按权重 * 流量 增加热度
+                        impact = weight * r_traffic
+                        link_future_demand[(u, v)] = link_future_demand.get((u, v), 0) + impact
+                        link_future_demand[(v, u)] = link_future_demand.get((v, u), 0) + impact
                 
                 request_paths_cache[r_id] = path_data_list
 
-            for request in traffic_matrix:
+            # 模拟退火温度参数
+            T0 = 1000.0  # 初始温度
+            alpha = 0.85 # 冷却系数
+            current_T = T0 * (alpha ** run)
+
+            for i, request in enumerate(traffic_matrix):
                 id = request[0]
                 src = request[1]
                 dst = request[2]
@@ -318,12 +321,17 @@ def process_mid(traffic_type, map_name, protocol, detector, bypass, key_rate_lis
                 
                 # --- 2. 动态更新热力图 ---
                 # 在处理当前请求前，从未来需求中移除
+                node_future_demand[dst] = max(0, node_future_demand.get(dst, 0) - traffic)
                 if id in request_paths_cache:
                     for edges, weight in request_paths_cache[id]:
                         for u, v in edges:
-                            link_future_demand[(u, v)] -= weight
-                            link_future_demand[(v, u)] -= weight
+                            impact = weight * traffic
+                            link_future_demand[(u, v)] = max(0, link_future_demand.get((u, v), 0) - impact)
+                            link_future_demand[(v, u)] = max(0, link_future_demand.get((v, u), 0) - impact)
                 
+                # 计算当前步骤的温度
+                T_step = current_T * (1.0 - i / len(traffic_matrix))
+
                 auxiliary_graph = utils.tools.build_auxiliary_graph(
                     topology=topology,
                     wavelength_list=wavelength_list,
@@ -332,9 +340,10 @@ def process_mid(traffic_type, map_name, protocol, detector, bypass, key_rate_lis
                     shared_key_rate_list=key_rate_list,
                     served_request=served_request,
                     remain_num_request=remain_num_request,
-                    link_future_demand=link_future_demand  # 传入热力图
+                    link_future_demand=link_future_demand,  # 传入链路热力图
+                    node_future_demand=node_future_demand   # 传入节点热力图
                 )
-                result = find_min_weight_path_with_relay(auxiliary_graph=auxiliary_graph, src=src, dst=dst)
+                result = find_min_weight_path_with_relay(auxiliary_graph=auxiliary_graph, src=src, dst=dst, temperature=T_step)
 
                 if result:
                     direction, best_path_edges, relay, min_power, weight = result
@@ -419,8 +428,7 @@ def main():
     wavelength_list = np.linspace(1530, 1565, 10).tolist()
 
     # 每个 mid 内部的运行次数
-    # 增加 num_runs，以便利用随机扰动寻找更优解
-    num_runs = 5  # 建议设置为 5 或 10
+    num_runs = 1 
 
     manager = Manager()
     # 创建共享字典用于 key_rate（按原逻辑使用）
