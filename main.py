@@ -262,15 +262,43 @@ def process_mid(traffic_type, map_name, protocol, detector, bypass, key_rate_lis
         with tqdm(total=len(traffic_matrix), file=sys.stderr, colour="red",
                   desc=f"mid {mid} run {run + 1}/{num_runs}") as pbar:
             remain_num_request = len(traffic_matrix)
+            
+            # --- 1. 构建剩余需求热力图 (Future Demand Heatmap) ---
+            # 预计算所有剩余请求的最短路径，统计每条物理链路被“未来”经过的次数
+            # 这不需要非常精确（比如考虑波长），只需要基于物理距离的拓扑统计
+            # link_future_demand = {(u, v): count}
+            
+            link_future_demand = {}
+            # 预计算所有点对的最短路径 (缓存以加速)
+            all_shortest_paths = dict(nx.all_pairs_dijkstra_path(physical_topology, weight='distance'))
+            
+            # 初始统计所有请求
+            request_paths_cache = {} # id -> list of edges
+            for req in traffic_matrix:
+                r_id, r_src, r_dst, _ = req
+                if r_src in all_shortest_paths and r_dst in all_shortest_paths[r_src]:
+                    path = all_shortest_paths[r_src][r_dst]
+                    edges = list(zip(path[:-1], path[1:]))
+                    request_paths_cache[r_id] = edges
+                    
+                    for u, v in edges:
+                        # 无向/双向统计
+                        link_future_demand[(u, v)] = link_future_demand.get((u, v), 0) + 1
+                        link_future_demand[(v, u)] = link_future_demand.get((v, u), 0) + 1
+
             for request in traffic_matrix:
-                # request = traffic_matrix[request_index]
-                # if request in served_request:
-                #     continue
                 id = request[0]
                 src = request[1]
                 dst = request[2]
                 traffic = request[3]
-                # traffic = mid + 1000
+                
+                # --- 2. 动态更新热力图 ---
+                # 在处理当前请求前，先将其从未来需求中移除（因为它变成了“现在”）
+                if id in request_paths_cache:
+                    for u, v in request_paths_cache[id]:
+                        link_future_demand[(u, v)] -= 1
+                        link_future_demand[(v, u)] -= 1
+                
                 auxiliary_graph = utils.tools.build_auxiliary_graph(
                     topology=topology,
                     wavelength_list=wavelength_list,
@@ -278,7 +306,8 @@ def process_mid(traffic_type, map_name, protocol, detector, bypass, key_rate_lis
                     physical_topology=physical_topology,
                     shared_key_rate_list=key_rate_list,
                     served_request=served_request,
-                    remain_num_request=remain_num_request
+                    remain_num_request=remain_num_request,
+                    link_future_demand=link_future_demand  # 传入热力图
                 )
                 result = find_min_weight_path_with_relay(auxiliary_graph=auxiliary_graph, src=src, dst=dst)
 
