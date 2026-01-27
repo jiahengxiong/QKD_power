@@ -1,7 +1,7 @@
 # from utils.tools import build_auxiliary_graph, generate_traffic
 import gc
 import random
-
+import itertools
 import networkx as nx
 from utils.traffic_generater import gen_traffic_matrix
 import config
