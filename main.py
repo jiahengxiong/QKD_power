@@ -16,7 +16,7 @@ from multiprocessing import Process, Manager
 from tqdm import tqdm
 import sys
 import numpy as np
-import ctypes
+import os
 
 
 
@@ -282,14 +282,16 @@ def process_mid(traffic_type, map_name, protocol, detector, bypass, key_rate_lis
                 traffic = request[3]
                 
                 # --- 动态重新计算后续所有请求的热力图 (流式探测单一路径) ---
-                future_requests = traffic_matrix[i+1:]
-                link_future_demand, node_future_demand = calculate_dynamic_heatmap(
-                    topology=topology,
-                    physical_topology=physical_topology,
-                    future_requests=future_requests,
-                    wavelength_list=wavelength_list,
-                    served_request=served_request
-                )
+                # 优化：每 10 个请求重算一次热力图，兼顾前瞻性与性能
+                if i % 10 == 0:
+                    future_requests = traffic_matrix[i+1:]
+                    link_future_demand, node_future_demand = calculate_dynamic_heatmap(
+                        topology=topology,
+                        physical_topology=physical_topology,
+                        future_requests=future_requests,
+                        wavelength_list=wavelength_list,
+                        served_request=served_request
+                    )
 
                 auxiliary_graph = utils.tools.build_auxiliary_graph(
                     topology=topology,
@@ -343,22 +345,7 @@ def process_mid(traffic_type, map_name, protocol, detector, bypass, key_rate_lis
                     return
                 del auxiliary_graph
                 gc.collect()
-                ctypes.CDLL("libc.so.6").malloc_trim(0)
                 remain_num_request = remain_num_request - 1
-
-            # 最终结算
-            if best_solution_found:
-                total_power_each_run = best_solution_found['total_power']
-                spectrum_occupied = best_solution_found['spectrum']
-                component_power = best_solution_found['component']
-                pbar.write(f"[PID {os.getpid()}] 搜索结束。最佳平均功耗: {total_power_each_run:.2f}")
-            else:
-                pbar.write(f"[PID {os.getpid()}] 未能找到任何完整方案。")
-                flag = False
-                with open(f'result.txt', 'a') as file:
-                    file.write(f'\n--- 结果: 搜索失败 (无解) ---\n')
-                    file.write(f'Protocol: {config.protocol}, Map: {map_name}\n')
-                return
 
         if flag:
             total_power_run.append(total_power_each_run)
@@ -379,15 +366,19 @@ def process_mid(traffic_type, map_name, protocol, detector, bypass, key_rate_lis
         shared_results['avg_spectrum_occupied'] = avg_occupied_spectrum
         shared_results['avg_component_power'] = avg_component_power
 
-        print(f'\n--- 最终结果（经过 {num_runs} 次运行后取最佳结果）---\n'
-              f'Protocol: {config.protocol}, Bypass: {config.bypass}, Detector: {config.detector}, Map: {map_name}, Traffic ^:{traffic_type}\n'
-              f'{shared_results}')
+        output_str = (
+            f'\n--- 最终结果 (经过 {num_runs} 次运行后取最佳) ---\n'
+            f'Protocol: {config.protocol}, Bypass: {config.bypass}, Detector: {config.detector}, '
+            f'Map: {map_name}, Traffic: {traffic_type}\n'
+            f'{shared_results}\n'
+        )
+        
+        print(f"[PID {os.getpid()}] 任务完成: {output_str}")
+        
         with open('result.txt', 'a') as file:
-            file.write(f'\n--- 最终结果（每个 mid 经过 {num_runs} 次运行后取平均）---\n')
-            file.write(
-                f'Protocol: {config.protocol}, Bypass: {config.bypass}, Detector: {config.detector}, Map: {map_name}, Traffic:{traffic_type}\n')
-            file.write(f'{shared_results}\n')
-            # file.write(f"{traffic_matrix}\n")
+            file.write(output_str)
+            file.flush() # 强制刷新到磁盘，确保结果不丢失
+            os.fsync(file.fileno()) # 确保操作系统层面的同步
 
 
     print(f"[PID {os.getpid()}] Finished processing mid {mid}")
