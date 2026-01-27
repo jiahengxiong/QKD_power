@@ -180,13 +180,23 @@ import os
 
 def calculate_dynamic_heatmap(topology, physical_topology, future_requests, wavelength_list, served_request):
     """
-    动态热力图计算：为每一个未来请求流式探测一条当前可用的最短路径，并累加需求。
+    动态热力图计算：为每一个未来请求流式探测一条当前可用的最短路径。
+    引入时间衰减权重：越远的请求对当前决策的影响越小。
     """
     link_demand = {}
     node_demand = {}
-    for req in future_requests:
+    
+    # 时间衰减基数：0.85 使热力图更聚焦于近期请求 (约 15 步以内的预测)
+    decay_base = 0.85
+    
+    for step, req in enumerate(future_requests):
         r_id, r_src, r_dst, r_traffic = req
-        node_demand[r_dst] = node_demand.get(r_dst, 0) + r_traffic
+        
+        # 计算该步的衰减权重
+        weight = math.pow(decay_base, step)
+        weighted_traffic = r_traffic * weight
+        
+        node_demand[r_dst] = node_demand.get(r_dst, 0) + weighted_traffic
         
         path = utils.tools.find_first_valid_physical_path(
             topology=topology,
@@ -201,8 +211,8 @@ def calculate_dynamic_heatmap(topology, physical_topology, future_requests, wave
         if path:
             edges = list(zip(path[:-1], path[1:]))
             for u, v in edges:
-                link_demand[(u, v)] = link_demand.get((u, v), 0) + r_traffic
-                link_demand[(v, u)] = link_demand.get((v, u), 0) + r_traffic
+                link_demand[(u, v)] = link_demand.get((u, v), 0) + weighted_traffic
+                link_demand[(v, u)] = link_demand.get((v, u), 0) + weighted_traffic
     return link_demand, node_demand
 
 def process_mid(traffic_type, map_name, protocol, detector, bypass, key_rate_list, wavelength_list, num_runs,

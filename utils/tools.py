@@ -422,26 +422,19 @@ def calculate_data_auxiliary_edge(G, path, wavelength_combination, wavelength_ca
                             if not edge_attrs.get('occupied', False):
                                 spectrum += 1
 
-            # === 4. 计算动态拥塞惩罚 (基于物理链路的未来资源代价) ===
-            # 核心改进：在波长循环外部计算，每个物理链路只算一次，体现物理带宽的占用。
+            # === 4. 计算动态拥塞惩罚 (基于物理链路的未来总需求) ===
             future_penalty = 0.0
-            if link_future_demand and topology:
+            if link_future_demand:
                 for i in range(len(path) - 1):
                     u_p, v_p = path[i], path[i+1]
                     
-                    # 获取该链路未来的需求概率 (来自 K-Path 热力图)
+                    # 直接获取该链路未来的预测总需求 (来自动态热力图)
                     demand = link_future_demand.get((u_p, v_p), link_future_demand.get((v_p, u_p), 0))
                     
-                    # 获取该物理链路在所有波长上的总剩余容量 (真正体现物理稀缺度)
-                    total_free_cap = 0
-                    if topology.has_edge(u_p, v_p):
-                        link_data = topology.get_edge_data(u_p, v_p)
-                        total_free_cap = sum(d.get('free_capacity', 0) for d in link_data.values())
-                    
-                    # 压力惩罚 = (本请求消耗的流量 * 该链路未来被需要的概率) / (物理总剩余容量)
-                    # 系数 100.0 用于平衡功耗项的量级
-                    pressure = (traffic * demand) / (total_free_cap + 1.0) * 100.0
-                    future_penalty += pressure
+                    # 惩罚项直接与热度成正比
+                    # 系数 1000.0 将惩罚项量级对齐到功耗项 (1e8)
+                    # 例如：未来有 10 万流量经过此路，则产生 1e8 的惩罚，引导 Dijkstra 避让
+                    future_penalty += demand
             
             # === 5. 统一计算共享冰箱功耗 (只针对 SNSPD) ===
             ice_box_power = 0
