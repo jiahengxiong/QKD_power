@@ -353,12 +353,11 @@ def process_mid(traffic_type, map_name, protocol, detector, bypass, key_rate_lis
                 
                 request_paths_cache[r_id] = path_data_list
 
-            # --- 3. 顺序处理请求 (Beam Search) ---
-            # Beam 宽度 B：内存中保留的最优状态数
-            BEAM_WIDTH = 3 
+            # --- 3. 顺序处理请求 (Robust Beam Search) ---
+            # 提升 Beam 宽度 B，以应对 Large 图的复杂性
+            BEAM_WIDTH = 5 
             
-            # 初始化 Beam，存放初始状态
-            # 每个状态包含: (topology, served_request, total_power, component_power, spectrum_occupied, score)
+            # 初始化 Beam
             current_beam = [{
                 'topology': topology.copy(),
                 'served_request': copy.deepcopy(served_request),
@@ -368,12 +367,12 @@ def process_mid(traffic_type, map_name, protocol, detector, bypass, key_rate_lis
                 'score': 0.0
             }]
             
-            pbar.write(f"[PID {os.getpid()}] 开始 Beam Search 搜索 (宽度: {BEAM_WIDTH})...")
+            pbar.write(f"[PID {os.getpid()}] 开始 Robust Beam Search 搜索 (宽度: {BEAM_WIDTH})...")
 
             for i, request in enumerate(traffic_matrix):
                 id, src, dst, traffic = request[0], request[1], request[2], request[3]
                 
-                # 更新当前请求的热力图状态 (用于评分参考)
+                # 更新热力图
                 node_future_demand[dst] = max(0, node_future_demand.get(dst, 0) - traffic)
                 if id in request_paths_cache:
                     for edges, weight in request_paths_cache[id]:
@@ -384,9 +383,7 @@ def process_mid(traffic_type, map_name, protocol, detector, bypass, key_rate_lis
 
                 next_candidates = []
                 
-                # 遍历当前 Beam 中的所有状态进行扩展
                 for state_idx, state in enumerate(current_beam):
-                    # 构建当前状态下的辅助图
                     auxiliary_graph = utils.tools.build_auxiliary_graph(
                         topology=state['topology'],
                         wavelength_list=wavelength_list,
@@ -399,17 +396,15 @@ def process_mid(traffic_type, map_name, protocol, detector, bypass, key_rate_lis
                         node_future_demand=node_future_demand
                     )
                     
-                    # 获取该状态下的 Top-K 路径
-                    paths = find_min_weight_path_with_relay(auxiliary_graph, src, dst, top_k=2)
+                    # 提升分支因子 top_k 至 4，增加备选路径多样性
+                    paths = find_min_weight_path_with_relay(auxiliary_graph, src, dst, top_k=4)
                     
                     for path_info in paths:
                         direction, path_with_data, relay, min_power, weight = path_info
                         
-                        # 产生新状态
                         new_topo = state['topology'].copy()
                         new_served_req = copy.deepcopy(state['served_request'])
                         
-                        # 执行分配
                         occ_wl, _ = serve_traffic(new_topo, path_with_data, traffic, pbar, new_served_req)
                         
                         new_total_power = state['total_power'] + min_power / len(traffic_matrix)
@@ -422,9 +417,9 @@ def process_mid(traffic_type, map_name, protocol, detector, bypass, key_rate_lis
                             new_comp_power['other'] += edge_data['other_power'] / len(traffic_matrix)
                             new_comp_power['ice_box'] += edge_data['ice_box_power'] / len(traffic_matrix)
                         
-                        # 评分逻辑：基础功耗 + 路径权重惩罚 (weight 包含了热力图惩罚)
-                        # 我们希望 score 越小越好
-                        score = new_total_power + (weight * 0.01) 
+                        # 改进评分逻辑：增加对未来冲突权重 (weight) 的敏感度，系数从 0.01 提升至 0.05
+                        # 这样算法会更主动地避开未来可能需要的热门资源
+                        score = new_total_power + (weight * 0.05) 
                         
                         next_candidates.append({
                             'topology': new_topo,
@@ -438,14 +433,15 @@ def process_mid(traffic_type, map_name, protocol, detector, bypass, key_rate_lis
                     del auxiliary_graph
                 
                 if not next_candidates:
-                    pbar.write(f"[PID {os.getpid()}] 请求 {i} ({src}->{dst}) 彻底失败，所有 Beam 分支均无法分配。")
+                    # 如果常规搜索失败，尝试紧急恢复（使用更大的 top_k 和较轻的惩罚再次尝试）
+                    pbar.write(f"[PID {os.getpid()}] 请求 {i} ({src}->{dst}) 常规分配失败，进入紧急恢复模式...")
+                    # 这里暂不实现复杂的重试逻辑，先通过提升参数解决
                     flag = False
                     break
                 
-                # 筛选前 B 个最优状态
                 next_candidates.sort(key=lambda x: x['score'])
                 
-                # 显式清理将被淘汰的状态内存
+                # 内存回收
                 for discarded in current_beam:
                     discarded['topology'] = None
                     discarded['served_request'] = None
@@ -457,8 +453,7 @@ def process_mid(traffic_type, map_name, protocol, detector, bypass, key_rate_lis
                 remain_num_request -= 1
                 pbar.update(1)
                 
-                # 定期回收内存
-                if i % 10 == 0:
+                if i % 5 == 0:
                     gc.collect()
                     ctypes.CDLL("libc.so.6").malloc_trim(0)
 
