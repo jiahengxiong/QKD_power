@@ -395,7 +395,7 @@ def process_mid(traffic_type, map_name, protocol, detector, bypass, key_rate_lis
                     )
                     # 现在 find_min_weight_path_with_relay 返回的是 (direction, path_with_data, relay, min_power, weight)
                     # path_with_data 是 [(u, v, edge_data), ...]，不再依赖 AG 的 key
-                    candidates_cache[i] = find_min_weight_path_with_relay(auxiliary_graph, src, dst, top_k=2)
+                    candidates_cache[i] = find_min_weight_path_with_relay(auxiliary_graph, src, dst, top_k=5)
                     del auxiliary_graph
 
                 candidates = candidates_cache[i]
