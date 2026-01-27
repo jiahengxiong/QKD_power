@@ -275,8 +275,8 @@ def process_mid(traffic_type, map_name, protocol, detector, bypass, key_rate_lis
             # 初始统计所有请求
             request_paths_cache = {} # id -> list of (edges, weight)
             
-            # 权重分配：0.5, 0.25, 0.125, 0.0625, 0.0625
-            path_weights = [0.5, 0.25, 0.125, 0.0625, 0.0625]
+            # 强化主路径权重，压缩尾部权重
+            raw_weights = [0.8, 0.1, 0.05, 0.03, 0.02]
             
             for req in traffic_matrix:
                 r_id, r_src, r_dst, _ = req
@@ -288,10 +288,19 @@ def process_mid(traffic_type, map_name, protocol, detector, bypass, key_rate_lis
                 except (nx.NetworkXNoPath, nx.NodeNotFound):
                     k_paths = []
 
+                if not k_paths:
+                    request_paths_cache[r_id] = []
+                    continue
+
+                # 动态归一化：确保实际存在的路径权重和为 1.0
+                actual_raw = raw_weights[:len(k_paths)]
+                total_w = sum(actual_raw)
+                norm_weights = [w / total_w for w in actual_raw]
+
                 path_data_list = []
                 for idx, path in enumerate(k_paths):
                     edges = list(zip(path[:-1], path[1:]))
-                    weight = path_weights[idx] if idx < len(path_weights) else 0
+                    weight = norm_weights[idx]
                     path_data_list.append((edges, weight))
                     
                     for u, v in edges:

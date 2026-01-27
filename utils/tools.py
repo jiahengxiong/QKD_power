@@ -346,7 +346,7 @@ except ImportError:
     pass
 
 def calculate_data_auxiliary_edge(G, path, wavelength_combination, wavelength_capacity, laser_detector_position,
-                                  traffic, network_slice, remain_num_request, link_future_demand=None):
+                                  traffic, network_slice, remain_num_request, link_future_demand=None, topology=None):
     data = []
     keys = laser_detector_position.keys()
     values = laser_detector_position.values()
@@ -386,12 +386,10 @@ def calculate_data_auxiliary_edge(G, path, wavelength_combination, wavelength_ca
             LD = 0
             used_LD = 0
             
-            # 【关键】：记录本轮组合在每个节点上新增了多少个探测器
-            node_new_detectors_count = {}
-
+            # === 3. 统计频谱与物理参数 ===
+            spectrum = 0
             for wavelength, laser_detector in wavelength_laser_detector.items():
                 # 调用 calculate_power 获取基础组件功耗
-                # 注意：我们这里不使用它返回的 ice_box，因为那是不考虑共享的
                 component_power = calculate_power(
                     laser_detector_position={'laser': laser_detector[0], 'detector': laser_detector[1]}, 
                     path=path,
@@ -408,23 +406,43 @@ def calculate_data_auxiliary_edge(G, path, wavelength_combination, wavelength_ca
                 
                 used_LD += len(wavelength_used_laser_detector[wavelength])
 
-                # 统计新增探测器位置 (用于稍后计算共享冰箱)
+                # 统计新增探测器位置
                 det_node = laser_detector[1]
                 if det_node is not None:
                     node_new_detectors_count[det_node] = node_new_detectors_count.get(det_node, 0) + 1
 
-                # 统计频谱
+                # 统计物理波长占用 (新增占用)
                 for i in range(len(path) - 1):
-                    src = path[i]
-                    dst = path[i + 1]
-                    key_list = list(G.edges(src, dst, keys=True))
-                    for _, _, key, _ in key_list:
-                        if G.has_edge(src, dst, key):
-                            edge_data = G.get_edge_data(src, dst, key)
-                            if edge_data.get('wavelength') == wavelength and not edge_data.get('occupied', False):
+                    u_p, v_p = path[i], path[i+1]
+                    edges_data = G.get_edge_data(u_p, v_p)
+                    if not edges_data: continue
+                    for edge_key, edge_attrs in edges_data.items():
+                        if edge_attrs.get('wavelength') == wavelength:
+                            if not edge_attrs.get('occupied', False):
                                 spectrum += 1
+
+            # === 4. 计算动态拥塞惩罚 (基于物理链路的未来资源代价) ===
+            # 核心改进：在波长循环外部计算，每个物理链路只算一次，体现物理带宽的占用。
+            future_penalty = 0.0
+            if link_future_demand and topology:
+                for i in range(len(path) - 1):
+                    u_p, v_p = path[i], path[i+1]
+                    
+                    # 获取该链路未来的需求概率 (来自 K-Path 热力图)
+                    demand = link_future_demand.get((u_p, v_p), link_future_demand.get((v_p, u_p), 0))
+                    
+                    # 获取该物理链路在所有波长上的总剩余容量 (真正体现物理稀缺度)
+                    total_free_cap = 0
+                    if topology.has_edge(u_p, v_p):
+                        link_data = topology.get_edge_data(u_p, v_p)
+                        total_free_cap = sum(d.get('free_capacity', 0) for d in link_data.values())
+                    
+                    # 压力惩罚 = (本请求消耗的流量 * 该链路未来被需要的概率) / (物理总剩余容量)
+                    # 系数 100.0 用于平衡功耗项的量级
+                    pressure = (traffic * demand) / (total_free_cap + 1.0) * 100.0
+                    future_penalty += pressure
             
-            # === 3. 统一计算共享冰箱功耗 (只针对 SNSPD) ===
+            # === 5. 统一计算共享冰箱功耗 (只针对 SNSPD) ===
             ice_box_power = 0
             marginal_fridges = 0
             
@@ -484,79 +502,13 @@ def calculate_data_auxiliary_edge(G, path, wavelength_combination, wavelength_ca
             s_penalty = ((spectrum) / max(len(wavelength_combination), 1))
             s_penalty = s_penalty * s_penalty * 1e-4
 
-            # 6) 未来需求势能惩罚 (Future Potential Penalty)
-            # 逻辑：如果 path 上经过了未来高需求的链路，且占用了其容量（特别是新建链路），则给予惩罚。
-            # 如果是复用链路，则几乎不惩罚（因为不消耗物理容量）。
-            
-            future_penalty = 0.0
-            if link_future_demand:
-                # 遍历路径上的每一段物理链路
-                for i in range(len(path) - 1):
-                    u, v = path[i], path[i+1]
-                    
-                    # 获取该链路的未来需求量
-                    # link_future_demand 是无向统计的，key可能是 (u,v) 或 (v,u)
-                    demand = link_future_demand.get((u, v), 0)
-                    
-                    # 检查这段链路是否是新建的 (消耗了容量)
-                    # 这里的逻辑稍微有点复杂，因为 wavelength_laser_detector 是按波长分的。
-                    # 我们简化处理：如果 wavelength_combination 里任何一个波长在这段链路上是新建的，就惩罚。
-                    
-                    # 更简单的代理指标：seg_penalty 已经反映了新建段数。
-                    # 我们直接用 demand * is_new_segment
-                    
-                    # 检查是否有复用：
-                    # 如果这一跳被包含在某个 laser_detector 的中间，说明是 Bypass 穿透
-                    # 如果这一跳就是 laser_detector 的两端，说明是新建/复用端点
-                    
-                    # 简化策略：只要经过了高需求链路，就加上惩罚。
-                    # 但是，如果该链路是复用的 (不消耗 spectrum)，则不惩罚。
-                    
-                    # 怎么判断这一跳是否消耗了 Spectrum？
-                    # 我们可以利用 spectrum 变量，但它不分段。
-                    
-                    # 我们用一个近似：如果该链路在 G (temp_G) 中被标记为 occupied=False，且我们现在要用它，那就是消耗。
-                    # 但 calculate_data_auxiliary_edge 只是计算 data，还没修改 G。
-                    
-                    # 我们遍历 wavelength_combination，看这段路是否 free
-                    is_consuming_resource = False
-                    for wl in wavelength_combination:
-                        # 检查 wl 在 u->v 上是否空闲
-                        # 这里 G 是 temp_G，只包含 path 上的边
-                        # 如果 G 中 u->v 在 wl 上有边且 free > 0，说明我们要用它。
-                        # 如果已经 occupied (虽然 temp_G 是从 topology 复制的属性)，说明不能用？不对，temp_G 是只读的。
-                        
-                        # 逻辑：只要我们选择了这个波长，并且它是新建的 LD (不是 transverse 复用)，那就是消耗。
-                        # 查找当前波长对应的 LD
-                        ld = wavelength_laser_detector[wl]
-                        # 如果 u,v 在 ld[0]...ld[1] 之间
-                        if ld[0] is not None:
-                             # 找到了对应的 LD。如果是新建的 (不在 transverse_laser_detector 里)，就是消耗。
-                             # 但 transverse 是结果，这里还没算出来。
-                             
-                             # 回归最简逻辑：
-                             # 惩罚 = 需求量 * (1 / 剩余容量)
-                             # 如果剩余容量大，惩罚小；需求大，惩罚大。
-                             pass
-                    
-                    # 直接加上需求惩罚
-                    future_penalty += demand
-            
-            # 归一化：需求量可能很大 (几十)，penalty 需要调整到合适量级 (比如跟 unit_power 相当)
-            # unit_power 大概是 1e-6 ~ 1e-3 量级 (如果不乘 1e9)
-            # 原代码 unit_power 乘了 1e9，变成了 1e3~1e6 量级。
-            # demand 是整数 (0~100)。
-            
-            # 系数调整：
-            future_penalty = future_penalty * 10.0 # 经验值，让它能影响决策但别主导一切
-
             weight = (
                 unit_power
                 + 0.05 * seg_penalty        # 0.01~0.2 调
                 + 0.02 * wl_penalty         # 0.005~0.1 调
                 + 1e3  * tight_penalty      # 1e2~1e4 调：越大越讨厌“刚刚够”
                 + s_penalty
-                + future_penalty            # 新增：未来拥塞感知
+                + future_penalty            # 新增：未来动态拥塞感知
             )
             total_power = total_power + ice_box_power
             data.append({
@@ -656,19 +608,19 @@ def build_temp_graph_for_path(topology, path, wavelength_combinations):
 # 核心重构：build_auxiliary_graph
 # ==========================================
 
-def build_auxiliary_graph(topology, wavelength_list, traffic, physical_topology, shared_key_rate_list, served_request,remain_num_request, link_future_demand=None):
+def build_auxiliary_graph(topology, wavelength_list, traffic, physical_topology, shared_key_rate_list, served_request,remain_num_request):
     """
     终极修正版 V8：DFS 回溯 + 智能剪枝 (Backtracking with Pruning)
-    新增：link_future_demand (动态热力图)
+    
+    1. 彻底抛弃 itertools.combinations。
+    2. 使用 DFS 深度优先搜索，优先尝试由"小容量"波长组成的集合。
+    3. 引入 suffix_sum (后缀和) 进行强力剪枝：如果剩余波长全加起来都不够，直接停止搜索该分支。
     """
     auxiliary_graph = nx.MultiDiGraph()
     
     # 1. 预处理
     network_slice = build_network_slice(wavelength_list=wavelength_list, topology=topology, traffic=traffic)
     config.key_rate_list = shared_key_rate_list 
-    
-    # 传递 heat map 给 calculate_data_auxiliary_edge 需要闭包或者改签名
-    # 为了保持架构整洁，我们把 link_future_demand 传给 calculate_data_auxiliary_edge
     
     for node in topology.nodes():
         auxiliary_graph.add_node(node)
@@ -774,7 +726,8 @@ def build_auxiliary_graph(topology, wavelength_list, traffic, physical_topology,
                         traffic=traffic,
                         network_slice=network_slice,
                         remain_num_request=remain_num_request,
-                        link_future_demand=link_future_demand # 传递热力图
+                        link_future_demand=getattr(config, 'link_future_demand', {}), # 传递热力图
+                        topology=topology # 新增：传递原始拓扑以计算总容量
                     )
                     del temp_G
                     
