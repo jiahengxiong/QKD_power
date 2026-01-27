@@ -40,21 +40,13 @@ def average_component_power(component_power_run):
     return average
 
 
-def find_min_weight_path_with_relay(auxiliary_graph, src, dst, top_k=3):
+def find_min_weight_path_with_relay(auxiliary_graph, src, dst, temperature=0):
     # 辅助函数：计算路径总功率
-    def calculate_path_power(path_edges_with_data):
+    def calculate_path_power(path_edges):
         total_power = 0
-        for u, v, data in path_edges_with_data:
-            total_power += data['power']
+        for u, v, key in path_edges:
+            total_power += auxiliary_graph[u][v][key]['power']
         return total_power
-    
-    # 辅助函数：将 (u, v, key) 列表转换为 (u, v, data) 列表
-    def attach_edge_data(path_keys):
-        path_with_data = []
-        for u, v, key in path_keys:
-            data = auxiliary_graph.get_edge_data(u, v, key)
-            path_with_data.append((u, v, data))
-        return path_with_data
 
     paths = []  # 存储所有可能路径和属性
 
@@ -62,17 +54,15 @@ def find_min_weight_path_with_relay(auxiliary_graph, src, dst, top_k=3):
     if nx.has_path(auxiliary_graph, src, dst):
         path_edges, weight = Dijkstra_single_path(src=src, dst=dst, graph=auxiliary_graph)
         if path_edges:
-            path_with_data = attach_edge_data(path_edges)
-            power_sum = calculate_path_power(path_with_data)
-            paths.append(('src->dst', path_with_data, None, power_sum, weight))
+            power_sum = calculate_path_power(path_edges)
+            paths.append(('src->dst', path_edges, None, power_sum, weight))
 
     # 2. 检查 dst -> src 的直接路径
     if nx.has_path(auxiliary_graph, dst, src):
         path_edges, weight = Dijkstra_single_path(src=dst, dst=src, graph=auxiliary_graph)
         if path_edges:
-            path_with_data = attach_edge_data(path_edges)
-            power_sum = calculate_path_power(path_with_data)
-            paths.append(('dst->src', path_with_data, None, power_sum, weight))
+            power_sum = calculate_path_power(path_edges)
+            paths.append(('dst->src', path_edges, None, power_sum, weight))
 
         # 3. 检查中继路径
         for delay in auxiliary_graph.nodes:
@@ -80,148 +70,100 @@ def find_min_weight_path_with_relay(auxiliary_graph, src, dst, top_k=3):
                 # 情形1：src -> delay 和 dst -> delay
                 if nx.has_path(auxiliary_graph, src, delay) and nx.has_path(auxiliary_graph, dst, delay):
                     path1_edges, path2_edges, weight = Dijkstra_double_path(graph=auxiliary_graph, src=src, dst=dst, delay=delay)
-                    if path1_edges and path2_edges:
-                        path_edges = path1_edges + path2_edges
-                        path_with_data = attach_edge_data(path_edges)
-                        power_sum = calculate_path_power(path_with_data)
-                        paths.append(('src->delay,dst->delay', path_with_data, delay, power_sum, weight))
+                    path_edges = path1_edges + path2_edges
+                    if path_edges:
+                        power_sum = calculate_path_power(path_edges)
+                        paths.append(('src->delay,dst->delay', path_edges, delay, power_sum, weight))
 
                 # 情形2：dst -> delay 和 src -> delay
                 if nx.has_path(auxiliary_graph, dst, delay) and nx.has_path(auxiliary_graph, src, delay):
                     path1_edges, path2_edges, weight = Dijkstra_double_path(graph=auxiliary_graph, src=dst, dst=src, delay=delay)
-                    if path1_edges and path2_edges:
-                        path_edges = path1_edges + path2_edges
-                        path_with_data = attach_edge_data(path_edges)
-                        power_sum = calculate_path_power(path_with_data)
-                        paths.append(('dst->delay,src->delay', path_with_data, delay, power_sum, weight))
+                    path_edges = path1_edges + path2_edges
+                    if path_edges:
+                        power_sum = calculate_path_power(path_edges)
+                        paths.append(('dst->delay,src->delay', path_edges, delay, power_sum, weight))
 
     if not paths:
-        return []
+        return False
 
-    # 按权重 (weight) 排序，权重越小越优
+    # 按权重排序 (index 4 是 weight)
     sorted_paths = sorted(paths, key=lambda x: x[4])
-    
-    # 返回前 top_k 条候选路径
-    return sorted_paths[:top_k]
+    best_path = sorted_paths[0]
+
+    return best_path
 
 
-def serve_traffic(G, path_with_data, request_traffic, pbar, served_request):
+def serve_traffic(G, AG, path_edge_list, request_traffic, pbar, served_request):
     occupied_wavelength = 0
-    delta = [] # 用于回溯的增量记录: (type, target, key, old_value)
-    
-    for (src, dst, edge_data) in path_with_data:
+    for (src, dst, key) in path_edge_list:
+        edge_data = AG.get_edge_data(u=src, v=dst, key=key)
+        # print(f' src: {src}, dst: {dst}, key: {key}, edge_data: {edge_data}')
         wavelength_list = edge_data['wavelength_list']
         path = edge_data['path']
         edge_traffic = request_traffic
         edge_laser_detector_list = edge_data['transverse_laser_detector']
-        
         for wavelength in wavelength_list:
-            if wavelength not in served_request:
+            if wavelength not in list(served_request.keys()):
                 served_request[wavelength] = []
-                delta.append(('served_request_new_key', wavelength, None, None))
-                
             laser_postion = edge_data['laser_detector_position'][wavelength][0]
             detector_postion = edge_data['laser_detector_position'][wavelength][1]
             traffic_limitation = edge_data['wavelength_traffic'][wavelength]
             trans_traffic = min(edge_traffic, traffic_limitation)
             
             if trans_traffic <= 0:
+                print(f"ERROR!!! trans_traffic = {trans_traffic}")
                 continue
 
             if laser_postion is not None and detector_postion is not None:
                 laser_index = path.index(laser_postion)
                 detector_index = path.index(detector_postion)
+                if laser_index >= detector_index:
+                    tqdm.write(f'ERROR !!! Laser is after Detector')
                 cover_links = path[laser_index:detector_index + 1]
-                
+                pbar.write(
+                    f"{wavelength}: laser-detector: {laser_postion} -> {detector_postion}, cover links: {cover_links}")
                 if cover_links not in G.nodes[laser_postion]['laser'][wavelength]:
                     new_list = list(zip(cover_links, cover_links[1:]))
                     served_request[wavelength].append(new_list)
-                    delta.append(('served_request_append', wavelength, None, None))
-                    
                     G.nodes[laser_postion]['laser'][wavelength].append(cover_links)
-                    delta.append(('node_attr_append', laser_postion, ('laser', wavelength), cover_links))
-                    
                     G.nodes[detector_postion]['detector'][wavelength].append(cover_links)
-                    delta.append(('node_attr_append', detector_postion, ('detector', wavelength), cover_links))
-                    
-                    # 记录之前的 laser_capacity (可能不存在)
-                    old_cap = G.nodes[laser_postion]['laser_capacity'][wavelength].get(tuple(cover_links))
+                    # todo: add the key rate of new laser_detector (cover links)
                     G.nodes[laser_postion]['laser_capacity'][wavelength][tuple(cover_links)] = calculate_keyrate(
                         laser_detector_position={'laser': laser_postion, 'detector': detector_postion}, path=path, G=G)
-                    delta.append(('node_attr_dict_set', laser_postion, ('laser_capacity', wavelength, tuple(cover_links)), old_cap))
-                    
                     G.nodes[detector_postion]['num_detector'] += 1
-                    delta.append(('node_attr_inc', detector_postion, 'num_detector', -1))
 
-            # 边容量扣减
+            # add traffic in each wavelength slice
             for i in range(len(path) - 1):
-                u, v = path[i], path[i+1]
-                edges = G.get_edge_data(u, v)
+                source = path[i]
+                destination = path[i + 1]
+                edges = G.get_edge_data(source, destination)
                 for edge_key, edge_attrs in edges.items():
                     if edge_attrs.get('wavelength') == wavelength:
-                        # 记录边状态
-                        delta.append(('edge_attr_inc', (u, v, edge_key), 'free_capacity', trans_traffic))
-                        G.edges[u, v, edge_key]['free_capacity'] -= trans_traffic
-                        
-                        if G.edges[u, v, edge_key]['occupied'] is False:
-                            G.edges[u, v, edge_key]['occupied'] = True
-                            delta.append(('edge_attr_set', (u, v, edge_key), 'occupied', False))
+                        G.edges[source, destination, edge_key]['free_capacity'] -= trans_traffic
+                        if G.edges[source, destination, edge_key]['occupied'] is False:
+                            G.edges[source, destination, edge_key]['occupied'] = True
                             occupied_wavelength += 1
-
-            # 横向激光器容量扣减
+                        pbar.write(
+                            f"{wavelength}: {source} -> {destination} with {trans_traffic}, {G.edges[source, destination, edge_key]['free_capacity']}, {G.edges[source, destination, edge_key]['capacity']}")
             for transverse_laser_detector in edge_laser_detector_list[wavelength]:
-                lp = transverse_laser_detector[0]
-                tk = tuple(transverse_laser_detector)
-                delta.append(('node_attr_dict_inc', lp, ('laser_capacity', wavelength, tk), trans_traffic))
-                G.nodes[lp]['laser_capacity'][wavelength][tk] -= trans_traffic
-                
-                # 级联边容量更新
-                for i in range(len(transverse_laser_detector) - 1):
-                    eu, ev = transverse_laser_detector[i], transverse_laser_detector[i+1]
-                    e_data = G.get_edge_data(eu, ev)
-                    for ek, ea in e_data.items():
-                        if ea.get('wavelength') == wavelength:
-                            old_fc = G.edges[eu, ev, ek]['free_capacity']
-                            new_fc = min(old_fc, G.nodes[lp]['laser_capacity'][wavelength][tk])
-                            if old_fc != new_fc:
-                                G.edges[eu, ev, ek]['free_capacity'] = new_fc
-                                delta.append(('edge_attr_set', (eu, ev, ek), 'free_capacity', old_fc))
-            
+                # print("edge_laser_detector_list: ", edge_laser_detector_list)
+                source = transverse_laser_detector[0]
+                G.nodes[source]['laser_capacity'][wavelength][tuple(transverse_laser_detector)] -= trans_traffic
+                if G.nodes[source]['laser_capacity'][wavelength][tuple(transverse_laser_detector)] < 0:
+                    pbar.write('ERROR!!!')
             edge_traffic -= trans_traffic
+            # todo add the traffic consumption of laser detector
+            # add laser-detector cover links, add detector
+            """if cover_links not in G.nodes[laser_postion]['key_rate'].keys():
+                G.nodes[laser_postion]['key_rate'][cover_links] = compute_key_rate(laser_postion, detector_postion)"""
+            for transverse_laser_detector in edge_laser_detector_list[wavelength]:
+                for i in range(len(transverse_laser_detector) - 1):
+                    edges = G.get_edge_data(transverse_laser_detector[i], transverse_laser_detector[i+1])
+                    for edge_key, edge_attrs in edges.items():
+                        if edge_attrs.get('wavelength') == wavelength:
+                            G.edges[transverse_laser_detector[i], transverse_laser_detector[i+1], edge_key]['free_capacity'] = min(G.edges[transverse_laser_detector[i], transverse_laser_detector[i+1], edge_key]['free_capacity'],G.nodes[transverse_laser_detector[0]]['laser_capacity'][wavelength][tuple(transverse_laser_detector)])
 
-    return occupied_wavelength, delta
-
-def undo_serve_traffic(G, delta, served_request):
-    """
-    根据 delta 记录反向撤销对 G 和 served_request 的修改
-    """
-    for action in reversed(delta):
-        op, target, key, val = action
-        
-        if op == 'served_request_new_key':
-            del served_request[target]
-        elif op == 'served_request_append':
-            served_request[target].pop()
-        elif op == 'node_attr_append':
-            # key is (attr_name, wavelength)
-            G.nodes[target][key[0]][key[1]].pop()
-        elif op == 'node_attr_dict_set':
-            # key is (attr_name, wavelength, dict_key)
-            if val is None:
-                del G.nodes[target][key[0]][key[1]][key[2]]
-            else:
-                G.nodes[target][key[0]][key[1]][key[2]] = val
-        elif op == 'node_attr_inc':
-            G.nodes[target][key] += val
-        elif op == 'node_attr_dict_inc':
-            # key is (attr_name, wavelength, dict_key)
-            G.nodes[target][key[0]][key[1]][key[2]] += val
-        elif op == 'edge_attr_inc':
-            u, v, k = target
-            G.edges[u, v, k][key] += val
-        elif op == 'edge_attr_set':
-            u, v, k = target
-            G.edges[u, v, k][key] = val
+    return occupied_wavelength
 
 
 from multiprocessing import Pool, Manager
@@ -353,26 +295,14 @@ def process_mid(traffic_type, map_name, protocol, detector, bypass, key_rate_lis
                 
                 request_paths_cache[r_id] = path_data_list
 
-            # --- 3. 顺序处理请求 (Robust Beam Search) ---
-            # 提升 Beam 宽度 B，以应对 Large 图的复杂性
-            BEAM_WIDTH = 5 
-            
-            # 初始化 Beam
-            current_beam = [{
-                'topology': topology.copy(),
-                'served_request': copy.deepcopy(served_request),
-                'total_power': 0.0,
-                'component_power': component_power.copy(),
-                'spectrum_occupied': 0.0,
-                'score': 0.0
-            }]
-            
-            pbar.write(f"[PID {os.getpid()}] 开始 Robust Beam Search 搜索 (宽度: {BEAM_WIDTH})...")
-
+            # --- 3. 顺序处理请求 (Greedy) ---
             for i, request in enumerate(traffic_matrix):
-                id, src, dst, traffic = request[0], request[1], request[2], request[3]
+                id = request[0]
+                src = request[1]
+                dst = request[2]
+                traffic = request[3]
                 
-                # 更新热力图
+                # --- 动态更新热力图 ---
                 node_future_demand[dst] = max(0, node_future_demand.get(dst, 0) - traffic)
                 if id in request_paths_cache:
                     for edges, weight in request_paths_cache[id]:
@@ -381,96 +311,60 @@ def process_mid(traffic_type, map_name, protocol, detector, bypass, key_rate_lis
                             link_future_demand[(u, v)] = max(0, link_future_demand.get((u, v), 0) - impact)
                             link_future_demand[(v, u)] = max(0, link_future_demand.get((v, u), 0) - impact)
 
-                next_candidates = []
-                
-                for state_idx, state in enumerate(current_beam):
-                    auxiliary_graph = utils.tools.build_auxiliary_graph(
-                        topology=state['topology'],
-                        wavelength_list=wavelength_list,
-                        traffic=traffic,
-                        physical_topology=physical_topology,
-                        shared_key_rate_list=key_rate_list,
-                        served_request=state['served_request'],
-                        remain_num_request=remain_num_request,
-                        link_future_demand=link_future_demand,
-                        node_future_demand=node_future_demand
-                    )
-                    
-                    # 提升分支因子 top_k 至 4，增加备选路径多样性
-                    paths = find_min_weight_path_with_relay(auxiliary_graph, src, dst, top_k=4)
-                    
-                    for path_info in paths:
-                        direction, path_with_data, relay, min_power, weight = path_info
-                        
-                        new_topo = state['topology'].copy()
-                        new_served_req = copy.deepcopy(state['served_request'])
-                        
-                        occ_wl, _ = serve_traffic(new_topo, path_with_data, traffic, pbar, new_served_req)
-                        
-                        new_total_power = state['total_power'] + min_power / len(traffic_matrix)
-                        new_spectrum = state['spectrum_occupied'] + occ_wl / network.num_wavelength
-                        
-                        new_comp_power = state['component_power'].copy()
-                        for (u, v, edge_data) in path_with_data:
-                            new_comp_power['source'] += edge_data['source_power'] / len(traffic_matrix)
-                            new_comp_power['detector'] += edge_data['detector_power'] / len(traffic_matrix)
-                            new_comp_power['other'] += edge_data['other_power'] / len(traffic_matrix)
-                            new_comp_power['ice_box'] += edge_data['ice_box_power'] / len(traffic_matrix)
-                        
-                        # 改进评分逻辑：增加对未来冲突权重 (weight) 的敏感度，系数从 0.01 提升至 0.05
-                        # 这样算法会更主动地避开未来可能需要的热门资源
-                        score = new_total_power + (weight * 0.05) 
-                        
-                        next_candidates.append({
-                            'topology': new_topo,
-                            'served_request': new_served_req,
-                            'total_power': new_total_power,
-                            'component_power': new_comp_power,
-                            'spectrum_occupied': new_spectrum,
-                            'score': score
-                        })
-                    
-                    del auxiliary_graph
-                
-                if not next_candidates:
-                    # 如果常规搜索失败，尝试紧急恢复（使用更大的 top_k 和较轻的惩罚再次尝试）
-                    pbar.write(f"[PID {os.getpid()}] 请求 {i} ({src}->{dst}) 常规分配失败，进入紧急恢复模式...")
-                    # 这里暂不实现复杂的重试逻辑，先通过提升参数解决
-                    flag = False
-                    break
-                
-                next_candidates.sort(key=lambda x: x['score'])
-                
-                # 内存回收
-                for discarded in current_beam:
-                    discarded['topology'] = None
-                    discarded['served_request'] = None
-                for discarded in next_candidates[BEAM_WIDTH:]:
-                    discarded['topology'] = None
-                    discarded['served_request'] = None
-                
-                current_beam = next_candidates[:BEAM_WIDTH]
-                remain_num_request -= 1
-                pbar.update(1)
-                
-                if i % 5 == 0:
-                    gc.collect()
-                    ctypes.CDLL("libc.so.6").malloc_trim(0)
+                auxiliary_graph = utils.tools.build_auxiliary_graph(
+                    topology=topology,
+                    wavelength_list=wavelength_list,
+                    traffic=traffic,
+                    physical_topology=physical_topology,
+                    shared_key_rate_list=key_rate_list,
+                    served_request=served_request,
+                    remain_num_request=remain_num_request,
+                    link_future_demand=link_future_demand,
+                    node_future_demand=node_future_demand
+                )
+                result = find_min_weight_path_with_relay(auxiliary_graph=auxiliary_graph, src=src, dst=dst)
 
-            if flag:
-                # 从最终 Beam 中选出功耗最低的一个
-                current_beam.sort(key=lambda x: x['total_power'])
-                best_state = current_beam[0]
-                total_power_each_run = best_state['total_power']
-                spectrum_occupied = best_state['spectrum_occupied']
-                component_power = best_state['component_power']
-                pbar.write(f"[PID {os.getpid()}] Beam Search 结束。最佳方案平均功耗: {total_power_each_run:.4f}")
-            else:
-                # 仿真失败的处理
-                with open(f'result.txt', 'a') as file:
-                    file.write(f'\n--- 结果: 仿真失败 (Beam Search 无法满足所有请求) ---\n')
-                    file.write(f'Protocol: {config.protocol}, Map: {map_name}\n')
-                return
+                if result:
+                    direction, best_path_edges, relay, min_power, weight = result
+                    if relay:
+                        pbar.write(
+                            f"[PID {os.getpid()}] 从 {src} 到 {dst} 最优路径(方向: {direction}, 中继: {relay}): {best_path_edges}, 最小功率: {min_power}")
+                    else:
+                        pbar.write(
+                            f"[PID {os.getpid()}] 从 {src} 到 {dst} 最优路径(方向: {direction}): {best_path_edges}, 最小功率: {min_power}")
+                    occupied_wavelength = serve_traffic(G=topology,
+                                                        AG=auxiliary_graph,
+                                                        path_edge_list=best_path_edges,
+                                                        request_traffic=traffic,
+                                                        pbar=pbar,
+                                                        served_request = served_request)
+                    
+                    total_power_each_run += min_power / len(traffic_matrix)
+                    spectrum_occupied += occupied_wavelength / network.num_wavelength
+                    for (u, v, key) in best_path_edges:
+                        edge_data = auxiliary_graph.get_edge_data(u=u, v=v, key=key)
+                        component_power['source'] = component_power['source'] + edge_data['source_power'] / len(traffic_matrix)
+                        component_power['detector'] = component_power['detector'] + edge_data['detector_power'] / len(traffic_matrix)
+                        component_power['other'] = component_power['other'] + edge_data['other_power'] / len(traffic_matrix)
+                        component_power['ice_box'] = component_power['ice_box'] + edge_data['ice_box_power'] / len(traffic_matrix)
+
+                    pbar.update(1)
+                else:
+                    pbar.write(f"[PID {os.getpid()}] 从 {src} 到 {dst} 无可用路径")
+                    pbar.update(1)
+                    flag = False
+                    del auxiliary_graph
+                    gc.collect()
+                    with open(f'result.txt', 'a') as file:
+                        file.write(f'\n--- 最终结果 --- \n')
+                        file.write(
+                            f'Protocol: {config.protocol}, Map: {map_name}\n')
+                        file.write(f'无可用路径\n')
+                    return
+                del auxiliary_graph
+                gc.collect()
+                ctypes.CDLL("libc.so.6").malloc_trim(0)
+                remain_num_request = remain_num_request - 1
 
             # 最终结算
             if best_solution_found:
