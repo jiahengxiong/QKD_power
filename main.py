@@ -40,7 +40,7 @@ def average_component_power(component_power_run):
     return average
 
 
-def find_min_weight_path_with_relay(auxiliary_graph, src, dst, temperature=0):
+def find_min_weight_path_with_relay(auxiliary_graph, src, dst):
     # 辅助函数：计算路径总功率
     def calculate_path_power(path_edges):
         total_power = 0
@@ -230,9 +230,6 @@ def process_mid(traffic_type, map_name, protocol, detector, bypass, key_rate_lis
         # traffic_matrix = assign_traffic_values(pairs=pairs, mid=mid)
         traffic_matrix_base = request_list[run][traffic_type][map_name]
         
-        # 引入随机扰动：
-        # Run 0: 纯贪心 (perturbation=0)
-        # Run 1~N: 逐渐增加扰动 (perturbation=0.05 ~ 0.2)
         # 不再调整服务顺序，直接使用原始流量矩阵
         traffic_matrix = traffic_matrix_base
 
