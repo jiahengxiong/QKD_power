@@ -40,7 +40,7 @@ def average_component_power(component_power_run):
     return average
 
 
-def find_min_weight_path_with_relay(auxiliary_graph, src, dst, temperature=0):
+def find_min_weight_path_with_relay(auxiliary_graph, src, dst, top_k=3):
     # 辅助函数：计算路径总功率
     def calculate_path_power(path_edges):
         total_power = 0
@@ -84,26 +84,14 @@ def find_min_weight_path_with_relay(auxiliary_graph, src, dst, temperature=0):
                         paths.append(('dst->delay,src->delay', path_edges, delay, power_sum, weight))
 
     if not paths:
-        return False
+        return []
 
-    # 模拟退火选择逻辑
-    # 按权重排序 (index 4 是 weight)
+    # 按权重 (weight) 排序，权重越小越优
+    # index 4 是 weight
     sorted_paths = sorted(paths, key=lambda x: x[4])
-    best_path = sorted_paths[0]
-
-    if temperature > 0:
-        # 尝试以前 5 个候选路径进行 SA 探索
-        for candidate in sorted_paths[1:5]:
-            delta_w = candidate[4] - best_path[4]
-            # Metropolis 准则
-            try:
-                prob = math.exp(-delta_w / (temperature + 1e-9))
-                if random.random() < prob:
-                    return candidate
-            except OverflowError:
-                continue
-
-    return best_path
+    
+    # 返回前 top_k 条候选路径
+    return sorted_paths[:top_k]
 
 
 def serve_traffic(G, AG, path_edge_list, request_traffic, pbar, served_request):
@@ -308,19 +296,72 @@ def process_mid(traffic_type, map_name, protocol, detector, bypass, key_rate_lis
                 
                 request_paths_cache[r_id] = path_data_list
 
-            # 模拟退火温度参数
-            T0 = 1000.0  # 初始温度
-            alpha = 0.85 # 冷却系数
-            current_T = T0 * (alpha ** run)
+            # --- 3. 顺序处理请求 (Branch & Bound Backtracking) ---
+            i = 0
+            state_stack = []        # 存放状态快照的栈
+            tried_path_indices = {}   # 记录每个请求索引当前尝试到第几条候选路径
+            candidates_cache = {}     # 缓存每个请求在特定状态下的候选路径列表
+            
+            # 全局最优记录
+            min_total_power_found = float('inf')
+            best_solution_found = None # 存储最佳方案的所有路径和组件功耗
+            
+            # 最大尝试总步数，防止死循环或耗时过长
+            total_steps = 0
+            MAX_TOTAL_STEPS = 5000 
+            
+            pbar.write(f"[PID {os.getpid()}] 开始 Branch & Bound 搜索最低功耗方案...")
 
-            for i, request in enumerate(traffic_matrix):
-                id = request[0]
-                src = request[1]
-                dst = request[2]
-                traffic = request[3]
+            while i < len(traffic_matrix) and total_steps < MAX_TOTAL_STEPS:
+                total_steps += 1
                 
-                # --- 2. 动态更新热力图 ---
-                # 在处理当前请求前，从未来需求中移除
+                # 如果是第一次到达这个请求，或者由于回溯重新到达，初始化尝试索引
+                if i not in tried_path_indices:
+                    tried_path_indices[i] = 0
+                    # 保存当前状态快照
+                    state_stack.append({
+                        'topology': topology.copy(),
+                        'served_request': copy.deepcopy(served_request),
+                        'total_power_each_run': total_power_each_run,
+                        'spectrum_occupied': spectrum_occupied,
+                        'component_power': copy.deepcopy(component_power),
+                        'link_future_demand': link_future_demand.copy(),
+                        'node_future_demand': node_future_demand.copy(),
+                        'remain_num_request': remain_num_request
+                    })
+
+                # 获取快照作为基准
+                snapshot = state_stack[-1]
+                
+                # 代价剪枝：如果当前累计功耗已经超过已找到的最优解，直接回溯
+                if total_power_each_run >= min_total_power_found:
+                    pbar.write(f"  [剪枝] 请求 {i}: 当前功耗 {total_power_each_run:.2f} >= 最优 {min_total_power_found:.2f}")
+                    # 触发回溯逻辑（同下方的 else 分支）
+                    if i in tried_path_indices: del tried_path_indices[i]
+                    if i in candidates_cache: del candidates_cache[i]
+                    state_stack.pop()
+                    if not state_stack: break
+                    i -= 1
+                    tried_path_indices[i] += 1
+                    # 恢复上一步状态
+                    prev = state_stack[-1]
+                    topology = prev['topology'].copy()
+                    served_request = copy.deepcopy(prev['served_request'])
+                    total_power_each_run = prev['total_power_each_run']
+                    spectrum_occupied = prev['spectrum_occupied']
+                    component_power = copy.deepcopy(prev['component_power'])
+                    link_future_demand = prev['link_future_demand'].copy()
+                    node_future_demand = prev['node_future_demand'].copy()
+                    remain_num_request = prev['remain_num_request']
+                    pbar.update(-1)
+                    continue
+
+                request = traffic_matrix[i]
+                id, src, dst, traffic = request[0], request[1], request[2], request[3]
+
+                # 恢复热力图并扣减当前请求
+                link_future_demand = snapshot['link_future_demand'].copy()
+                node_future_demand = snapshot['node_future_demand'].copy()
                 node_future_demand[dst] = max(0, node_future_demand.get(dst, 0) - traffic)
                 if id in request_paths_cache:
                     for edges, weight in request_paths_cache[id]:
@@ -328,65 +369,123 @@ def process_mid(traffic_type, map_name, protocol, detector, bypass, key_rate_lis
                             impact = weight * traffic
                             link_future_demand[(u, v)] = max(0, link_future_demand.get((u, v), 0) - impact)
                             link_future_demand[(v, u)] = max(0, link_future_demand.get((v, u), 0) - impact)
-                
-                # 计算当前步骤的温度
-                T_step = current_T * (1.0 - i / len(traffic_matrix))
 
-                auxiliary_graph = utils.tools.build_auxiliary_graph(
-                    topology=topology,
-                    wavelength_list=wavelength_list,
-                    traffic=traffic,
-                    physical_topology=physical_topology,
-                    shared_key_rate_list=key_rate_list,
-                    served_request=served_request,
-                    remain_num_request=remain_num_request,
-                    link_future_demand=link_future_demand,  # 传入链路热力图
-                    node_future_demand=node_future_demand   # 传入节点热力图
-                )
-                result = find_min_weight_path_with_relay(auxiliary_graph=auxiliary_graph, src=src, dst=dst, temperature=T_step)
+                # 获取或生成候选路径
+                if i not in candidates_cache:
+                    auxiliary_graph = utils.tools.build_auxiliary_graph(
+                        topology=topology,
+                        wavelength_list=wavelength_list,
+                        traffic=traffic,
+                        physical_topology=physical_topology,
+                        shared_key_rate_list=key_rate_list,
+                        served_request=served_request,
+                        remain_num_request=remain_num_request,
+                        link_future_demand=link_future_demand,
+                        node_future_demand=node_future_demand
+                    )
+                    candidates_cache[i] = find_min_weight_path_with_relay(auxiliary_graph, src, dst, top_k=2)
+                    del auxiliary_graph
 
-                if result:
+                candidates = candidates_cache[i]
+
+                # 尝试当前索引对应的候选路径
+                if tried_path_indices[i] < len(candidates):
+                    result = candidates[tried_path_indices[i]]
                     direction, best_path_edges, relay, min_power, weight = result
-                    if relay:
-                        pbar.write(
-                            f"[PID {os.getpid()}] 从 {src} 到 {dst} 最优路径(方向: {direction}, 中继: {relay}): {best_path_edges}, 最小功率: {min_power}")
-                    else:
-                        pbar.write(
-                            f"[PID {os.getpid()}] 从 {src} 到 {dst} 最优路径(方向: {direction}): {best_path_edges}, 最小功率: {min_power}")
-                    occupied_wavelength = serve_traffic(G=topology,
-                                                        AG=auxiliary_graph,
-                                                        path_edge_list=best_path_edges,
-                                                        request_traffic=traffic,
-                                                        pbar=pbar,
-                                                        served_request = served_request)
-                    num_request = len(list(physical_topology.nodes())) * (len(list(physical_topology.nodes()))-1)/2
+                    
+                    # 这里的 auxiliary_graph 需要重新构建以执行 serve_traffic
+                    # (或者我们可以优化为在 candidates 中保存必要的辅助数据，但为了稳定先重构)
+                    aux_g = utils.tools.build_auxiliary_graph(
+                        topology=topology,
+                        wavelength_list=wavelength_list,
+                        traffic=traffic,
+                        physical_topology=physical_topology,
+                        shared_key_rate_list=key_rate_list,
+                        served_request=served_request,
+                        remain_num_request=remain_num_request,
+                        link_future_demand=link_future_demand,
+                        node_future_demand=node_future_demand
+                    )
+                    
+                    occupied_wavelength = serve_traffic(topology, aux_g, best_path_edges, traffic, pbar, served_request)
+                    
+                    # 更新状态
                     total_power_each_run += min_power / len(traffic_matrix)
                     spectrum_occupied += occupied_wavelength / network.num_wavelength
                     for (u, v, key) in best_path_edges:
-                        edge_data = auxiliary_graph.get_edge_data(u=u, v=v, key=key)
-                        # print(edge_data)
-                        component_power['source'] = component_power['source'] + edge_data['source_power'] / len(traffic_matrix)
-                        component_power['detector'] = component_power['detector'] + edge_data['detector_power'] / len(traffic_matrix)
-                        component_power['other'] = component_power['other'] + edge_data['other_power'] / len(traffic_matrix)
-                        component_power['ice_box'] = component_power['ice_box'] + edge_data['ice_box_power'] / len(traffic_matrix)
+                        edge_data = aux_g.get_edge_data(u=u, v=v, key=key)
+                        component_power['source'] += edge_data['source_power'] / len(traffic_matrix)
+                        component_power['detector'] += edge_data['detector_power'] / len(traffic_matrix)
+                        component_power['other'] += edge_data['other_power'] / len(traffic_matrix)
+                        component_power['ice_box'] += edge_data['ice_box_power'] / len(traffic_matrix)
 
+                    del aux_g
+                    remain_num_request -= 1
+                    i += 1
                     pbar.update(1)
+                    
+                    # 如果处理完了所有请求，记录一个可行方案
+                    if i == len(traffic_matrix):
+                        if total_power_each_run < min_total_power_found:
+                            min_total_power_found = total_power_each_run
+                            best_solution_found = {
+                                'total_power': total_power_each_run,
+                                'spectrum': spectrum_occupied,
+                                'component': copy.deepcopy(component_power)
+                            }
+                            pbar.write(f"  [新记录] 找到完整方案，平均功耗: {min_total_power_found:.2f}")
+                        
+                        # 找到方案后也要回溯，以寻找是否有更优的
+                        i -= 1
+                        tried_path_indices[i] += 1
+                        state_stack.pop()
+                        prev = state_stack[-1]
+                        topology = prev['topology'].copy()
+                        served_request = copy.deepcopy(prev['served_request'])
+                        total_power_each_run = prev['total_power_each_run']
+                        spectrum_occupied = prev['spectrum_occupied']
+                        component_power = copy.deepcopy(prev['component_power'])
+                        link_future_demand = prev['link_future_demand'].copy()
+                        node_future_demand = prev['node_future_demand'].copy()
+                        remain_num_request = prev['remain_num_request']
+                        pbar.update(-1)
                 else:
-                    pbar.write(f"[PID {os.getpid()}] 从 {src} 到 {dst} 无可用路径")
-                    pbar.update(1)
-                    flag = False
-                    del auxiliary_graph
-                    gc.collect()
-                    with open(f'result.txt', 'a') as file:
-                        file.write(f'\n--- 最终结果（每个 mid 经过 {num_runs} 次运行后取平均）---\n')
-                        file.write(
-                            f'Protocol: {config.protocol}, Bypass: {config.bypass}, Detector: {config.detector}, Map: {map_name}, Traffic:{traffic_type}\n')
-                        file.write(f'无可用路径\n')
-                    return
-                del auxiliary_graph
+                    # 回溯逻辑
+                    if i in tried_path_indices: del tried_path_indices[i]
+                    if i in candidates_cache: del candidates_cache[i]
+                    state_stack.pop()
+                    if not state_stack: break
+                    i -= 1
+                    if i < 0: break
+                    tried_path_indices[i] += 1
+                    
+                    prev = state_stack[-1]
+                    topology = prev['topology'].copy()
+                    served_request = copy.deepcopy(prev['served_request'])
+                    total_power_each_run = prev['total_power_each_run']
+                    spectrum_occupied = prev['spectrum_occupied']
+                    component_power = copy.deepcopy(prev['component_power'])
+                    link_future_demand = prev['link_future_demand'].copy()
+                    node_future_demand = prev['node_future_demand'].copy()
+                    remain_num_request = prev['remain_num_request']
+                    pbar.update(-1)
+                
                 gc.collect()
                 ctypes.CDLL("libc.so.6").malloc_trim(0)
-                remain_num_request = remain_num_request - 1
+
+            # 最终结算
+            if best_solution_found:
+                total_power_each_run = best_solution_found['total_power']
+                spectrum_occupied = best_solution_found['spectrum']
+                component_power = best_solution_found['component']
+                pbar.write(f"[PID {os.getpid()}] 搜索结束。最佳平均功耗: {total_power_each_run:.2f}")
+            else:
+                pbar.write(f"[PID {os.getpid()}] 未能找到任何完整方案。")
+                flag = False
+                with open(f'result.txt', 'a') as file:
+                    file.write(f'\n--- 结果: 搜索失败 (无解) ---\n')
+                    file.write(f'Protocol: {config.protocol}, Map: {map_name}\n')
+                return
 
         if flag:
             total_power_run.append(total_power_each_run)
