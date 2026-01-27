@@ -385,6 +385,7 @@ def calculate_data_auxiliary_edge(G, path, wavelength_combination, wavelength_ca
             spectrum = 0
             LD = 0
             used_LD = 0
+            node_new_detectors_count = {}
             
             # === 3. 统计频谱与物理参数 ===
             spectrum = 0
@@ -608,13 +609,10 @@ def build_temp_graph_for_path(topology, path, wavelength_combinations):
 # 核心重构：build_auxiliary_graph
 # ==========================================
 
-def build_auxiliary_graph(topology, wavelength_list, traffic, physical_topology, shared_key_rate_list, served_request,remain_num_request):
+def build_auxiliary_graph(topology, wavelength_list, traffic, physical_topology, shared_key_rate_list, served_request,remain_num_request, link_future_demand=None):
     """
     终极修正版 V8：DFS 回溯 + 智能剪枝 (Backtracking with Pruning)
-    
-    1. 彻底抛弃 itertools.combinations。
-    2. 使用 DFS 深度优先搜索，优先尝试由"小容量"波长组成的集合。
-    3. 引入 suffix_sum (后缀和) 进行强力剪枝：如果剩余波长全加起来都不够，直接停止搜索该分支。
+    新增：link_future_demand (动态热力图)
     """
     auxiliary_graph = nx.MultiDiGraph()
     

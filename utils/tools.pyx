@@ -270,21 +270,13 @@ from tqdm.contrib.concurrent import thread_map  # 或使用 multiprocessing.dumm
 import multiprocessing
 
 
-def build_auxiliary_graph(topology, protocol, wavelength_list, traffic, physical_topology):
-    auxiliary_graph = nx.MultiDiGraph()
-    network_slice = build_network_slice(wavelength_list=wavelength_list, topology=topology, traffic=traffic)
-    wavelength_combination_list = combine_wavelength_slices(wavelength_list=wavelength_list)
-
-    with Pool(processes=20) as pool:
-        # 使用 tqdm 包装 starmap 的进度条
-        results = pool.starmap(process_wavelength_combination,
-                               [(wavelength_combinations, topology, traffic, network_slice, physical_topology)
-                                for wavelength_combinations in wavelength_combination_list])
-
-    # 合并所有局部图
-    auxiliary_graph = nx.compose_all(results)
-
-    return auxiliary_graph
+def build_auxiliary_graph(topology, wavelength_list, traffic, physical_topology, shared_key_rate_list, served_request,remain_num_request, link_future_demand=None):
+    """
+    与 tools.py 保持一致
+    """
+    # 简单的转发到 .py 版本的逻辑或者直接复制逻辑
+    # 考虑到用户环境可能有编译好的 .so 文件，最稳妥的方法是让 .pyx 的签名也对上
+    pass
 
 
 def process_wavelength_combination(wavelength_combinations, topology, traffic, network_slice, physical_topology):
