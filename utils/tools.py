@@ -642,26 +642,31 @@ def build_auxiliary_graph(topology, wavelength_list, traffic, physical_topology,
     
     # 3. 遍历处理
     for src, dst in pairs:
+        # --- 3.1 流式生成并探测路径 ---
+        # 我们不再预取 K 条路径，而是按距离从短到长依次探测，直到找到第一条“可用”的路径
+        max_attempts = 20 # 设置搜索上限，防止在极端阻塞情况下计算过久
+        attempts = 0
         
-        # --- 3.1 生成 K 条路径 ---
-        k_val = 5
         if config.bypass is True:
-             try:
-                 raw_paths_gen = nx.shortest_simple_paths(physical_topology, src, dst, weight='distance')
-                 raw_paths = list(itertools.islice(raw_paths_gen, k_val))
-             except (nx.NetworkXNoPath, nx.NodeNotFound):
-                 raw_paths = []
+            try:
+                path_generator = nx.shortest_simple_paths(physical_topology, src, dst, weight='distance')
+            except (nx.NetworkXNoPath, nx.NodeNotFound):
+                path_generator = []
         else:
-             try:
-                 raw_paths = list(nx.all_simple_paths(source=src, target=dst, G=physical_topology, cutoff=1))
-             except:
-                 raw_paths = []
+            try:
+                # 原始逻辑：非 bypass 模式只看直连 (cutoff=1)
+                path_generator = list(nx.all_simple_paths(source=src, target=dst, G=physical_topology, cutoff=1))
+            except:
+                path_generator = []
         
-        # --- 3.2 遍历每一条路径 ---
-        for path in raw_paths:
+        # --- 3.2 遍历探测路径 ---
+        for path in path_generator:
+            attempts += 1
+            if attempts > max_attempts:
+                break
             
             # === 步骤 A: 收集并筛选候选波长 ===
-            candidates = [] 
+            candidates = []
             
             for wavelength in wavelength_list:
                 wl_slice = network_slice[wavelength]
@@ -680,7 +685,7 @@ def build_auxiliary_graph(topology, wavelength_list, traffic, physical_topology,
                 
                 candidates.append({
                     'wl': wavelength,
-                    'cap': min_cap, # 这里的 cap 是路径瓶颈容量(未扣除距离衰减)，用于快速剪枝
+                    'cap': min_cap, # 这里的 cap 是路径瓶颈容量
                     'pos': positions
                 })
             
@@ -688,12 +693,9 @@ def build_auxiliary_graph(topology, wavelength_list, traffic, physical_topology,
                 continue
 
             # === 步骤 B: 排序 (Best Fit Strategy) ===
-            # 按容量从小到大排序。DFS 会优先选取前面的波长，从而实现“复用优先/填补碎片”。
             candidates.sort(key=lambda x: x['cap'], reverse=False)
 
             # === 步骤 C: 构建后缀和 (Suffix Sum) 用于剪枝 ===
-            # suffix_max_cap[i] 表示从 candidates[i] 到最后所有波长的容量总和
-            # 如果 current_cap + suffix_max_cap[i] < traffic，说明后面全选也不够，直接剪枝
             n_candidates = len(candidates)
             suffix_max_cap = [0.0] * n_candidates
             current_sum = 0.0
@@ -702,100 +704,82 @@ def build_auxiliary_graph(topology, wavelength_list, traffic, physical_topology,
                 suffix_max_cap[i] = current_sum
             
             if suffix_max_cap[0] < traffic:
-                continue # 全选都不够，跳过路径
+                continue # 全选都不够，尝试下一条物理路径
 
-            # === 步骤 D: DFS 递归函数 ===
-            # 我们不需要全局变量，用闭包或返回值控制
+            # === 步骤 D: DFS 探测该物理路径是否能凑够 traffic ===
             path_found_flag = False
 
             def dfs_find_valid_set(idx, current_wls, current_pos_dict, current_cap_dict, current_theoretical_sum, remain_num_request):
                 nonlocal path_found_flag
-                if path_found_flag: return # 已经找到最优解，全速退出
+                if path_found_flag: return 
                 
-                # --- 1. 终止条件检查 ---
                 if current_theoretical_sum >= traffic:
-                    # 理论容量已达标，开始严格检查
-                    
-                    # A. 互斥约束检查 (最容易失败的放在前面)
                     if not check_path_validity_for_request(path, current_wls, served_request):
-                        return # 失败，回溯，换个波长试试
+                        return 
                     
-                    # B. 物理计算 (耗时)
                     temp_G = build_temp_graph_for_path(topology, path, current_wls)
                     data = calculate_data_auxiliary_edge(
                         G=temp_G, 
-                        path=path,
-                        laser_detector_position=current_pos_dict,
-                        wavelength_combination=current_wls,
-                        wavelength_capacity=current_cap_dict,
-                        traffic=traffic,
-                        network_slice=network_slice,
-                        remain_num_request=remain_num_request,
-                        link_future_demand=link_future_demand, # 传递链路热力图
-                        node_future_demand=node_future_demand, # 传递节点热力图
-                        topology=topology # 新增：传递原始拓扑以计算总容量
+                        path=path, 
+                        laser_detector_position=current_pos_dict, 
+                        wavelength_combination=current_wls, 
+                        wavelength_capacity=current_cap_dict, 
+                        traffic=traffic, 
+                        network_slice=network_slice, 
+                        remain_num_request=remain_num_request, 
+                        link_future_demand=link_future_demand, 
+                        node_future_demand=node_future_demand, 
+                        topology=topology 
                     )
                     del temp_G
                     
                     if data:
-                        # 成功！添加边并标记
                         for edge_data in data:
-                             auxiliary_graph.add_edge(path[0], path[-1], 
-                                                      key=uuid.uuid4().hex + str(current_wls),
-                                                      **edge_data)
+                            auxiliary_graph.add_edge(path[0], path[-1], 
+                                                     key=uuid.uuid4().hex + str(current_wls), 
+                                                     **edge_data)
                         path_found_flag = True 
-                    return
+                    return 
 
-                # --- 2. 剪枝检查 ---
                 if idx >= n_candidates:
-                    return
-                # 强力剪枝：如果 当前已选 + 剩余所有能选的 < 需求，则没必要继续了
+                    return 
                 if current_theoretical_sum + suffix_max_cap[idx] < traffic:
-                    return
-
-                # --- 3. 递归分支 ---
-                # 策略：为了“复用优先”，我们一定要先尝试“选中当前波长”的分支
+                    return 
                 
-                target = candidates[idx]
-                
-                # 分支 1: 选中 current candidate
-                # (注意：Python list 是引用的，递归时要传新的 list)
+                target = candidates[idx] 
                 new_pos = current_pos_dict.copy()
-                new_pos[target['wl']] = target['pos']
-                
+                new_pos[target['wl']] = target['pos'] 
                 new_cap = current_cap_dict.copy()
-                new_cap[target['wl']] = target['cap']
+                new_cap[target['wl']] = target['cap'] 
 
                 dfs_find_valid_set(
                     idx + 1, 
                     current_wls + [target['wl']], 
-                    new_pos,
-                    new_cap,
-                    current_theoretical_sum + target['cap'],
+                    new_pos, 
+                    new_cap, 
+                    current_theoretical_sum + target['cap'], 
                     remain_num_request
-                )
+                ) 
                 
                 if path_found_flag: return 
 
-                # 分支 2: 不选 current candidate (跳过，尝试找后面的)
-                # 只有当不选这个还有希望凑齐时，才走这条路
                 if idx + 1 < n_candidates:
                     if current_theoretical_sum + suffix_max_cap[idx+1] >= traffic:
-                         dfs_find_valid_set(
-                            idx + 1,
-                            current_wls,
-                            current_pos_dict,
-                            current_cap_dict,
-                            current_theoretical_sum,
+                        dfs_find_valid_set(
+                            idx + 1, 
+                            current_wls, 
+                            current_pos_dict, 
+                            current_cap_dict, 
+                            current_theoretical_sum, 
                             remain_num_request
-                        )
+                        ) 
 
-            # === Start DFS ===
-            # 初始状态：index=0, wls=[], pos={}, caps={}, sum=0
-            dfs_find_valid_set(0, [], {}, {}, 0, remain_num_request)
+            # 执行探测
+            dfs_find_valid_set(0, [], {}, {}, 0, remain_num_request) 
             
             if path_found_flag:
-                break # 路径处理完成，跳出 raw_paths 循环
+                # 找到了最短且可用的物理路径，跳过后续更长的路径探测
+                break 
 
     del network_slice
     gc.collect()
@@ -805,6 +789,68 @@ def build_auxiliary_graph(topology, wavelength_list, traffic, physical_topology,
 
 
 
+
+def find_first_valid_physical_path(topology, physical_topology, src, dst, traffic, wavelength_list, served_request):
+    """
+    专门为动态热力图设计的探测函数：寻找第一条满足当前网络物理约束的可行路径。
+    采用与 build_auxiliary_graph 一致的流式探测逻辑。
+    """
+    # 为了热力图性能，我们不在这里完整构建 network_slice，而是直接在拓扑上检查
+    try:
+        path_generator = nx.shortest_simple_paths(physical_topology, src, dst, weight='distance')
+    except (nx.NetworkXNoPath, nx.NodeNotFound):
+        return None
+
+    max_attempts = 10 # 限制尝试次数以保证热力图计算速度
+    attempts = 0
+    
+    for path in path_generator:
+        attempts += 1
+        if attempts > max_attempts:
+            break
+            
+        candidates = []
+        for wavelength in wavelength_list:
+            # 1. 检查容量 (直接从原拓扑检查)
+            path_min_cap = float('inf')
+            for i in range(len(path) - 1):
+                u, v = path[i], path[i+1]
+                edge_min_cap = 0
+                edges = topology.get_edge_data(u, v)
+                for edge_key, edge_attrs in edges.items():
+                    if edge_attrs.get('wavelength') == wavelength:
+                        edge_min_cap = max(edge_min_cap, edge_attrs['free_capacity'])
+                path_min_cap = min(path_min_cap, edge_min_cap)
+            
+            if path_min_cap < 1e-6: # 简化版：这里不强制要求满足 traffic，只要有容量就行，或者按需求来
+                continue
+
+            # 2. 检查硬件位置 (简化版：不构建辅助图，直接查)
+            # 这里我们复用 find_laser_detector_position，但它需要 wavelength_slice
+            # 为了兼容性，我们临时创建一个简单的子图作为 slice
+            temp_slice = nx.Graph()
+            for i in range(len(path) - 1):
+                u, v = path[i], path[i+1]
+                temp_slice.add_edge(u, v)
+                # 同步节点属性
+                temp_slice.nodes[u].update(topology.nodes[u])
+                temp_slice.nodes[v].update(topology.nodes[v])
+            
+            positions = find_laser_detector_position(temp_slice, path, wavelength)
+            if len(positions) >= 1:
+                candidates.append({'wl': wavelength, 'cap': path_min_cap})
+        
+        if not candidates:
+            continue
+            
+        # 简单检查理论总容量
+        if sum(c['cap'] for c in candidates) < traffic:
+            continue
+            
+        # 满足初步条件，返回该路径
+        return path
+        
+    return None
 
 # ==========================================
 # 流量生成函数 (保持不变)

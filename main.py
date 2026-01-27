@@ -178,6 +178,33 @@ import os
 # utils.tools.build_auxiliary_graph, find_min_weight_path_with_relay, serve_traffic
 # 同时，全局变量 map_name 和 config 模块需要在工程中预先定义
 
+def calculate_dynamic_heatmap(topology, physical_topology, future_requests, wavelength_list, served_request):
+    """
+    动态热力图计算：为每一个未来请求流式探测一条当前可用的最短路径，并累加需求。
+    """
+    link_demand = {}
+    node_demand = {}
+    for req in future_requests:
+        r_id, r_src, r_dst, r_traffic = req
+        node_demand[r_dst] = node_demand.get(r_dst, 0) + r_traffic
+        
+        path = utils.tools.find_first_valid_physical_path(
+            topology=topology,
+            physical_topology=physical_topology,
+            src=r_src,
+            dst=r_dst,
+            traffic=r_traffic,
+            wavelength_list=wavelength_list,
+            served_request=served_request
+        )
+        
+        if path:
+            edges = list(zip(path[:-1], path[1:]))
+            for u, v in edges:
+                link_demand[(u, v)] = link_demand.get((u, v), 0) + r_traffic
+                link_demand[(v, u)] = link_demand.get((v, u), 0) + r_traffic
+    return link_demand, node_demand
+
 def process_mid(traffic_type, map_name, protocol, detector, bypass, key_rate_list, wavelength_list, num_runs,
                 ice_box_capacity, request_list):
     """
@@ -247,66 +274,22 @@ def process_mid(traffic_type, map_name, protocol, detector, bypass, key_rate_lis
             # 这不需要非常精确（比如考虑波长），只需要基于物理距离的拓扑统计
             # link_future_demand = {(u, v): traffic_weighted_count}
             
-            link_future_demand = {}
-            node_future_demand = {} # 新增：宿节点热度统计
-            
-            # 初始统计所有请求
-            request_paths_cache = {} # id -> list of (edges, weight)
-            
-            # 强化主路径权重，压缩尾部权重
-            raw_weights = [0.8, 0.1, 0.05, 0.03, 0.02]
-            
-            for req in traffic_matrix:
-                r_id, r_src, r_dst, r_traffic = req # 获取请求流量
-                
-                # 统计宿节点热度
-                node_future_demand[r_dst] = node_future_demand.get(r_dst, 0) + r_traffic
-                
-                # 计算 K 条最短路径 (K=5)
-                try:
-                    k_paths_gen = nx.shortest_simple_paths(physical_topology, r_src, r_dst, weight='distance')
-                    k_paths = list(itertools.islice(k_paths_gen, 5)) 
-                except (nx.NetworkXNoPath, nx.NodeNotFound):
-                    k_paths = []
-
-                if not k_paths:
-                    request_paths_cache[r_id] = []
-                    continue
-
-                # 动态归一化：确保实际存在的路径权重和为 1.0
-                actual_raw = raw_weights[:len(k_paths)]
-                total_w = sum(actual_raw)
-                norm_weights = [w / total_w for w in actual_raw]
-
-                path_data_list = []
-                for idx, path in enumerate(k_paths):
-                    edges = list(zip(path[:-1], path[1:]))
-                    weight = norm_weights[idx]
-                    path_data_list.append((edges, weight))
-                    
-                    for u, v in edges:
-                        # 按权重 * 流量 增加热度
-                        impact = weight * r_traffic
-                        link_future_demand[(u, v)] = link_future_demand.get((u, v), 0) + impact
-                        link_future_demand[(v, u)] = link_future_demand.get((v, u), 0) + impact
-                
-                request_paths_cache[r_id] = path_data_list
-
-            # --- 3. 顺序处理请求 (Greedy) ---
+            # --- 3. 顺序处理请求 (Greedy with Dynamic Heatmap) ---
             for i, request in enumerate(traffic_matrix):
                 id = request[0]
                 src = request[1]
                 dst = request[2]
                 traffic = request[3]
                 
-                # --- 动态更新热力图 ---
-                node_future_demand[dst] = max(0, node_future_demand.get(dst, 0) - traffic)
-                if id in request_paths_cache:
-                    for edges, weight in request_paths_cache[id]:
-                        for u, v in edges:
-                            impact = weight * traffic
-                            link_future_demand[(u, v)] = max(0, link_future_demand.get((u, v), 0) - impact)
-                            link_future_demand[(v, u)] = max(0, link_future_demand.get((v, u), 0) - impact)
+                # --- 动态重新计算后续所有请求的热力图 (流式探测单一路径) ---
+                future_requests = traffic_matrix[i+1:]
+                link_future_demand, node_future_demand = calculate_dynamic_heatmap(
+                    topology=topology,
+                    physical_topology=physical_topology,
+                    future_requests=future_requests,
+                    wavelength_list=wavelength_list,
+                    served_request=served_request
+                )
 
                 auxiliary_graph = utils.tools.build_auxiliary_graph(
                     topology=topology,
