@@ -283,7 +283,7 @@ def process_mid(traffic_type, map_name, protocol, detector, bypass, key_rate_lis
                 
                 # --- 动态重新计算后续所有请求的热力图 (流式探测单一路径) ---
                 # 优化：每 10 个请求重算一次热力图，兼顾前瞻性与性能
-                if i % 10 == 0:
+                if i % 1 == 0:
                     future_requests = traffic_matrix[i+1:]
                     link_future_demand, node_future_demand = calculate_dynamic_heatmap(
                         topology=topology,
