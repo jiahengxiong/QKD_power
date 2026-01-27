@@ -344,15 +344,23 @@ def process_mid(traffic_type, map_name, protocol, detector, bypass, key_rate_lis
                 snapshot = state_stack[-1]
                 
                 # 代价剪枝：如果当前累计功耗已经超过已找到的最优解，直接回溯
-                if total_power_each_run >= min_total_power_found:
-                    pbar.write(f"  [剪枝] 请求 {i}: 当前功耗 {total_power_each_run:.2f} >= 最优 {min_total_power_found:.2f}")
-                    # 触发回溯逻辑（同下方的 else 分支）
+                # 引入微小 epsilon (1e-6) 避免浮点数精度导致的无效搜索
+                if total_power_each_run >= (min_total_power_found - 1e-6):
+                    # 触发回溯逻辑
                     if i in tried_path_indices: del tried_path_indices[i]
                     if i in candidates_cache: del candidates_cache[i]
-                    state_stack.pop()
+                    
+                    # --- 内存深度优化：彻底清理废解引用 ---
+                    popped_state = state_stack.pop()
+                    popped_state['topology'] = None
+                    popped_state['served_request'] = None
+                    del popped_state
+                    del snapshot
+                    
                     if not state_stack: break
                     i -= 1
                     tried_path_indices[i] += 1
+                    
                     # 恢复上一步状态
                     prev = state_stack[-1]
                     topology = prev['topology'].copy()
@@ -364,6 +372,10 @@ def process_mid(traffic_type, map_name, protocol, detector, bypass, key_rate_lis
                     node_future_demand = prev['node_future_demand'].copy()
                     remain_num_request = prev['remain_num_request']
                     pbar.update(-1)
+                    
+                    # 仅在回溯较深或每隔一定步数触发 GC，平衡性能与内存
+                    if total_steps % 50 == 0:
+                        gc.collect()
                     continue
 
                 request = traffic_matrix[i]
@@ -428,19 +440,23 @@ def process_mid(traffic_type, map_name, protocol, detector, bypass, key_rate_lis
                     
                     # 如果处理完了所有请求，记录一个可行方案
                     if i == len(traffic_matrix):
-                        if total_power_each_run < min_total_power_found:
+                        if total_power_each_run < (min_total_power_found - 1e-6):
                             min_total_power_found = total_power_each_run
                             best_solution_found = {
                                 'total_power': total_power_each_run,
                                 'spectrum': spectrum_occupied,
                                 'component': copy.deepcopy(component_power)
                             }
-                            pbar.write(f"  [新记录] 找到完整方案，平均功耗: {min_total_power_found:.2f}")
+                            pbar.write(f"  [新记录] 找到更优方案，平均功耗: {min_total_power_found:.4f}")
                         
                         # 找到方案后也要回溯，以寻找是否有更优的
                         i -= 1
                         tried_path_indices[i] += 1
-                        state_stack.pop()
+                        popped_state = state_stack.pop()
+                        popped_state['topology'] = None
+                        popped_state['served_request'] = None
+                        del popped_state
+                        
                         prev = state_stack[-1]
                         topology = prev['topology'].copy()
                         served_request = copy.deepcopy(prev['served_request'])
@@ -451,11 +467,18 @@ def process_mid(traffic_type, map_name, protocol, detector, bypass, key_rate_lis
                         node_future_demand = prev['node_future_demand'].copy()
                         remain_num_request = prev['remain_num_request']
                         pbar.update(-1)
+                        gc.collect()
                 else:
                     # 回溯逻辑
                     if i in tried_path_indices: del tried_path_indices[i]
                     if i in candidates_cache: del candidates_cache[i]
-                    state_stack.pop()
+                    
+                    del snapshot
+                    popped_state = state_stack.pop()
+                    popped_state['topology'] = None
+                    popped_state['served_request'] = None
+                    del popped_state
+                    
                     if not state_stack: break
                     i -= 1
                     if i < 0: break
@@ -471,6 +494,8 @@ def process_mid(traffic_type, map_name, protocol, detector, bypass, key_rate_lis
                     node_future_demand = prev['node_future_demand'].copy()
                     remain_num_request = prev['remain_num_request']
                     pbar.update(-1)
+                    if total_steps % 50 == 0:
+                        gc.collect()
                 
                 gc.collect()
                 ctypes.CDLL("libc.so.6").malloc_trim(0)
