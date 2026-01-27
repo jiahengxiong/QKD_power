@@ -644,19 +644,20 @@ def build_auxiliary_graph(topology, wavelength_list, traffic, physical_topology,
     for src, dst in pairs:
         
         # --- 3.1 生成 K 条路径 ---
-        k_val = 5
+        k_val = 15
         if config.bypass is True:
-             raw_paths = get_k_shortest_paths(physical_topology, src, dst, k=k_val, weight='distance')
-            #  try:
-            #     direct_path = next(nx.all_simple_paths(source=src, target=dst, G=physical_topology, cutoff=1))
-            #     if direct_path not in raw_paths:
-            #         raw_paths.insert(0, direct_path)
-            #  except StopIteration:
-            #      pass
+             # 修改：对于大型拓扑，即使 bypass 也使用 shortest_simple_paths 以获得更多备选
+             try:
+                 raw_paths_gen = nx.shortest_simple_paths(physical_topology, src, dst, weight='distance')
+                 raw_paths = list(itertools.islice(raw_paths_gen, k_val))
+             except (nx.NetworkXNoPath, nx.NodeNotFound):
+                 raw_paths = []
         else:
              try:
-                 raw_paths = list(nx.all_simple_paths(source=src, target=dst, G=physical_topology, cutoff=1))
-             except:
+                 # 修改：Large 图中 direct_path 可能不可用，必须使用搜索
+                 raw_paths_gen = nx.shortest_simple_paths(physical_topology, src, dst, weight='distance')
+                 raw_paths = list(itertools.islice(raw_paths_gen, k_val))
+             except (nx.NetworkXNoPath, nx.NodeNotFound):
                  raw_paths = []
         
         # --- 3.2 遍历每一条路径 ---
