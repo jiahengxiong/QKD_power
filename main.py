@@ -270,21 +270,36 @@ def process_mid(traffic_type, map_name, protocol, detector, bypass, key_rate_lis
             
             link_future_demand = {}
             # 预计算所有点对的最短路径 (缓存以加速)
-            all_shortest_paths = dict(nx.all_pairs_dijkstra_path(physical_topology, weight='distance'))
+            # all_shortest_paths = dict(nx.all_pairs_dijkstra_path(physical_topology, weight='distance'))
             
             # 初始统计所有请求
-            request_paths_cache = {} # id -> list of edges
+            request_paths_cache = {} # id -> list of (edges, weight)
+            
+            # 权重分配：0.5, 0.25, 0.125, 0.0625, 0.0625
+            path_weights = [0.5, 0.25, 0.125, 0.0625, 0.0625]
+            
             for req in traffic_matrix:
                 r_id, r_src, r_dst, _ = req
-                if r_src in all_shortest_paths and r_dst in all_shortest_paths[r_src]:
-                    path = all_shortest_paths[r_src][r_dst]
+                
+                # 计算 K 条最短路径 (K=5)
+                try:
+                    k_paths_gen = nx.shortest_simple_paths(physical_topology, r_src, r_dst, weight='distance')
+                    k_paths = list(itertools.islice(k_paths_gen, 5)) 
+                except (nx.NetworkXNoPath, nx.NodeNotFound):
+                    k_paths = []
+
+                path_data_list = []
+                for idx, path in enumerate(k_paths):
                     edges = list(zip(path[:-1], path[1:]))
-                    request_paths_cache[r_id] = edges
+                    weight = path_weights[idx] if idx < len(path_weights) else 0
+                    path_data_list.append((edges, weight))
                     
                     for u, v in edges:
-                        # 无向/双向统计
-                        link_future_demand[(u, v)] = link_future_demand.get((u, v), 0) + 1
-                        link_future_demand[(v, u)] = link_future_demand.get((v, u), 0) + 1
+                        # 按权重增加热度
+                        link_future_demand[(u, v)] = link_future_demand.get((u, v), 0) + weight
+                        link_future_demand[(v, u)] = link_future_demand.get((v, u), 0) + weight
+                
+                request_paths_cache[r_id] = path_data_list
 
             for request in traffic_matrix:
                 id = request[0]
@@ -293,11 +308,12 @@ def process_mid(traffic_type, map_name, protocol, detector, bypass, key_rate_lis
                 traffic = request[3]
                 
                 # --- 2. 动态更新热力图 ---
-                # 在处理当前请求前，先将其从未来需求中移除（因为它变成了“现在”）
+                # 在处理当前请求前，从未来需求中移除
                 if id in request_paths_cache:
-                    for u, v in request_paths_cache[id]:
-                        link_future_demand[(u, v)] -= 1
-                        link_future_demand[(v, u)] -= 1
+                    for edges, weight in request_paths_cache[id]:
+                        for u, v in edges:
+                            link_future_demand[(u, v)] -= weight
+                            link_future_demand[(v, u)] -= weight
                 
                 auxiliary_graph = utils.tools.build_auxiliary_graph(
                     topology=topology,
