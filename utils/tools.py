@@ -429,19 +429,6 @@ def calculate_data_auxiliary_edge(G, path, wavelength_combination, wavelength_ca
                     u_p, v_p = path[i], path[i+1]
                     demand = link_future_demand.get((u_p, v_p), link_future_demand.get((v_p, u_p), 0))
                     future_penalty += demand * 1000.0 
-
-            # === 4.1 引入自适应战略跳过惩罚 (Adaptive Strategic Skip Penalty) ===
-            strategic_skip_penalty = 0.0
-            if node_future_demand and len(path) > 2:
-                for skipped_node in path[1:-1]:
-                    strategic_coeff = node_future_demand.get(skipped_node, 0)
-                    
-                    # 关键改进：使用指数级惩罚 (pow 1.5) 并调整基准量级
-                    # 这确保了只有“真正的战略枢纽”会被强制中继，而普通节点可以被 Bypass
-                    # 5e10 是经过量级估算后的平衡值
-                    strategic_skip_penalty += math.pow(strategic_coeff, 1.5) * 5e10
-            
-            future_penalty += strategic_skip_penalty
             
             # === 5. 统一计算共享冰箱功耗 (只针对 SNSPD) ===
             ice_box_power = 0
@@ -790,71 +777,59 @@ def build_auxiliary_graph(topology, wavelength_list, traffic, physical_topology,
 
 
 
-def find_first_valid_physical_path(topology, physical_topology, src, dst, traffic, wavelength_list, served_request, weight='distance'):
+def find_first_valid_physical_path(topology, physical_topology, src, dst, traffic, wavelength_list, served_request):
     """
-    升级版热力图探测函数：支持中继路径探测及自定义权重引导。
+    基础版热力图探测函数：寻找第一条满足当前网络物理约束的可行路径。
     """
+    try:
+        path_generator = nx.shortest_simple_paths(physical_topology, src, dst, weight='distance')
+    except (nx.NetworkXNoPath, nx.NodeNotFound):
+        return None
+
+    max_attempts = 5 # 限制尝试次数以保证热力图计算速度
+    attempts = 0
     
-    def check_path_feasibility(p):
-        """内部函数：检查单段路径 p 是否有波长能跑通"""
-        valid_wls = []
-        for wl in wavelength_list:
+    for path in path_generator:
+        attempts += 1
+        if attempts > max_attempts:
+            break
+            
+        candidates = []
+        for wavelength in wavelength_list:
             # 1. 检查容量
             path_min_cap = float('inf')
-            for i in range(len(p) - 1):
-                u, v = p[i], p[i+1]
-                edge_max_cap = 0
+            for i in range(len(path) - 1):
+                u, v = path[i], path[i+1]
+                edge_min_cap = 0
                 edges = topology.get_edge_data(u, v)
-                if not edges: 
-                    path_min_cap = 0
-                    break
-                for _, attrs in edges.items():
-                    if attrs.get('wavelength') == wl:
-                        edge_max_cap = max(edge_max_cap, attrs['free_capacity'])
-                path_min_cap = min(path_min_cap, edge_max_cap)
-                if path_min_cap < 1e-6: break
+                for edge_key, edge_attrs in edges.items():
+                    if edge_attrs.get('wavelength') == wavelength:
+                        edge_min_cap = max(edge_min_cap, edge_attrs['free_capacity'])
+                path_min_cap = min(path_min_cap, edge_min_cap)
             
-            if path_min_cap < 1e-6: continue
+            if path_min_cap < 1e-6:
+                continue
 
             # 2. 检查硬件位置
             temp_slice = nx.Graph()
-            for i in range(len(p) - 1):
-                temp_slice.add_edge(p[i], p[i+1])
-                temp_slice.nodes[p[i]].update(topology.nodes[p[i]])
-                temp_slice.nodes[p[i+1]].update(topology.nodes[p[i+1]])
+            for i in range(len(path) - 1):
+                u, v = path[i], path[i+1]
+                temp_slice.add_edge(u, v)
+                temp_slice.nodes[u].update(topology.nodes[u])
+                temp_slice.nodes[v].update(topology.nodes[v])
             
-            if len(find_laser_detector_position(temp_slice, p, wl)) >= 1:
-                valid_wls.append({'wl': wl, 'cap': path_min_cap})
+            positions = find_laser_detector_position(temp_slice, path, wavelength)
+            if len(positions) >= 1:
+                candidates.append({'wl': wavelength, 'cap': path_min_cap})
         
-        return valid_wls if sum(c['cap'] for c in valid_wls) >= traffic else None
-
-    # --- 1. 优先尝试直连路径 (使用传入的 weight 引导) ---
-    try:
-        path_gen = nx.shortest_simple_paths(physical_topology, src, dst, weight=weight)
-        for i, path in enumerate(path_gen):
-            if i > 3: break 
-            if check_path_feasibility(path):
-                return [path] 
-    except:
-        pass
-
-    # --- 2. 如果直连失败，尝试中继路径 ---
-    central_nodes = sorted(physical_topology.nodes(), key=lambda n: physical_topology.degree(n), reverse=True)[:3]
-    
-    for r in central_nodes:
-        if r == src or r == dst: continue
-        try:
-            # 探测两段路径，均使用 weight 引导
-            p1 = nx.shortest_path(physical_topology, src, r, weight=weight)
-            if not check_path_feasibility(p1): continue
-            
-            p2 = nx.shortest_path(physical_topology, r, dst, weight=weight)
-            if not check_path_feasibility(p2): continue
-            
-            return [p1, p2]
-        except:
+        if not candidates:
             continue
             
+        if sum(c['cap'] for c in candidates) < traffic:
+            continue
+            
+        return path
+        
     return None
 
 # ==========================================
