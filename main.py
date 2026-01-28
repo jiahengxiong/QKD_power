@@ -180,25 +180,24 @@ import os
 
 def calculate_dynamic_heatmap(topology, physical_topology, future_requests, wavelength_list, served_request):
     """
-    动态热力图计算：为每一个未来请求流式探测一条当前可用的最短路径。
-    引入时间衰减权重：越远的请求对当前决策的影响越小。
+    自适应动态热力图：
+    1. 识别战略枢纽 (统计路径上所有节点)。
+    2. 计算每个节点的“战略系数” (未来流量贡献比例)。
     """
     link_demand = {}
     node_demand = {}
+    total_weighted_traffic = 0.0
     
-    # 时间衰减基数：0.85 使热力图更聚焦于近期请求 (约 15 步以内的预测)
-    decay_base = 0.85
+    # 时间衰减基数：1.0 表示不进行时间衰减，后续所有请求对热力图的影响权重完全一致
+    decay_base = 0.99
     
     for step, req in enumerate(future_requests):
         r_id, r_src, r_dst, r_traffic = req
-        
-        # 计算该步的衰减权重
         weight = math.pow(decay_base, step)
         weighted_traffic = r_traffic * weight
+        total_weighted_traffic += weighted_traffic
         
-        node_demand[r_dst] = node_demand.get(r_dst, 0) + weighted_traffic
-        
-        path = utils.tools.find_first_valid_physical_path(
+        paths = utils.tools.find_first_valid_physical_path(
             topology=topology,
             physical_topology=physical_topology,
             src=r_src,
@@ -208,12 +207,27 @@ def calculate_dynamic_heatmap(topology, physical_topology, future_requests, wave
             served_request=served_request
         )
         
-        if path:
-            edges = list(zip(path[:-1], path[1:]))
-            for u, v in edges:
-                link_demand[(u, v)] = link_demand.get((u, v), 0) + weighted_traffic
-                link_demand[(v, u)] = link_demand.get((v, u), 0) + weighted_traffic
-    return link_demand, node_demand
+        if paths:
+            if isinstance(paths[0], (int, str)):
+                paths = [paths]
+            for path in paths:
+                # 链路需求
+                edges = list(zip(path[:-1], path[1:]))
+                for u, v in edges:
+                    link_demand[(u, v)] = link_demand.get((u, v), 0) + weighted_traffic
+                    link_demand[(v, u)] = link_demand.get((v, u), 0) + weighted_traffic
+                # 节点需求 (战略核心)
+                for node in path:
+                    node_demand[node] = node_demand.get(node, 0) + weighted_traffic
+                    
+    # 计算归一化的战略节点系数
+    # node_strategic_coeffs[node] 代表该节点承载了未来百分之多少的流量压力
+    node_strategic_coeffs = {}
+    if total_weighted_traffic > 0:
+        for node, demand in node_demand.items():
+            node_strategic_coeffs[node] = demand / total_weighted_traffic
+            
+    return link_demand, node_strategic_coeffs
 
 def process_mid(traffic_type, map_name, protocol, detector, bypass, key_rate_list, wavelength_list, num_runs,
                 ice_box_capacity, request_list):
