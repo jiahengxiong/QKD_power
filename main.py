@@ -200,11 +200,10 @@ import os
 
 def calculate_dynamic_heatmap(auxiliary_graph, future_requests):
     """
-    高效动态热力图：利用当前 AG 预测未来所有请求的路径。
-    引入全量探测 + 时间衰减 (0.95^step)，统一链路和节点的战略价值评估。
+    大局观热力图：全量预测未来，统计路径上所有节点的战略价值。
     """
     link_demand = {}
-    node_relay_heat = {} 
+    node_strategic_value = {} # 统计节点在未来路径中出现的总频率
     decay_base = 0.95
     
     for step, req in enumerate(future_requests):
@@ -212,27 +211,27 @@ def calculate_dynamic_heatmap(auxiliary_graph, future_requests):
         weight = math.pow(decay_base, step)
         weighted_traffic = r_traffic * weight
         
-        # 使用真实的寻路逻辑探测全量未来路径
         result = find_min_weight_path_with_relay(auxiliary_graph=auxiliary_graph, src=r_src, dst=r_dst)
         
         if result:
-            _, best_path_edges, relay_node, _, _ = result
+            _, best_path_edges, _, _, _ = result
             
-            # 1. 记录中继节点热度 (带时间衰减)
-            if relay_node:
-                node_relay_heat[relay_node] = node_relay_heat.get(relay_node, 0) + weighted_traffic
-            
-            # 2. 记录物理链路热度 (带时间衰减)
+            # 遍历预测路径中的每一条逻辑边
             for (u, v, key) in best_path_edges:
                 edge_data = auxiliary_graph.get_edge_data(u, v, key=key)
                 if edge_data and 'path' in edge_data:
                     physical_path = edge_data['path']
+                    # 1. 累加物理链路热度
                     for j in range(len(physical_path) - 1):
                         p_u, p_v = physical_path[j], physical_path[j+1]
                         link_demand[(p_u, p_v)] = link_demand.get((p_u, p_v), 0) + weighted_traffic
                         link_demand[(p_v, p_u)] = link_demand.get((p_v, p_u), 0) + weighted_traffic
+                    
+                    # 2. 累加物理节点战略价值 (大局观：路径上所有点都有复用潜力)
+                    for p_node in physical_path:
+                        node_strategic_value[p_node] = node_strategic_value.get(p_node, 0) + weighted_traffic
                         
-    return link_demand, node_relay_heat
+    return link_demand, node_strategic_value
 
 def process_mid(traffic_type, map_name, protocol, detector, bypass, key_rate_list, wavelength_list, num_runs,
                 ice_box_capacity, request_list):
@@ -326,7 +325,7 @@ def process_mid(traffic_type, map_name, protocol, detector, bypass, key_rate_lis
                 )
 
                 # --- 2. 动态更新热力图 (基于当前 AG) ---
-                if i % 10 == 0:
+                if i % 1 == 0:
                     future_requests = traffic_matrix[i+1:]
                     link_future_demand, node_future_demand = calculate_dynamic_heatmap(
                         auxiliary_graph=auxiliary_graph,

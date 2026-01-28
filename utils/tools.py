@@ -422,28 +422,39 @@ def calculate_data_auxiliary_edge(G, path, wavelength_combination, wavelength_ca
                             if not edge_attrs.get('occupied', False):
                                 spectrum += 1
 
-            # === 4. 计算动态拥塞惩罚 (基于物理链路的未来总需求) ===
+            # === 4. 计算动态拥塞惩罚 (基于物理链路) ===
             future_penalty = 0.0
             if link_future_demand:
                 for i in range(len(path) - 1):
                     u_p, v_p = path[i], path[i+1]
                     demand = link_future_demand.get((u_p, v_p), link_future_demand.get((v_p, u_p), 0))
-                    # 提升拥塞惩罚量级：1e5 使其能与 total_power (1e2~1e3) 形成博弈
                     future_penalty += demand * 1e5
             
-            # === 4.1 战略引导：鼓励在“未来枢纽”沉淀设备，惩罚盲目 Bypass ===
-            strategic_incentive = 0.0
-            if node_future_demand and len(path) > 2:
-                for skipped_node in path[1:-1]:
-                    relay_heat = node_future_demand.get(skipped_node, 0)
-                    # 提升惩罚量级，确保跳过一个高热度枢纽的代价显著
-                    strategic_incentive += relay_heat * 1e6
+            # === 4.1 大局观战略引导：引力与排斥 ===
+            strategic_penalty = 0.0
+            strategic_bonus = 0.0
+            new_segments = sum(1 for w, ld in wavelength_laser_detector.items() if ld[0] is not None)
             
-            future_penalty += strategic_incentive
+            if node_future_demand:
+                # A. 正向激励：如果逻辑边的端点是未来高频节点，计算“引力奖金”
+                src_node, dst_node = path[0], path[-1]
+                hub_value = (node_future_demand.get(src_node, 0) + node_future_demand.get(dst_node, 0))
+                # 奖金量级控制在 5e5，用于抵消部分拥塞或硬件开销
+                strategic_bonus = hub_value * 5e5
+                
+                # B. 负向惩罚：如果开启新硬件且跳过了高战略价值节点，施加“错失机会税”
+                if new_segments > 0 and len(path) > 2:
+                    for skipped_node in path[1:-1]:
+                        skipped_value = node_future_demand.get(skipped_node, 0)
+                        strategic_penalty += skipped_value * 1e6
             
-            # === 5. 统一计算共享冰箱功耗 (只针对 SNSPD) ===
-            ice_box_power = 0
-            marginal_fridges = 0
+            # 将战略影响合并到 future_penalty
+            # 注意：这里先加后减，后面会有总权重的 max(1.0, ...) 兜底
+            future_penalty += (strategic_penalty - strategic_bonus)
+            
+            # === 5. 计算共享冰箱功耗 (只针对 SNSPD) ===
+            real_ice_box_power = 0 
+            weighted_ice_box_power = 0 
             
             if detector_type == 'SNSPD':
                 for node, new_count in node_new_detectors_count.items():
@@ -458,60 +469,46 @@ def calculate_data_auxiliary_edge(G, path, wavelength_combination, wavelength_ca
                     
                     marginal_fridges = fridges_after - fridges_before
                     if marginal_fridges > 0:
-                        # 引入节点热度奖励因子：如果该节点是未来枢纽，现在开冰箱的代价给予折扣
-                        future_node_demand = node_future_demand.get(node, 0) if node_future_demand else 0
-                        # 归一化：如果未来有足够流量要经过这，折扣拉满到 0.5
-                        reference_demand = traffic * 5.0
-                        discount = max(0.5, 1.0 - (future_node_demand / (reference_demand + 1.0)))
+                        node_real_fridge_power = marginal_fridges * unit_cooling_power
+                        real_ice_box_power += node_real_fridge_power
                         
-                        # 还原冰箱真实功耗影响力 (系数从 0.125 调回 1.0)
-                        ice_box_power += marginal_fridges * unit_cooling_power * discount
+                        # 引导功耗：利用大局观热度给予分摊折扣
+                        future_node_value = node_future_demand.get(node, 0) if node_future_demand else 0
+                        reference_demand = traffic * 10.0 
+                        discount = max(0.5, 1.0 - (future_node_value / (reference_demand + 1.0)))
+                        weighted_ice_box_power += node_real_fridge_power * discount
             
-            # === 6. 移除 APD 模式的虚拟折扣 ===
-            # 根据用户要求，APD 模式不需要引入虚拟功耗减免
+            # === 6. 汇总与权重计算 ===
+            real_total_power = source_power + detector_power + other_power + real_ice_box_power
+            base_total_power = source_power + detector_power + other_power
 
-            # === 7. 汇总 ===
-            total_power = source_power + detector_power + other_power
-            
-            distance = calculate_distance(G=G, path=path, start=path[0], end=path[-1])
-            if config.bypass:
-                bypass_val = 1
-            else:
-                bypass_val = 0
-
-            # 权重公式重构
             eps = 1e-12
+            # 功耗权重：这是核心
+            power_weight = (base_total_power + weighted_ice_box_power) * 1e6
 
-            # 1) 核心主项：直接使用绝对总功耗，不再进行容量摊薄
-            # 这样长距离 Bypass 边节省的功耗能被直接感知
-            # 我们对总功耗做一个放大 (1e6)，使其成为权重的决定性因素
-            power_weight = (total_power + ice_box_power) * 1e6
+            # 新硬件惩罚
+            seg_penalty = new_segments * 1e8 
 
-            # 2) 新增段数惩罚：维持 grooming 动力
-            new_segments = sum(1 for w, ld in wavelength_laser_detector.items() if ld[0] is not None)
-            seg_penalty = new_segments * 1e8 # 增加一段新硬件的代价
-
-            # 3) 波长碎分惩罚
-            wl_penalty = len(wavelength_combination) * 1e7
-
-            # 4) 资源紧张度
+            # 资源紧张度：降低对低密钥率边的过度歧视
             tightness = (traffic) / max(max_traffic, eps)      
-            tight_penalty = tightness * tightness * 1e8
+            tight_penalty = tightness * tightness * 5e7
 
-            weight = (
+            # 最终权重合成：确保非负
+            raw_weight = (
                 power_weight
                 + seg_penalty        
-                + wl_penalty         
                 + tight_penalty      
                 + future_penalty     
             )
-            total_power = total_power + ice_box_power
+            # Dijkstra 必须要求权重 > 0
+            weight = max(1.0, raw_weight)
+
             data.append({
-                'power': total_power,
+                'power': real_total_power, # 返回真实功耗，修复统计 Bug
                 'source_power': source_power,
                 'detector_power': detector_power,
                 'other_power': other_power,
-                'ice_box_power': ice_box_power, # 这是计算后的真实共享冰箱功耗
+                'ice_box_power': real_ice_box_power, 
                 'path': path, 
                 'laser_detector_position': wavelength_laser_detector,
                 'wavelength_traffic': wavelength_traffic_limitation,
