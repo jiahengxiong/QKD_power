@@ -325,12 +325,21 @@ def process_mid(traffic_type, map_name, protocol, detector, bypass, key_rate_lis
                 )
 
                 # --- 2. 动态更新热力图 (基于当前 AG) ---
-                if i % 1 == 0:
+                if i % 10 == 0:
                     future_requests = traffic_matrix[i+1:]
-                    link_future_demand, node_future_demand = calculate_dynamic_heatmap(
+                    link_future_demand, node_raw_value = calculate_dynamic_heatmap(
                         auxiliary_graph=auxiliary_graph,
                         future_requests=future_requests
                     )
+                    
+                    # 归一化节点战略价值 (0~1)
+                    node_future_demand = {}
+                    if node_raw_value:
+                        max_val = max(node_raw_value.values())
+                        if max_val > 0:
+                            for n, v in node_raw_value.items():
+                                node_future_demand[n] = v / max_val
+                    
                     # 重新构建 AG 以应用最新的热度数据
                     auxiliary_graph = utils.tools.build_auxiliary_graph(
                         topology=topology,

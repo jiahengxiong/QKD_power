@@ -422,37 +422,30 @@ def calculate_data_auxiliary_edge(G, path, wavelength_combination, wavelength_ca
                             if not edge_attrs.get('occupied', False):
                                 spectrum += 1
 
-            # === 4. 计算动态拥塞惩罚 (基于物理链路) ===
-            future_penalty = 0.0
+            # === 4. 计算频谱机会成本 (基于链路热度与占用波长数) ===
+            # 大局观：占用波长越多，对未来的阻塞风险越大
+            future_spectrum_cost = 0.0
             if link_future_demand:
+                # 预估占用的波长数
+                num_wls = max(1.0, traffic / max_traffic)
                 for i in range(len(path) - 1):
                     u_p, v_p = path[i], path[i+1]
-                    demand = link_future_demand.get((u_p, v_p), link_future_demand.get((v_p, u_p), 0))
-                    future_penalty += demand * 1e5
+                    link_heat = link_future_demand.get((u_p, v_p), link_future_demand.get((v_p, u_p), 0))
+                    # 频谱成本 = 占用波长数 * 链路热度 * 调节系数
+                    # 1e4 是为了将成本对齐到 Watts 级 (1~3000)
+                    future_spectrum_cost += num_wls * link_heat * 1e4
             
-            # === 4.1 大局观战略引导：引力与排斥 ===
-            strategic_penalty = 0.0
-            strategic_bonus = 0.0
+            # === 4.1 大局观战略引导：惩罚跳过高价值节点的“新开旁路” ===
+            strategic_bypass_tax = 0.0
             new_segments = sum(1 for w, ld in wavelength_laser_detector.items() if ld[0] is not None)
+            if node_future_demand and new_segments > 0 and len(path) > 2:
+                for skipped_node in path[1:-1]:
+                    # 节点战略系数已在 main.py 归一化为 0~1
+                    skipped_value = node_future_demand.get(skipped_node, 0)
+                    # 惩罚量级设为 500W，代表“错失复用枢纽”的机会成本
+                    strategic_bypass_tax += skipped_value * 500.0
             
-            if node_future_demand:
-                # A. 正向激励：如果逻辑边的端点是未来高频节点，计算“引力奖金”
-                src_node, dst_node = path[0], path[-1]
-                hub_value = (node_future_demand.get(src_node, 0) + node_future_demand.get(dst_node, 0))
-                # 奖金量级控制在 5e5，用于抵消部分拥塞或硬件开销
-                strategic_bonus = hub_value * 5e5
-                
-                # B. 负向惩罚：如果开启新硬件且跳过了高战略价值节点，施加“错失机会税”
-                if new_segments > 0 and len(path) > 2:
-                    for skipped_node in path[1:-1]:
-                        skipped_value = node_future_demand.get(skipped_node, 0)
-                        strategic_penalty += skipped_value * 1e6
-            
-            # 将战略影响合并到 future_penalty
-            # 注意：这里先加后减，后面会有总权重的 max(1.0, ...) 兜底
-            future_penalty += (strategic_penalty - strategic_bonus)
-            
-            # === 5. 计算共享冰箱功耗 (只针对 SNSPD) ===
+            # === 5. 计算共享冰箱功耗与战略折扣 ===
             real_ice_box_power = 0 
             weighted_ice_box_power = 0 
             
@@ -472,35 +465,39 @@ def calculate_data_auxiliary_edge(G, path, wavelength_combination, wavelength_ca
                         node_real_fridge_power = marginal_fridges * unit_cooling_power
                         real_ice_box_power += node_real_fridge_power
                         
-                        # 引导功耗：利用大局观热度给予分摊折扣
-                        future_node_value = node_future_demand.get(node, 0) if node_future_demand else 0
-                        reference_demand = traffic * 10.0 
-                        discount = max(0.5, 1.0 - (future_node_value / (reference_demand + 1.0)))
+                        # 战略引导：在枢纽节点开冰箱获得 50% 权重折扣 (视为投资未来)
+                        node_s_value = node_future_demand.get(node, 0) if node_future_demand else 0
+                        discount = 1.0 - (0.5 * node_s_value)
                         weighted_ice_box_power += node_real_fridge_power * discount
             
-            # === 6. 汇总与权重计算 ===
+            # === 6. 汇总与权重计算 (资源消耗平衡模型) ===
             real_total_power = source_power + detector_power + other_power + real_ice_box_power
-            base_total_power = source_power + detector_power + other_power
+            
+            # A. 基础功耗成本：激光器 + 探测器 + 加权冰箱
+            power_cost = source_power + detector_power + other_power + weighted_ice_box_power
+            
+            # B. 战略折扣：如果在高价值节点安装新硬件，给予硬件成本折扣
+            if new_segments > 0 and node_future_demand:
+                # 粗略估计每个新硬件的“战略返利”
+                for node in node_new_detectors_count:
+                    s_value = node_future_demand.get(node, 0)
+                    # 激光器+探测器大约 5W，在枢纽安装最高减免 2.5W 权重
+                    power_cost -= (new_segments * 5.0 * 0.5 * s_value)
 
+            # C. 权重合成
+            # 我们不再使用 1e6 放大，而是保持在物理量级 (Watts)
+            # 引入资源紧张度 (Tightness) 作为风险溢价
             eps = 1e-12
-            # 功耗权重：这是核心
-            power_weight = (base_total_power + weighted_ice_box_power) * 1e6
-
-            # 新硬件惩罚
-            seg_penalty = new_segments * 1e8 
-
-            # 资源紧张度：降低对低密钥率边的过度歧视
-            tightness = (traffic) / max(max_traffic, eps)      
-            tight_penalty = tightness * tightness * 5e7
-
-            # 最终权重合成：确保非负
+            tightness = (traffic) / max(max_traffic, eps)
+            
+            # 最终权重公式：功耗成本 + 频谱成本 + 旁路税 + 风险溢价
+            # 确保所有项都在 Watts 级，Dijkstra 才能做出平衡决策
             raw_weight = (
-                power_weight
-                + seg_penalty        
-                + tight_penalty      
-                + future_penalty     
+                power_cost 
+                + (future_spectrum_cost / 1e6) # 将频谱成本从 traffic 级降到 Watts 级
+                + strategic_bypass_tax
+                + (tightness * 10.0) # 风险溢价，最高 10W
             )
-            # Dijkstra 必须要求权重 > 0
             weight = max(1.0, raw_weight)
 
             data.append({
