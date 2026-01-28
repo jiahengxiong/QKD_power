@@ -428,17 +428,16 @@ def calculate_data_auxiliary_edge(G, path, wavelength_combination, wavelength_ca
                 for i in range(len(path) - 1):
                     u_p, v_p = path[i], path[i+1]
                     demand = link_future_demand.get((u_p, v_p), link_future_demand.get((v_p, u_p), 0))
-                    future_penalty += demand * 1000.0 
+                    # 提升拥塞惩罚量级：1e5 使其能与 total_power (1e2~1e3) 形成博弈
+                    future_penalty += demand * 1e5
             
             # === 4.1 战略引导：鼓励在“未来枢纽”沉淀设备，惩罚盲目 Bypass ===
             strategic_incentive = 0.0
             if node_future_demand and len(path) > 2:
-                # 检查被 Bypass 跳过的中间节点
                 for skipped_node in path[1:-1]:
-                    # 如果跳过的节点未来是重要的中继枢纽，增加惩罚
                     relay_heat = node_future_demand.get(skipped_node, 0)
-                    # 这里的系数要温和，100.0 是为了引导而非强制
-                    strategic_incentive += relay_heat * 100.0
+                    # 提升惩罚量级，确保跳过一个高热度枢纽的代价显著
+                    strategic_incentive += relay_heat * 1e6
             
             future_penalty += strategic_incentive
             
@@ -461,10 +460,11 @@ def calculate_data_auxiliary_edge(G, path, wavelength_combination, wavelength_ca
                     if marginal_fridges > 0:
                         # 引入节点热度奖励因子：如果该节点是未来枢纽，现在开冰箱的代价给予折扣
                         future_node_demand = node_future_demand.get(node, 0) if node_future_demand else 0
-                        # 归一化：如果未来有 5 个同样的流量要经过这，折扣就拉满到 0.5
+                        # 归一化：如果未来有足够流量要经过这，折扣拉满到 0.5
                         reference_demand = traffic * 5.0
                         discount = max(0.5, 1.0 - (future_node_demand / (reference_demand + 1.0)))
                         
+                        # 还原冰箱真实功耗影响力 (系数从 0.125 调回 1.0)
                         ice_box_power += marginal_fridges * unit_cooling_power * discount
             
             # === 6. 移除 APD 模式的虚拟折扣 ===
@@ -479,35 +479,31 @@ def calculate_data_auxiliary_edge(G, path, wavelength_combination, wavelength_ca
             else:
                 bypass_val = 0
 
-            # 你的权重公式
+            # 权重公式重构
             eps = 1e-12
 
-            # 1) 主项：单位能力功耗（grooming 的“摊薄成本”核心）
-            unit_power = ((total_power + ice_box_power*0.125 ) / max(max_traffic, eps)) * 1e9
+            # 1) 核心主项：直接使用绝对总功耗，不再进行容量摊薄
+            # 这样长距离 Bypass 边节省的功耗能被直接感知
+            # 我们对总功耗做一个放大 (1e6)，使其成为权重的决定性因素
+            power_weight = (total_power + ice_box_power) * 1e6
 
-            # 2) 新增段数：新增 vs 复用（越多越不grooming，但必须摊薄）
+            # 2) 新增段数惩罚：维持 grooming 动力
             new_segments = sum(1 for w, ld in wavelength_laser_detector.items() if ld[0] is not None)
-            seg_penalty = (new_segments / max(max_traffic, eps)) * 1e9
+            seg_penalty = new_segments * 1e8 # 增加一段新硬件的代价
 
-            # 3) 波长数：越多越碎，也摊薄
-            wl_penalty = (len(wavelength_combination) / max(max_traffic, eps))
-            wl_penalty = wl_penalty * wl_penalty * 1e9
+            # 3) 波长碎分惩罚
+            wl_penalty = len(wavelength_combination) * 1e7
 
-            # 4) 紧张度：避免“刚刚够”，给网络留可 groom 的余量
-            tightness = (traffic) / max(max_traffic, eps)      # (0,1]
-            tight_penalty = tightness * tightness            # 平滑
-
-            # 5) 你原来的 S：做成非常弱的项，别让它主导
-            s_penalty = ((spectrum) / max(len(wavelength_combination), 1))
-            s_penalty = s_penalty * s_penalty * 1e-4
+            # 4) 资源紧张度
+            tightness = (traffic) / max(max_traffic, eps)      
+            tight_penalty = tightness * tightness * 1e8
 
             weight = (
-                unit_power
-                + 0.05 * seg_penalty        # 0.01~0.2 调
-                + 0.02 * wl_penalty         # 0.005~0.1 调
-                + 1e3  * tight_penalty      # 1e2~1e4 调：越大越讨厌“刚刚够”
-                + s_penalty
-                + future_penalty            # 新增：未来动态拥塞感知
+                power_weight
+                + seg_penalty        
+                + wl_penalty         
+                + tight_penalty      
+                + future_penalty     
             )
             total_power = total_power + ice_box_power
             data.append({
