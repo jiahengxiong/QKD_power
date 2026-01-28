@@ -386,8 +386,13 @@ def process_mid(traffic_type, map_name, protocol, detector, bypass, key_rate_lis
                     gc.collect()
                     with open(f'result.txt', 'a') as file:
                         file.write(f'\n--- 最终结果 --- \n')
+                        output_str = (
+                        f'\n--- 最终结果 (经过 {num_runs} 次运行后取最佳) ---\n'
+                        f'Protocol: {config.protocol}, Bypass: {config.bypass}, Detector: {config.detector}, '
+                        f'Map: {map_name}, Traffic: {traffic_type}\n'
+                    )
                         file.write(
-                            f'Protocol: {config.protocol}, Map: {map_name}\n')
+                            output_str)
                         file.write(f'无可用路径\n')
                     return
                 del auxiliary_graph
