@@ -190,12 +190,24 @@ def calculate_dynamic_heatmap(topology, physical_topology, future_requests, wave
     
     decay_base = 1.0 # 目前设定为 1.0 以获得最长远视野
     
+    # --- 构建“枢纽引力”寻路权重 ---
+    # 在预测热力图时，强迫流量向枢纽节点汇聚
+    strategic_weight_attr = 'strategic_weight'
+    for u, v, d in physical_topology.edges(data=True):
+        # 目标节点的介数中心性越高，这条边的虚拟权重就越小 (引力越大)
+        target_node = v
+        btwn = physical_betweenness.get(target_node, 0)
+        # 虚拟权重 = 物理距离 / (1 + 10 * 战略地位)
+        d[strategic_weight_attr] = d['distance'] / (1.0 + 10.0 * btwn)
+
     for step, req in enumerate(future_requests):
         r_id, r_src, r_dst, r_traffic = req
         weight = math.pow(decay_base, step)
         weighted_traffic = r_traffic * weight
         total_weighted_traffic += weighted_traffic
         
+        # 关键改进：使用 'strategic_weight' 而非 'distance' 来探测路径
+        # 这会让热力图预测未来流量高度聚集在枢纽节点
         paths = utils.tools.find_first_valid_physical_path(
             topology=topology,
             physical_topology=physical_topology,
@@ -203,7 +215,8 @@ def calculate_dynamic_heatmap(topology, physical_topology, future_requests, wave
             dst=r_dst,
             traffic=r_traffic,
             wavelength_list=wavelength_list,
-            served_request=served_request
+            served_request=served_request,
+            weight=strategic_weight_attr
         )
         
         if paths:

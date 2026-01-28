@@ -433,14 +433,13 @@ def calculate_data_auxiliary_edge(G, path, wavelength_combination, wavelength_ca
             # === 4.1 引入自适应战略跳过惩罚 (Adaptive Strategic Skip Penalty) ===
             strategic_skip_penalty = 0.0
             if node_future_demand and len(path) > 2:
-                # node_future_demand 现在是 (Betweenness * DynamicHeat) 的综合系数
                 for skipped_node in path[1:-1]:
                     strategic_coeff = node_future_demand.get(skipped_node, 0)
                     
-                    # 自适应公式：惩罚 = 战略系数 * 基准量级 (1e11)
-                    # 由于 Betweenness 通常很小 (0.01~0.1)，我们需要一个更大的基准量级
-                    # 以确保战略枢纽的跳过成本足够震撼 Dijkstra
-                    strategic_skip_penalty += strategic_coeff * 1e11
+                    # 关键改进：使用指数级惩罚 (pow 1.5) 并调整基准量级
+                    # 这确保了只有“真正的战略枢纽”会被强制中继，而普通节点可以被 Bypass
+                    # 5e10 是经过量级估算后的平衡值
+                    strategic_skip_penalty += math.pow(strategic_coeff, 1.5) * 5e10
             
             future_penalty += strategic_skip_penalty
             
@@ -791,10 +790,9 @@ def build_auxiliary_graph(topology, wavelength_list, traffic, physical_topology,
 
 
 
-def find_first_valid_physical_path(topology, physical_topology, src, dst, traffic, wavelength_list, served_request):
+def find_first_valid_physical_path(topology, physical_topology, src, dst, traffic, wavelength_list, served_request, weight='distance'):
     """
-    升级版热力图探测函数：支持中继路径探测。
-    如果直连路径不可行，尝试探测最可能的中继路径。
+    升级版热力图探测函数：支持中继路径探测及自定义权重引导。
     """
     
     def check_path_feasibility(p):
@@ -818,47 +816,41 @@ def find_first_valid_physical_path(topology, physical_topology, src, dst, traffi
             
             if path_min_cap < 1e-6: continue
 
-            # 2. 检查硬件位置 (简化版：直接从原拓扑节点查)
-            # 我们需要构建一个临时的子图切片给 find_laser_detector_position
+            # 2. 检查硬件位置
             temp_slice = nx.Graph()
             for i in range(len(p) - 1):
                 temp_slice.add_edge(p[i], p[i+1])
-                # 同步节点硬件属性
                 temp_slice.nodes[p[i]].update(topology.nodes[p[i]])
                 temp_slice.nodes[p[i+1]].update(topology.nodes[p[i+1]])
             
             if len(find_laser_detector_position(temp_slice, p, wl)) >= 1:
                 valid_wls.append({'wl': wl, 'cap': path_min_cap})
         
-        # 只要波长组合能凑够 traffic 就行
         return valid_wls if sum(c['cap'] for c in valid_wls) >= traffic else None
 
-    # --- 1. 优先尝试直连路径 (Shortest Path First) ---
+    # --- 1. 优先尝试直连路径 (使用传入的 weight 引导) ---
     try:
-        path_gen = nx.shortest_simple_paths(physical_topology, src, dst, weight='distance')
+        path_gen = nx.shortest_simple_paths(physical_topology, src, dst, weight=weight)
         for i, path in enumerate(path_gen):
-            if i > 3: break # 只看前 3 条，保证性能
+            if i > 3: break 
             if check_path_feasibility(path):
-                return [path] # 返回单段路径包装的列表
+                return [path] 
     except:
         pass
 
-    # --- 2. 如果直连失败，尝试中继路径 (Relay Path) ---
-    # 我们选择物理拓扑中度数最高的前 3 个节点作为潜在中继枢纽
+    # --- 2. 如果直连失败，尝试中继路径 ---
     central_nodes = sorted(physical_topology.nodes(), key=lambda n: physical_topology.degree(n), reverse=True)[:3]
     
     for r in central_nodes:
         if r == src or r == dst: continue
         try:
-            # 探测 src -> r
-            p1 = nx.shortest_path(physical_topology, src, r, weight='distance')
+            # 探测两段路径，均使用 weight 引导
+            p1 = nx.shortest_path(physical_topology, src, r, weight=weight)
             if not check_path_feasibility(p1): continue
             
-            # 探测 r -> dst
-            p2 = nx.shortest_path(physical_topology, r, dst, weight='distance')
+            p2 = nx.shortest_path(physical_topology, r, dst, weight=weight)
             if not check_path_feasibility(p2): continue
             
-            # 找到一个可行的双段中继路径
             return [p1, p2]
         except:
             continue
