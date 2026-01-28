@@ -180,17 +180,18 @@ import os
 
 def calculate_dynamic_heatmap(auxiliary_graph, future_requests):
     """
-    高效动态热力图：利用当前已构建好的辅助图，为未来请求进行快速寻路探测。
-    不再重新构建辅助图，极大提升计算速度。
+    高效动态热力图：利用当前已构建好的辅助图，为未来所有请求进行快速寻路探测。
+    引入时间衰减因子：0.95，使热力图更聚焦于近期需求。
     """
     link_demand = {}
+    decay_base = 0.95
     
-    # 性能与精度的平衡：探测未来 50 个请求
-    look_ahead_limit = 50
-    requests_to_probe = future_requests[:look_ahead_limit]
-    
-    for req in requests_to_probe:
+    for step, req in enumerate(future_requests):
         r_src, r_dst, r_traffic = req[1], req[2], req[3]
+        
+        # 计算时间衰减权重
+        weight = math.pow(decay_base, step)
+        weighted_traffic = r_traffic * weight
         
         # 直接在现成的辅助图上跑 Dijkstra
         result = find_min_weight_path_with_relay(auxiliary_graph=auxiliary_graph, src=r_src, dst=r_dst)
@@ -204,8 +205,8 @@ def calculate_dynamic_heatmap(auxiliary_graph, future_requests):
                     physical_path = edge_data['path']
                     for j in range(len(physical_path) - 1):
                         p_u, p_v = physical_path[j], physical_path[j+1]
-                        link_demand[(p_u, p_v)] = link_demand.get((p_u, p_v), 0) + r_traffic
-                        link_demand[(p_v, p_u)] = link_demand.get((p_v, p_u), 0) + r_traffic
+                        link_demand[(p_u, p_v)] = link_demand.get((p_u, p_v), 0) + weighted_traffic
+                        link_demand[(p_v, p_u)] = link_demand.get((p_v, p_u), 0) + weighted_traffic
                         
     return link_demand
 
