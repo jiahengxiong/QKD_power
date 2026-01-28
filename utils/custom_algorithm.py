@@ -143,25 +143,27 @@ def Dijkstra_double_path(graph, src, delay, dst):
     # 收集path1中所有物理节点，除了delay
     forbidden_physical_nodes = set()
     for u, v, key in path1_edges:
-        path = graph[u][v][key].get('path', [])
-        forbidden_physical_nodes.update(node for node in path if node != delay)
+        path_nodes = graph[u][v][key].get('path', [])
+        forbidden_physical_nodes.update(node for node in path_nodes if node != delay)
 
-    # 创建图的拷贝
-    graph_copy = graph.copy()
-
-    # 遍历图的拷贝，移除包含forbidden_physical_nodes的边
+    # 优化：不再创建图的拷贝，而是手动标记并移除冲突边，寻路后再还原
+    # 这样可以极大节省内存和 CPU 开销
     edges_to_remove = []
-    for u, v, key, data in graph_copy.edges(data=True, keys=True):
-        path = data.get('path', [])
-        if any(node in forbidden_physical_nodes for node in path):
-            edges_to_remove.append((u, v, key))
+    for u, v, key, data in graph.edges(data=True, keys=True):
+        path_nodes = data.get('path', [])
+        if any(node in forbidden_physical_nodes for node in path_nodes):
+            edges_to_remove.append((u, v, key, data))
 
-    graph_copy.remove_edges_from(edges_to_remove)
+    # 临时移除边
+    for u, v, key, _ in edges_to_remove:
+        graph.remove_edge(u, v, key)
 
-    # 第二步，在处理后的图上，找到dst到delay的最短路径
-    path2_edges, path2_weight = Dijkstra_single_path(graph_copy, dst, delay)
-    del graph_copy
-    
+    # 第二步，在修改后的原图上搜索 dst 到 delay 的路径
+    path2_edges, path2_weight = Dijkstra_single_path(graph, dst, delay)
+
+    # 还原图：将移除的边加回来
+    for u, v, key, data in edges_to_remove:
+        graph.add_edge(u, v, key, **data)
 
     if path2_edges:
         weight = path1_weight + path2_weight

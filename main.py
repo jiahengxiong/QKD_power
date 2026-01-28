@@ -50,43 +50,63 @@ def find_min_weight_path_with_relay(auxiliary_graph, src, dst):
 
     paths = []  # 存储所有可能路径和属性
 
-    # 1. 检查 src -> dst 的直接路径
+    # 1. 检查 src -> dst 的直接路径 (Alice -> Bob)
     if nx.has_path(auxiliary_graph, src, dst):
         path_edges, weight = Dijkstra_single_path(src=src, dst=dst, graph=auxiliary_graph)
         if path_edges:
             power_sum = calculate_path_power(path_edges)
             paths.append(('src->dst', path_edges, None, power_sum, weight))
 
-    # 2. 检查 dst -> src 的直接路径
+    # 2. 检查 dst -> src 的直接路径 (Bob -> Alice)
     if nx.has_path(auxiliary_graph, dst, src):
         path_edges, weight = Dijkstra_single_path(src=dst, dst=src, graph=auxiliary_graph)
         if path_edges:
             power_sum = calculate_path_power(path_edges)
             paths.append(('dst->src', path_edges, None, power_sum, weight))
 
-        # 3. 检查中继路径
-        for delay in auxiliary_graph.nodes:
-            if delay != src and delay != dst:
-                # 情形1：src -> delay 和 dst -> delay
-                if nx.has_path(auxiliary_graph, src, delay) and nx.has_path(auxiliary_graph, dst, delay):
-                    path1_edges, path2_edges, weight = Dijkstra_double_path(graph=auxiliary_graph, src=src, dst=dst, delay=delay)
-                    path_edges = path1_edges + path2_edges
-                    if path_edges:
-                        power_sum = calculate_path_power(path_edges)
-                        paths.append(('src->delay,dst->delay', path_edges, delay, power_sum, weight))
+    # 3. 优化版中继路径搜索 (Top-K 预筛选)
+    # 使用双端 Dijkstra 快速获取距离向量
+    try:
+        # 获取从 src 出发到所有点的最短权重
+        src_dists = nx.single_source_dijkstra_path_length(auxiliary_graph, src, weight='weight')
+        # 获取从 dst 出发到所有点的最短权重
+        dst_dists = nx.single_source_dijkstra_path_length(auxiliary_graph, dst, weight='weight')
+    except:
+        # 如果图不连通，回退到空
+        src_dists, dst_dists = {}, {}
 
-                # 情形2：dst -> delay 和 src -> delay
-                if nx.has_path(auxiliary_graph, dst, delay) and nx.has_path(auxiliary_graph, src, delay):
-                    path1_edges, path2_edges, weight = Dijkstra_double_path(graph=auxiliary_graph, src=dst, dst=src, delay=delay)
-                    path_edges = path1_edges + path2_edges
-                    if path_edges:
-                        power_sum = calculate_path_power(path_edges)
-                        paths.append(('dst->delay,src->delay', path_edges, delay, power_sum, weight))
+    if src_dists and dst_dists:
+        candidates = []
+        for node in auxiliary_graph.nodes:
+            if node != src and node != dst and node in src_dists and node in dst_dists:
+                # 预估中继总权重 = src->delay + dst->delay
+                combined_weight = src_dists[node] + dst_dists[node]
+                candidates.append((node, combined_weight))
+        
+        # 按预估权重排序，只选前 K 个最有潜力的枢纽进行严格物理冲突检查
+        candidates.sort(key=lambda x: x[1])
+        K = 10 # 在 Large Map 下，10 个候选通常足以覆盖最优解
+        
+        for delay, _ in candidates[:K]:
+            # 情形1：src -> delay 和 dst -> delay (Alice 和 Bob 均发送至中继)
+            path1_edges, path2_edges, weight = Dijkstra_double_path(graph=auxiliary_graph, src=src, dst=dst, delay=delay)
+            path_edges = path1_edges + path2_edges
+            if path_edges:
+                power_sum = calculate_path_power(path_edges)
+                paths.append(('src->delay,dst->delay', path_edges, delay, power_sum, weight))
+
+            # 情形2：dst -> delay 和 src -> delay (Bob 和 Alice 均发送至中继)
+            # 注意：在有向图中，这两者可能由于逻辑边方向不同而结果不同
+            path1_edges, path2_edges, weight = Dijkstra_double_path(graph=auxiliary_graph, src=dst, dst=src, delay=delay)
+            path_edges = path1_edges + path2_edges
+            if path_edges:
+                power_sum = calculate_path_power(path_edges)
+                paths.append(('dst->delay,src->delay', path_edges, delay, power_sum, weight))
 
     if not paths:
         return False
 
-    # 按权重排序 (index 4 是 weight)
+    # 按最终严格计算出的权重排序
     sorted_paths = sorted(paths, key=lambda x: x[4])
     best_path = sorted_paths[0]
 
