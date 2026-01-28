@@ -178,38 +178,35 @@ import os
 # utils.tools.build_auxiliary_graph, find_min_weight_path_with_relay, serve_traffic
 # 同时，全局变量 map_name 和 config 模块需要在工程中预先定义
 
-def calculate_dynamic_heatmap(topology, physical_topology, future_requests, wavelength_list, served_request):
+def calculate_dynamic_heatmap(auxiliary_graph, future_requests):
     """
-    动态热力图计算：为每一个未来请求流式探测一条当前可用的最短路径，仅统计链路需求。
+    高效动态热力图：利用当前已构建好的辅助图，为未来请求进行快速寻路探测。
+    不再重新构建辅助图，极大提升计算速度。
     """
     link_demand = {}
     
-    decay_base = 1.0 # 维持长远视野
+    # 性能与精度的平衡：探测未来 50 个请求
+    look_ahead_limit = 50
+    requests_to_probe = future_requests[:look_ahead_limit]
     
-    for step, req in enumerate(future_requests):
-        r_id, r_src, r_dst, r_traffic = req
-        weight = math.pow(decay_base, step)
-        weighted_traffic = r_traffic * weight
+    for req in requests_to_probe:
+        r_src, r_dst, r_traffic = req[1], req[2], req[3]
         
-        paths = utils.tools.find_first_valid_physical_path(
-            topology=topology,
-            physical_topology=physical_topology,
-            src=r_src,
-            dst=r_dst,
-            traffic=r_traffic,
-            wavelength_list=wavelength_list,
-            served_request=served_request
-        )
+        # 直接在现成的辅助图上跑 Dijkstra
+        result = find_min_weight_path_with_relay(auxiliary_graph=auxiliary_graph, src=r_src, dst=r_dst)
         
-        if paths:
-            if isinstance(paths[0], (int, str)):
-                paths = [paths]
-            for path in paths:
-                edges = list(zip(path[:-1], path[1:]))
-                for u, v in edges:
-                    link_demand[(u, v)] = link_demand.get((u, v), 0) + weighted_traffic
-                    link_demand[(v, u)] = link_demand.get((v, u), 0) + weighted_traffic
-                    
+        if result:
+            _, best_path_edges, _, _, _ = result
+            for (u, v, key) in best_path_edges:
+                # 从辅助图中提取真实的物理路径
+                edge_data = auxiliary_graph.get_edge_data(u, v, key=key)
+                if edge_data and 'path' in edge_data:
+                    physical_path = edge_data['path']
+                    for j in range(len(physical_path) - 1):
+                        p_u, p_v = physical_path[j], physical_path[j+1]
+                        link_demand[(p_u, p_v)] = link_demand.get((p_u, p_v), 0) + r_traffic
+                        link_demand[(p_v, p_u)] = link_demand.get((p_v, p_u), 0) + r_traffic
+                        
     return link_demand
 
 def process_mid(traffic_type, map_name, protocol, detector, bypass, key_rate_list, wavelength_list, num_runs,
@@ -288,17 +285,7 @@ def process_mid(traffic_type, map_name, protocol, detector, bypass, key_rate_lis
                 dst = request[2]
                 traffic = request[3]
                 
-                # --- 动态重新计算后续所有请求的热力图 ---
-                if i % 10 == 0:
-                    future_requests = traffic_matrix[i+1:]
-                    link_future_demand = calculate_dynamic_heatmap(
-                        topology=topology,
-                        physical_topology=physical_topology,
-                        future_requests=future_requests,
-                        wavelength_list=wavelength_list,
-                        served_request=served_request
-                    )
-
+                # --- 1. 构建辅助图 (使用现有的热力图) ---
                 auxiliary_graph = utils.tools.build_auxiliary_graph(
                     topology=topology,
                     wavelength_list=wavelength_list,
@@ -308,8 +295,30 @@ def process_mid(traffic_type, map_name, protocol, detector, bypass, key_rate_lis
                     served_request=served_request,
                     remain_num_request=remain_num_request,
                     link_future_demand=link_future_demand,
-                    node_future_demand=None # 彻底移除战略节点/目的地需求干扰
+                    node_future_demand=None 
                 )
+
+                # --- 2. 动态更新热力图 (使用当前已建好的 AG) ---
+                # 优化：每 10 个请求更新一次热度，为后续请求提供更精准的权重引导
+                if i % 10 == 0:
+                    future_requests = traffic_matrix[i+1:]
+                    link_future_demand = calculate_dynamic_heatmap(
+                        auxiliary_graph=auxiliary_graph,
+                        future_requests=future_requests
+                    )
+                    # 重新构建当前请求的辅助图，以应用刚刚更新的热度惩罚
+                    auxiliary_graph = utils.tools.build_auxiliary_graph(
+                        topology=topology,
+                        wavelength_list=wavelength_list,
+                        traffic=traffic,
+                        physical_topology=physical_topology,
+                        shared_key_rate_list=key_rate_list,
+                        served_request=served_request,
+                        remain_num_request=remain_num_request,
+                        link_future_demand=link_future_demand,
+                        node_future_demand=None 
+                    )
+
                 result = find_min_weight_path_with_relay(auxiliary_graph=auxiliary_graph, src=src, dst=dst)
 
                 if result:
