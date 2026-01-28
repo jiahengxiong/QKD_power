@@ -430,45 +430,47 @@ def calculate_data_auxiliary_edge(G, path, wavelength_combination, wavelength_ca
                     demand = link_future_demand.get((u_p, v_p), link_future_demand.get((v_p, u_p), 0))
                     future_penalty += demand * 1000.0 
             
+            # === 4.1 战略引导：鼓励在“未来枢纽”沉淀设备，惩罚盲目 Bypass ===
+            strategic_incentive = 0.0
+            if node_future_demand and len(path) > 2:
+                # 检查被 Bypass 跳过的中间节点
+                for skipped_node in path[1:-1]:
+                    # 如果跳过的节点未来是重要的中继枢纽，增加惩罚
+                    relay_heat = node_future_demand.get(skipped_node, 0)
+                    # 这里的系数要温和，100.0 是为了引导而非强制
+                    strategic_incentive += relay_heat * 100.0
+            
+            future_penalty += strategic_incentive
+            
             # === 5. 统一计算共享冰箱功耗 (只针对 SNSPD) ===
             ice_box_power = 0
             marginal_fridges = 0
             
             if detector_type == 'SNSPD':
                 for node, new_count in node_new_detectors_count.items():
-                    # 获取该节点当前已有的探测器数量
                     if node in G.nodes:
                         current_num = G.nodes[node].get('num_detector', 0)
                     else:
                         current_num = 0
                     
-                    # 之前的冰箱数 = ceil(当前数量 / 容量)
                     fridges_before = math.ceil(current_num / ice_box_capacity)
-                    
-                    # 加上新增探测器后的总量
                     total_num_after = current_num + new_count
-                    
-                    # 之后的冰箱数
                     fridges_after = math.ceil(total_num_after / ice_box_capacity)
                     
-                    # 只有当冰箱数量确实增加时，才计入 3000W
                     marginal_fridges = fridges_after - fridges_before
                     if marginal_fridges > 0:
-                        # === 核心改进：引入未来热度奖励因子 ===
-                        # 如果该节点未来有很多请求结束，说明它是一个潜在的“探测器聚集地”。
-                        # 此时开冰箱的代价应该被“摊薄”（给予折扣奖励）。
+                        # 引入节点热度奖励因子：如果该节点是未来枢纽，现在开冰箱的代价给予折扣
                         future_node_demand = node_future_demand.get(node, 0) if node_future_demand else 0
-                        # 归一化折扣因子：需求越高，折扣越大，最低 0.5 (即 1500W)
-                        # 参考基准：当前请求流量 * 剩余请求数
-                        reference_demand = traffic * (remain_num_request + 1)
-                        discount = max(0.5, 1.0 - (future_node_demand / (reference_demand * 5.0 + 1.0)))
+                        # 归一化：如果未来有 5 个同样的流量要经过这，折扣就拉满到 0.5
+                        reference_demand = traffic * 5.0
+                        discount = max(0.5, 1.0 - (future_node_demand / (reference_demand + 1.0)))
                         
                         ice_box_power += marginal_fridges * unit_cooling_power * discount
-            else:
-                # APD 或其他类型不需要冰箱
-                ice_box_power = 0
+            
+            # === 6. 移除 APD 模式的虚拟折扣 ===
+            # 根据用户要求，APD 模式不需要引入虚拟功耗减免
 
-            # === 4. 汇总 ===
+            # === 7. 汇总 ===
             total_power = source_power + detector_power + other_power
             
             distance = calculate_distance(G=G, path=path, start=path[0], end=path[-1])
