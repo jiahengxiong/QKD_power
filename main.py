@@ -272,6 +272,7 @@ def process_mid(traffic_type, map_name, protocol, detector, bypass, key_rate_lis
         with tqdm(total=len(traffic_matrix), file=sys.stderr, colour="red",
                   desc=f"mid {mid} run {run + 1}/{num_runs}") as pbar:
             remain_num_request = len(traffic_matrix)
+            link_future_demand = {} # 初始化热力图变量，修复 UnboundLocalError
             
             # --- 1. 构建剩余需求热力图 (Future Demand Heatmap) ---
             # 预计算所有剩余请求的最短路径，统计每条物理链路被“未来”经过的次数
