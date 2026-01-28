@@ -178,18 +178,17 @@ import os
 # utils.tools.build_auxiliary_graph, find_min_weight_path_with_relay, serve_traffic
 # 同时，全局变量 map_name 和 config 模块需要在工程中预先定义
 
-def calculate_dynamic_heatmap(topology, physical_topology, future_requests, wavelength_list, served_request):
+def calculate_dynamic_heatmap(topology, physical_topology, future_requests, wavelength_list, served_request, physical_betweenness):
     """
     自适应动态热力图：
-    1. 识别战略枢纽 (统计路径上所有节点)。
-    2. 计算每个节点的“战略系数” (未来流量贡献比例)。
+    1. 统计路径上所有节点的未来需求。
+    2. 结合物理拓扑的“介数中心性” (Topological Betweenness)，计算节点的综合战略系数。
     """
     link_demand = {}
     node_demand = {}
     total_weighted_traffic = 0.0
     
-    # 时间衰减基数：1.0 表示不进行时间衰减，后续所有请求对热力图的影响权重完全一致
-    decay_base = 0.99
+    decay_base = 1.0 # 目前设定为 1.0 以获得最长远视野
     
     for step, req in enumerate(future_requests):
         r_id, r_src, r_dst, r_traffic = req
@@ -211,21 +210,29 @@ def calculate_dynamic_heatmap(topology, physical_topology, future_requests, wave
             if isinstance(paths[0], (int, str)):
                 paths = [paths]
             for path in paths:
-                # 链路需求
+                # 1. 链路热度
                 edges = list(zip(path[:-1], path[1:]))
                 for u, v in edges:
                     link_demand[(u, v)] = link_demand.get((u, v), 0) + weighted_traffic
                     link_demand[(v, u)] = link_demand.get((v, u), 0) + weighted_traffic
-                # 节点需求 (战略核心)
+                # 2. 节点热度
                 for node in path:
                     node_demand[node] = node_demand.get(node, 0) + weighted_traffic
                     
-    # 计算归一化的战略节点系数
-    # node_strategic_coeffs[node] 代表该节点承载了未来百分之多少的流量压力
+    # 计算综合战略系数：拓扑天赋 (Betweenness) * 后天努力 (Dynamic Heat)
     node_strategic_coeffs = {}
     if total_weighted_traffic > 0:
         for node, demand in node_demand.items():
-            node_strategic_coeffs[node] = demand / total_weighted_traffic
+            # 获取该节点的介数中心性 (Topological Importance)
+            btwn = physical_betweenness.get(node, 0.0)
+            
+            # 归一化动态需求
+            dynamic_heat = demand / total_weighted_traffic
+            
+            # 综合系数 = 拓扑重要性与流量需求的乘积
+            # 这里取 btwn 的平方根或适当缩放以平衡量级，通常 btwn 较小 (0~0.1)
+            # 我们希望这个系数能反映“如果我不在这里中继，我错失了多大的全局复用潜力”
+            node_strategic_coeffs[node] = btwn * dynamic_heat
             
     return link_demand, node_strategic_coeffs
 
@@ -262,6 +269,9 @@ def process_mid(traffic_type, map_name, protocol, detector, bypass, key_rate_lis
     mid = config.Traffic_cases[map_name][traffic_type]
     print(f"[PID {os.getpid()}] Starting processing Protocol: {protocol} Bypass:{bypass} Topology:{map_name} Traffic Type: {traffic_type}")
 
+    # --- 预计算物理拓扑的介数中心性 (Topological Backbone) ---
+    # 介数中心性反映了节点在网络中最短路径桥梁的重要性，是“战略枢纽”的最佳拓扑指标
+    physical_betweenness = nx.betweenness_centrality(physical_topology, weight='distance')
 
     for run in range(num_runs):
 
@@ -305,16 +315,16 @@ def process_mid(traffic_type, map_name, protocol, detector, bypass, key_rate_lis
                 dst = request[2]
                 traffic = request[3]
                 
-                # --- 动态重新计算后续所有请求的热力图 (流式探测单一路径) ---
-                # 优化：每 10 个请求重算一次热力图，兼顾前瞻性与性能
-                if i % 1 == 0:
+                # --- 动态重新计算后续所有请求的热力图 ---
+                if i % 10 == 0:
                     future_requests = traffic_matrix[i+1:]
                     link_future_demand, node_future_demand = calculate_dynamic_heatmap(
                         topology=topology,
                         physical_topology=physical_topology,
                         future_requests=future_requests,
                         wavelength_list=wavelength_list,
-                        served_request=served_request
+                        served_request=served_request,
+                        physical_betweenness=physical_betweenness
                     )
 
                 auxiliary_graph = utils.tools.build_auxiliary_graph(

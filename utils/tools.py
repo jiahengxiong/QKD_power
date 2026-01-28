@@ -431,17 +431,16 @@ def calculate_data_auxiliary_edge(G, path, wavelength_combination, wavelength_ca
                     future_penalty += demand * 1000.0 
 
             # === 4.1 引入自适应战略跳过惩罚 (Adaptive Strategic Skip Penalty) ===
-            # 动态调整战略系数，根据节点的未来需求比例自适应决定惩罚强度
             strategic_skip_penalty = 0.0
             if node_future_demand and len(path) > 2:
-                # node_future_demand 在这里已经是归一化后的“战略系数” (0~1)
+                # node_future_demand 现在是 (Betweenness * DynamicHeat) 的综合系数
                 for skipped_node in path[1:-1]:
                     strategic_coeff = node_future_demand.get(skipped_node, 0)
                     
-                    # 自适应公式：惩罚 = 战略系数 * 基准惩罚量级
-                    # 基准设为 5e9，确保高战略系数节点的跳过成本极高
-                    # 例如：如果节点承载了未来 20% 的流量 (coeff=0.2)，跳过它的惩罚是 1e9，与 unit_power 相当
-                    strategic_skip_penalty += strategic_coeff * 5e9
+                    # 自适应公式：惩罚 = 战略系数 * 基准量级 (1e11)
+                    # 由于 Betweenness 通常很小 (0.01~0.1)，我们需要一个更大的基准量级
+                    # 以确保战略枢纽的跳过成本足够震撼 Dijkstra
+                    strategic_skip_penalty += strategic_coeff * 1e11
             
             future_penalty += strategic_skip_penalty
             
@@ -794,64 +793,76 @@ def build_auxiliary_graph(topology, wavelength_list, traffic, physical_topology,
 
 def find_first_valid_physical_path(topology, physical_topology, src, dst, traffic, wavelength_list, served_request):
     """
-    专门为动态热力图设计的探测函数：寻找第一条满足当前网络物理约束的可行路径。
-    采用与 build_auxiliary_graph 一致的流式探测逻辑。
+    升级版热力图探测函数：支持中继路径探测。
+    如果直连路径不可行，尝试探测最可能的中继路径。
     """
-    # 为了热力图性能，我们不在这里完整构建 network_slice，而是直接在拓扑上检查
-    try:
-        path_generator = nx.shortest_simple_paths(physical_topology, src, dst, weight='distance')
-    except (nx.NetworkXNoPath, nx.NodeNotFound):
-        return None
-
-    max_attempts = 10 # 限制尝试次数以保证热力图计算速度
-    attempts = 0
     
-    for path in path_generator:
-        attempts += 1
-        if attempts > max_attempts:
-            break
-            
-        candidates = []
-        for wavelength in wavelength_list:
-            # 1. 检查容量 (直接从原拓扑检查)
+    def check_path_feasibility(p):
+        """内部函数：检查单段路径 p 是否有波长能跑通"""
+        valid_wls = []
+        for wl in wavelength_list:
+            # 1. 检查容量
             path_min_cap = float('inf')
-            for i in range(len(path) - 1):
-                u, v = path[i], path[i+1]
-                edge_min_cap = 0
+            for i in range(len(p) - 1):
+                u, v = p[i], p[i+1]
+                edge_max_cap = 0
                 edges = topology.get_edge_data(u, v)
-                for edge_key, edge_attrs in edges.items():
-                    if edge_attrs.get('wavelength') == wavelength:
-                        edge_min_cap = max(edge_min_cap, edge_attrs['free_capacity'])
-                path_min_cap = min(path_min_cap, edge_min_cap)
+                if not edges: 
+                    path_min_cap = 0
+                    break
+                for _, attrs in edges.items():
+                    if attrs.get('wavelength') == wl:
+                        edge_max_cap = max(edge_max_cap, attrs['free_capacity'])
+                path_min_cap = min(path_min_cap, edge_max_cap)
+                if path_min_cap < 1e-6: break
             
-            if path_min_cap < 1e-6: # 简化版：这里不强制要求满足 traffic，只要有容量就行，或者按需求来
-                continue
+            if path_min_cap < 1e-6: continue
 
-            # 2. 检查硬件位置 (简化版：不构建辅助图，直接查)
-            # 这里我们复用 find_laser_detector_position，但它需要 wavelength_slice
-            # 为了兼容性，我们临时创建一个简单的子图作为 slice
+            # 2. 检查硬件位置 (简化版：直接从原拓扑节点查)
+            # 我们需要构建一个临时的子图切片给 find_laser_detector_position
             temp_slice = nx.Graph()
-            for i in range(len(path) - 1):
-                u, v = path[i], path[i+1]
-                temp_slice.add_edge(u, v)
-                # 同步节点属性
-                temp_slice.nodes[u].update(topology.nodes[u])
-                temp_slice.nodes[v].update(topology.nodes[v])
+            for i in range(len(p) - 1):
+                temp_slice.add_edge(p[i], p[i+1])
+                # 同步节点硬件属性
+                temp_slice.nodes[p[i]].update(topology.nodes[p[i]])
+                temp_slice.nodes[p[i+1]].update(topology.nodes[p[i+1]])
             
-            positions = find_laser_detector_position(temp_slice, path, wavelength)
-            if len(positions) >= 1:
-                candidates.append({'wl': wavelength, 'cap': path_min_cap})
+            if len(find_laser_detector_position(temp_slice, p, wl)) >= 1:
+                valid_wls.append({'wl': wl, 'cap': path_min_cap})
         
-        if not candidates:
+        # 只要波长组合能凑够 traffic 就行
+        return valid_wls if sum(c['cap'] for c in valid_wls) >= traffic else None
+
+    # --- 1. 优先尝试直连路径 (Shortest Path First) ---
+    try:
+        path_gen = nx.shortest_simple_paths(physical_topology, src, dst, weight='distance')
+        for i, path in enumerate(path_gen):
+            if i > 3: break # 只看前 3 条，保证性能
+            if check_path_feasibility(path):
+                return [path] # 返回单段路径包装的列表
+    except:
+        pass
+
+    # --- 2. 如果直连失败，尝试中继路径 (Relay Path) ---
+    # 我们选择物理拓扑中度数最高的前 3 个节点作为潜在中继枢纽
+    central_nodes = sorted(physical_topology.nodes(), key=lambda n: physical_topology.degree(n), reverse=True)[:3]
+    
+    for r in central_nodes:
+        if r == src or r == dst: continue
+        try:
+            # 探测 src -> r
+            p1 = nx.shortest_path(physical_topology, src, r, weight='distance')
+            if not check_path_feasibility(p1): continue
+            
+            # 探测 r -> dst
+            p2 = nx.shortest_path(physical_topology, r, dst, weight='distance')
+            if not check_path_feasibility(p2): continue
+            
+            # 找到一个可行的双段中继路径
+            return [p1, p2]
+        except:
             continue
             
-        # 简单检查理论总容量
-        if sum(c['cap'] for c in candidates) < traffic:
-            continue
-            
-        # 满足初步条件，返回该路径
-        return path
-        
     return None
 
 # ==========================================
