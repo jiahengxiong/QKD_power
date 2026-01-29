@@ -302,67 +302,16 @@ def process_mid(traffic_type, map_name, protocol, detector, bypass, key_rate_lis
                   desc=f"mid {mid} run {run + 1}/{num_runs}") as pbar:
             remain_num_request = len(traffic_matrix)
             
-            # --- 1. 初始大局观：生成初始热力图 ---
-            # 在处理第一个请求前，先基于空载 AG 计算一次全量热力图
-            initial_ag = utils.tools.build_auxiliary_graph(
-                topology=topology,
-                wavelength_list=wavelength_list,
-                traffic=traffic_matrix[0][3],
-                physical_topology=physical_topology,
-                shared_key_rate_list=key_rate_list,
-                served_request=served_request,
-                remain_num_request=remain_num_request,
-                link_future_demand={},
-                node_future_demand={}
-            )
-            link_future_demand, node_raw_value = calculate_dynamic_heatmap(
-                auxiliary_graph=initial_ag,
-                future_requests=traffic_matrix
-            )
-            # 归一化初始节点战略价值
-            node_future_demand = {}
-            if node_raw_value:
-                max_val = max(node_raw_value.values())
-                if max_val > 0:
-                    for n, v in node_raw_value.items():
-                        node_future_demand[n] = v / max_val
-            del initial_ag
+            # --- 1. 静态大局观：计算介数中心性 (Static Betweenness) ---
+            # 这为节点提供了一个基础的“战略价值”，不随流量动态变化，避免反馈环
+            node_betweenness = nx.betweenness_centrality(physical_topology, weight='distance')
+            max_betweenness = max(node_betweenness.values()) if node_betweenness else 1.0
+            node_future_demand = {n: v / max_betweenness for n, v in node_betweenness.items()}
+            link_future_demand = {} # 链路热度改为由 tools.py 实时计算
             
-            # --- 2. 顺序处理请求 (Greedy with Dynamic Heatmap) ---
+            # --- 2. 顺序处理请求 ---
             for i, request in enumerate(traffic_matrix):
-                id = request[0]
-                src = request[1]
-                dst = request[2]
-                traffic = request[3]
-                
-                # 每 20 步更新一次热力图，兼顾精确度与仿真速度
-                if i > 0 and i % 20 == 0:
-                    # 使用当前真实的 AG 状态进行预测
-                    # 注意：这里使用的 AG 是上一个请求处理完后的 topology 状态
-                    current_temp_ag = utils.tools.build_auxiliary_graph(
-                        topology=topology,
-                        wavelength_list=wavelength_list,
-                        traffic=traffic,
-                        physical_topology=physical_topology,
-                        shared_key_rate_list=key_rate_list,
-                        served_request=served_request,
-                        remain_num_request=remain_num_request,
-                        link_future_demand=link_future_demand,
-                        node_future_demand=node_future_demand
-                    )
-                    future_requests = traffic_matrix[i:]
-                    link_future_demand, node_raw_value = calculate_dynamic_heatmap(
-                        auxiliary_graph=current_temp_ag,
-                        future_requests=future_requests
-                    )
-                    # 归一化
-                    node_future_demand = {}
-                    if node_raw_value:
-                        max_val = max(node_raw_value.values())
-                        if max_val > 0:
-                            for n, v in node_raw_value.items():
-                                node_future_demand[n] = v / max_val
-                    del current_temp_ag
+                id, src, dst, traffic = request[0], request[1], request[2], request[3]
                 
                 # --- 3. 构建正式寻路用的辅助图 ---
                 auxiliary_graph = utils.tools.build_auxiliary_graph(
