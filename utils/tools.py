@@ -22,20 +22,20 @@ from itertools import combinations
 # ==========================================
 _PATH_CACHE = {}
 
-def find_distance_limit_by_efficiency(protocol, detector, traffic):
+def find_distance_limit_by_efficiency(protocol, detector, traffic, topology_name):
     """
     动态标杆 (Dynamic Benchmarking)：
-    不再使用统一的 12.78，而是根据每个协议在 80km 处的原生性能设定红线。
+    不再使用硬编码的 90000，而是根据当前地图的 High Traffic 值设定能效红线。
     """
     # 1. 计算当前协议在 80km 处的原生码率 (作为该协议的能效基准)
     native_skr_80km = compute_key_rate(80, protocol, detector)
     
-    # 2. 确定该协议的标杆能效比 (以 90k Traffic 为对齐基准)
-    # 逻辑：在 90k 负载下，该协议被允许 Bypass 的上限恰好是 80km
-    ref_traffic = 90000
+    # 2. 确定该协议的标杆能效比 (以当前地图的 High Traffic 为对齐基准)
+    # 获取当前地图对应的 High Traffic 值
+    ref_traffic = config.Traffic_cases.get(topology_name, {}).get('High', 90000)
     efficiency_ratio = native_skr_80km / ref_traffic
     
-    # 3. 计算当前流量下的目标码率阈值
+    # 3. 计算当前具体流量下的目标码率阈值
     target_skr = traffic * efficiency_ratio
     
     # 4. 二分查找反解物理距离上限 (范围 1-200km)
@@ -55,7 +55,7 @@ def find_distance_limit_by_efficiency(protocol, detector, traffic):
     # 兜底保护：确保在任何场景下，Large 拓扑的旁路至少允许 40km，上限不超过 150km
     return max(40, min(150, limit_dist))
 
-def get_cached_paths(G, src, dst, is_bypass, traffic):
+def get_cached_paths(G, src, dst, is_bypass, traffic, topology_name):
     """
     能效对齐动态剪枝 (Efficiency-Aligned Pruning)：
     以 V4 成功经验为基准，动态解算不同协议/流量下的物理距离上限。
@@ -63,8 +63,8 @@ def get_cached_paths(G, src, dst, is_bypass, traffic):
     protocol = config.protocol
     detector = config.detector
     
-    # 缓存键包含协议和流量，因为它们决定了剪枝边界
-    key = (src, dst, is_bypass, protocol, traffic, detector)
+    # 缓存键包含地图名、协议和流量
+    key = (src, dst, is_bypass, protocol, traffic, detector, topology_name)
     if key in _PATH_CACHE:
         return _PATH_CACHE[key]
     
@@ -74,7 +74,7 @@ def get_cached_paths(G, src, dst, is_bypass, traffic):
             min_dist = nx.shortest_path_length(G, src, dst, weight='distance')
             
             # 2. 动态计算当前场景的硬剪枝上限
-            max_dist_limit = find_distance_limit_by_efficiency(protocol, detector, traffic)
+            max_dist_limit = find_distance_limit_by_efficiency(protocol, detector, traffic, topology_name)
             
             # 3. 预生成候选路径
             gen = nx.shortest_simple_paths(G, src, dst, weight='distance')
@@ -646,10 +646,9 @@ def build_temp_graph_for_path(topology, path, wavelength_combinations):
 # 核心重构：build_auxiliary_graph
 # ==========================================
 
-def build_auxiliary_graph(topology, wavelength_list, traffic, physical_topology, shared_key_rate_list, served_request, remain_num_request, link_future_demand=None):
+def build_auxiliary_graph(topology, wavelength_list, traffic, physical_topology, shared_key_rate_list, served_request, remain_num_request, link_future_demand=None, topology_name='Large'):
     """
     辅助图构建函数：基于物理拓扑和当前波长状态，生成逻辑层候选边。
-    新增 link_future_demand 以支持基于全量静态热力图的频谱代价计算。
     """
     auxiliary_graph = nx.MultiDiGraph()
     
@@ -671,13 +670,13 @@ def build_auxiliary_graph(topology, wavelength_list, traffic, physical_topology,
     # 3. 遍历处理
     for src, dst in pairs:
         # --- 3.1 获取路径缓存引用 ---
-        path_list = get_cached_paths(physical_topology, src, dst, config.bypass, traffic)
+        path_list = get_cached_paths(physical_topology, src, dst, config.bypass, traffic, topology_name)
         if not path_list: continue
         
         # 缓存键用于判定 1, 步骤 B, 步骤 C 的永久剔除
         protocol = config.protocol
         detector = config.detector
-        cache_key = (src, dst, config.bypass, protocol, traffic, detector)
+        cache_key = (src, dst, config.bypass, protocol, traffic, detector, topology_name)
         
         # 使用副本进行迭代
         for path in list(path_list):
