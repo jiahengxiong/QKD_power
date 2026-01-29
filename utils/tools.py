@@ -24,19 +24,21 @@ _PATH_CACHE = {}
 
 def find_distance_limit_by_efficiency(protocol, detector, traffic):
     """
-    基于 V4 标杆 (CV-QKD, 90k Traffic, 80km) 的能效对齐逻辑。
-    反解出当前协议和流量下的硬剪枝距离上限。
+    动态标杆 (Dynamic Benchmarking)：
+    不再使用统一的 12.78，而是根据每个协议在 80km 处的原生性能设定红线。
     """
-    # 1. 确定标杆能效比 (Efficiency Ratio)
-    # CV-QKD 在 80km 处的码率约为 1,150,000 bps
-    ref_skr = 1150000 
-    ref_traffic = 90000
-    efficiency_ratio = ref_skr / ref_traffic # 约为 12.78
+    # 1. 计算当前协议在 80km 处的原生码率 (作为该协议的能效基准)
+    native_skr_80km = compute_key_rate(80, protocol, detector)
     
-    # 2. 计算当前场景下的目标码率阈值
+    # 2. 确定该协议的标杆能效比 (以 90k Traffic 为对齐基准)
+    # 逻辑：在 90k 负载下，该协议被允许 Bypass 的上限恰好是 80km
+    ref_traffic = 90000
+    efficiency_ratio = native_skr_80km / ref_traffic
+    
+    # 3. 计算当前流量下的目标码率阈值
     target_skr = traffic * efficiency_ratio
     
-    # 3. 二分查找反解物理距离上限 (范围 1-200km)
+    # 4. 二分查找反解物理距离上限 (范围 1-200km)
     low, high = 1, 200
     limit_dist = 1
     
