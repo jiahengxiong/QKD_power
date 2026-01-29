@@ -22,29 +22,72 @@ from itertools import combinations
 # ==========================================
 _PATH_CACHE = {}
 
-def get_cached_paths(G, src, dst, is_bypass):
-    key = (src, dst, is_bypass)
+def find_distance_limit_by_efficiency(protocol, detector, traffic):
+    """
+    基于 V4 标杆 (CV-QKD, 90k Traffic, 80km) 的能效对齐逻辑。
+    反解出当前协议和流量下的硬剪枝距离上限。
+    """
+    # 1. 确定标杆能效比 (Efficiency Ratio)
+    # CV-QKD 在 80km 处的码率约为 1,150,000 bps
+    ref_skr = 1150000 
+    ref_traffic = 90000
+    efficiency_ratio = ref_skr / ref_traffic # 约为 12.78
+    
+    # 2. 计算当前场景下的目标码率阈值
+    target_skr = traffic * efficiency_ratio
+    
+    # 3. 二分查找反解物理距离上限 (范围 1-200km)
+    low, high = 1, 200
+    limit_dist = 1
+    
+    while low <= high:
+        mid = (low + high) // 2
+        current_skr = compute_key_rate(mid, protocol, detector)
+        
+        if current_skr >= target_skr:
+            limit_dist = mid
+            low = mid + 1
+        else:
+            high = mid - 1
+            
+    # 兜底保护：确保在任何场景下，Large 拓扑的旁路至少允许 40km，上限不超过 150km
+    return max(40, min(150, limit_dist))
+
+def get_cached_paths(G, src, dst, is_bypass, traffic):
+    """
+    能效对齐动态剪枝 (Efficiency-Aligned Pruning)：
+    以 V4 成功经验为基准，动态解算不同协议/流量下的物理距离上限。
+    """
+    protocol = config.protocol
+    detector = config.detector
+    
+    # 缓存键包含协议和流量，因为它们决定了剪枝边界
+    key = (src, dst, is_bypass, protocol, traffic, detector)
     if key in _PATH_CACHE:
         return _PATH_CACHE[key]
     
     if is_bypass:
         try:
-            # 获取最短物理距离作为参考
+            # 1. 获取最短物理距离参考
             min_dist = nx.shortest_path_length(G, src, dst, weight='distance')
             
-            # 预生成候选路径
+            # 2. 动态计算当前场景的硬剪枝上限
+            max_dist_limit = find_distance_limit_by_efficiency(protocol, detector, traffic)
+            
+            # 3. 预生成候选路径
             gen = nx.shortest_simple_paths(G, src, dst, weight='distance')
             paths = []
-            # 探索前 100 条路径，但引入“大局观”剪枝
+            
             for path in itertools.islice(gen, 100):
                 d = calculate_distance(G, src, dst, path)
+                
                 # 剪枝逻辑：
-                # 1. 物理距离不能超过最短距离的 2 倍 (防止绕路太远)
-                # 2. 物理距离不能超过 80km (在 80km 以上 KeyRate 极低，导致波长爆炸，功耗剧增)
-                if d <= min_dist * 2.0 and d <= 80:
+                # A. 物理距离不能超过能效对齐上限
+                # B. 路径不能太绕 (不超过最短距离的 2.5 倍)
+                if d <= max_dist_limit and d <= min_dist * 2.5:
                     paths.append(path)
                 
-                if len(paths) >= 20: # 20 条高质量路径通常足够，过多会降低仿真效率
+                if len(paths) >= 20: 
                     break
                     
             _PATH_CACHE[key] = paths
@@ -465,7 +508,11 @@ def calculate_data_auxiliary_edge(G, path, wavelength_combination, wavelength_ca
                 # B. 精确边际成本判断 (大局观核心)
                 # 只有当该波长在该路径段上尚未建立 LD 对时，才计入硬件开启功耗
                 is_already_active = False
-                if laser_node in G.nodes and wavelength in G.nodes[laser_node].get('laser', {}):
+                
+                # 安全检查：如果 laser_node 为 None，说明该波长在全路径上已激活
+                if laser_node is None:
+                    is_already_active = True
+                elif laser_node in G.nodes and wavelength in G.nodes[laser_node].get('laser', {}):
                     l_idx, d_idx = path.index(laser_node), path.index(det_node)
                     cover_links = path[l_idx:d_idx+1]
                     if cover_links in G.nodes[laser_node]['laser'][wavelength]:
@@ -622,11 +669,15 @@ def build_auxiliary_graph(topology, wavelength_list, traffic, physical_topology,
     # 3. 遍历处理
     for src, dst in pairs:
         # --- 3.1 获取路径缓存引用 ---
-        cache_key = (src, dst, config.bypass)
-        path_list = get_cached_paths(physical_topology, src, dst, config.bypass)
+        path_list = get_cached_paths(physical_topology, src, dst, config.bypass, traffic)
         if not path_list: continue
         
-        # 使用副本进行迭代，以便在循环中安全地从原缓存列表中删除失效路径
+        # 缓存键用于判定 1, 步骤 B, 步骤 C 的永久剔除
+        protocol = config.protocol
+        detector = config.detector
+        cache_key = (src, dst, config.bypass, protocol, traffic, detector)
+        
+        # 使用副本进行迭代
         for path in list(path_list):
             # === 步骤 A: 收集并筛选候选波长 ===
             candidates = []
