@@ -27,17 +27,6 @@ def get_cached_paths(G, src, dst, is_bypass):
     if key in _PATH_CACHE:
         return _PATH_CACHE[key]
     
-    # 获取当前拓扑的最大单链路长度作为物理剪枝的基础
-    # 这样可以确保 Bypass 模式至少能涵盖所有 No-Bypass 的直连链路
-    max_link_dist = 0
-    for u, v, d in G.edges(data=True):
-        dist = d.get('distance', 0)
-        if dist > max_link_dist:
-            max_link_dist = dist
-    
-    # 动态设定剪枝上限：取 80km 和最大链路长度中的较大值
-    pruning_limit = max(80, max_link_dist)
-    
     if is_bypass:
         try:
             # 获取最短物理距离作为参考
@@ -46,13 +35,22 @@ def get_cached_paths(G, src, dst, is_bypass):
             # 预生成候选路径
             gen = nx.shortest_simple_paths(G, src, dst, weight='distance')
             paths = []
-            # 探索前 100 条路径，但引入“大局观”剪枝
+            
+            # 动态距离阈值 (根据协议特性)
+            # CV-QKD 距离敏感度极高，限制在 60km；BB84 较宽松，允许到 120km
+            max_dist_limit = 60 if config.protocol == 'CV-QKD' else 120
+            
             for path in itertools.islice(gen, 100):
                 d = calculate_distance(G, src, dst, path)
                 # 剪枝逻辑：
-                # 1. 物理距离不能超过最短距离的 2.5 倍 (适度放宽绕路限制)
-                # 2. 物理距离不能超过动态计算的剪枝上限
-                if d <= min_dist * 2.5 and d <= pruning_limit:
+                # 1. 物理直连 (1-hop) 永远允许，保证连通性
+                if len(path) == 2:
+                    paths.append(path)
+                    continue
+                
+                # 2. Bypass 路径 (multi-hop) 受到协议特性的软上限限制
+                # CV-QKD 极度敏感，限制在 60km；BB84 允许到 120km
+                if d <= min_dist * 2.5 and d <= max_dist_limit:
                     paths.append(path)
                 
                 if len(paths) >= 20: 
@@ -494,25 +492,49 @@ def calculate_data_auxiliary_edge(G, path, wavelength_combination, wavelength_ca
                     marginal_weight += (component_power['source'] + component_power['detector'] + component_power['other'])
                     marginal_weight += smoothed_ice_box_cost_per_det
 
-            # C. 基于静态热力图的频谱代价 (Opportunity Cost)
+            # C. 基于物理资源密度的频谱代价 (Resource Density Tax)
+            # 大局观：不仅看占用了多少波长，还要看在单位公里的“频谱占用效率”
             spectrum_opportunity_cost = 0.0
-            for i in range(len(path) - 1):
+            
+            # 计算该逻辑边在物理链路上的“波长-公里”负担
+            # 核心：1/KeyRate 已经通过 num_wls_needed 引入，现在将其分布到每一公里
+            # 这里的 KeyRate 是 protocol-specific 的
+            
+            # 确定覆盖范围：如果 laser_node 为 None，说明全路径已激活
+            if laser_node is not None and det_node is not None:
+                l_start_idx = path.index(laser_node)
+                d_end_idx = path.index(det_node)
+                logical_edge_dist = calculate_distance(G, laser_node, det_node, path)
+            else:
+                l_start_idx = 0
+                d_end_idx = len(path) - 1
+                logical_edge_dist = calculate_distance(G, path[0], path[-1], path)
+            
+            # 如果 KeyRate 极低 (导致 num_wls 极大)，增加指数惩罚 (软剪枝)
+            # 阈值：若单波长码率低于 100 bps，视为频谱利用率极低
+            skr_per_wl = max_traffic / num_wls_needed
+            efficiency_penalty = 1.0
+            if skr_per_wl < 100:
+                efficiency_penalty = math.exp((100 - skr_per_wl) / 20.0)
+
+            for i in range(l_start_idx, d_end_idx):
                 u_p, v_p = path[i], path[i+1]
-                # 获取静态热度 (反映未来链路的稀缺程度)
+                p_edge_data = G.get_edge_data(u_p, v_p)
+                if not p_edge_data: continue
+                
+                p_dist = p_edge_data[next(iter(p_edge_data))].get('distance', 1.0)
                 link_heat = link_future_demand.get((u_p, v_p), 0) if link_future_demand else 0
                 
-                edges_data = G.get_edge_data(u_p, v_p)
-                if not edges_data: continue
-                occupied_wls = sum(1 for e in edges_data.values() if e.get('occupied', False))
-                total_wls = len(edges_data)
-                
-                # 实时拥塞惩罚 (软截断)
+                occupied_wls = sum(1 for e in p_edge_data.values() if e.get('occupied', False))
+                total_wls = len(p_edge_data)
                 congestion = 1.0 / (1.05 - (occupied_wls / total_wls))
                 
-                # 频谱代价 = 占用波长数 * 链路稀缺度 * 拥塞系数 * 权重调节
-                spectrum_opportunity_cost += num_wls_needed * link_heat * congestion * 10.0
+                # 资源税 = 占用波长数 * 物理长度 * 链路稀缺度 * 拥塞系数 * 码率惩罚
+                # 0.5 是一个归一化系数，将公里级负担转化为 Watts 级感官
+                spectrum_opportunity_cost += num_wls_needed * p_dist * link_heat * congestion * efficiency_penalty * 0.5
 
             real_total_power = source_power + detector_power + other_power + real_ice_box_power
+            # 最终权重 = 边际功耗 + 频谱资源税
             weight = max(1.0, marginal_weight + spectrum_opportunity_cost)
 
             data.append({
