@@ -64,24 +64,24 @@ def get_cached_paths(G, src, dst, is_bypass, traffic):
     return list(paths)
 
 def build_network_slice(wavelength_list, topology, traffic):
+    """
+    为每个波长构建一个“切片”图。
+    工程优化：
+    1. 确保所有节点都在切片中，即使没有边。
+    2. 避免多次 deepcopy。
+    """
     network_slice = {}
     for wavelength in wavelength_list:
-        virtual_graph = copy.deepcopy(topology)
+        # 创建一个包含所有节点的新图，但不包含边
         wavelength_slice = nx.Graph()
-        edges = list(virtual_graph.edges(keys=True, data=True))
-        for edge in edges:
-            src = edge[0]
-            dst = edge[1]
-            key = edge[2]
-            data = edge[3]
-            if data['wavelength'] == wavelength and data['free_capacity'] > 0:
-                wavelength_slice.add_edge(src, dst, key=key, **data)
-        for node in wavelength_slice.nodes:
-            data = topology.nodes[node]
-            # print(node, data)
-            wavelength_slice.nodes[node].update(data)
+        wavelength_slice.add_nodes_from(topology.nodes(data=True))
+        
+        # 仅添加满足该波长且有剩余容量的边
+        for u, v, key, data in topology.edges(keys=True, data=True):
+            if data.get('wavelength') == wavelength and data.get('free_capacity', 0) > 0:
+                wavelength_slice.add_edge(u, v, key=key, **data)
+        
         network_slice[wavelength] = wavelength_slice
-        del virtual_graph
     return network_slice
 
 
@@ -349,7 +349,12 @@ def Max_capacity(laser_detector, path, G, wavelength, network_slice):
     wavelength_slice = network_slice
     for i in range(len(path) - 1):
         node = path[i]
-        for detector_list in wavelength_slice.nodes[node]['laser'][wavelength]:
+        # 安全检查：确保节点存在且具有 laser 属性
+        if node not in wavelength_slice.nodes: continue
+        node_data = wavelength_slice.nodes[node]
+        if 'laser' not in node_data or wavelength not in node_data['laser']: continue
+        
+        for detector_list in node_data['laser'][wavelength]:
             # 检查所有节点是否都在路径中
             if all(item in path for item in detector_list):
                 # 检查方向性
@@ -651,8 +656,6 @@ def build_auxiliary_graph(topology, wavelength_list, traffic, physical_topology,
                 # 1. 容量筛选
                 min_cap = find_min_free_capacity(wavelength_slice=wl_slice, path=path)
                 if min_cap <= 0:
-                    if path in _PATH_CACHE[cache_key]:
-                        _PATH_CACHE[cache_key].remove(path)
                     continue 
 
                 # 2. 硬件筛选
@@ -660,8 +663,6 @@ def build_auxiliary_graph(topology, wavelength_list, traffic, physical_topology,
                     wavelength_slice=wl_slice, path=path, wavelength=wavelength
                 )
                 if len(positions) < 1:
-                    if path in _PATH_CACHE[cache_key]:
-                        _PATH_CACHE[cache_key].remove(path)
                     continue 
                 
                 candidates.append({
@@ -671,9 +672,7 @@ def build_auxiliary_graph(topology, wavelength_list, traffic, physical_topology,
                 })
             
             if not candidates:
-                # 只有当路径上没有任何波长有剩余容量时，才视为物理枯竭，永久剔除
-                if path in _PATH_CACHE[cache_key]:
-                    _PATH_CACHE[cache_key].remove(path)
+                # 只有物理彻底枯竭（无波长可用）才移除
                 continue
 
             # === 步骤 B: 排序 (Best Fit Strategy) ===
@@ -688,7 +687,6 @@ def build_auxiliary_graph(topology, wavelength_list, traffic, physical_topology,
                 suffix_max_cap[i] = current_sum
             
             if suffix_max_cap[0] < traffic:
-                # 注意：这里不能剔除路径，因为虽然不满足当前大流量，但可能满足后续的小流量
                 continue
 
             # === 步骤 D: DFS 探测该物理路径是否能凑够 traffic ===
@@ -744,9 +742,8 @@ def build_auxiliary_graph(topology, wavelength_list, traffic, physical_topology,
             # 执行探测
             dfs_find_valid_set(0, [], {}, {}, 0, remain_num_request, avg_physical_dist)
             
-            # [核心逻辑修改]：一对节点只需要建立一条辅助边。
-            # 一旦找到最短且可用的物理路径并成功建立逻辑边，立即停止对该节点对的后续路径探测。
             if path_found_flag:
+                # 按照用户指令：一对节点只需要建立一条辅助边。
                 break
 
     del network_slice
@@ -808,8 +805,6 @@ def find_first_valid_physical_path(topology, physical_topology, src, dst, traffi
         # 3. 汇总检查是否能满足流量
         if sum(candidates) >= traffic:
             return path
-        # [工程优化]：即便不满足当前预测的 traffic，也不在这里剔除路径，
-        # 因为热力图预测可能使用的是较大流量，不能误删。
                 
     return None
 
