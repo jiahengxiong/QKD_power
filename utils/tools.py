@@ -22,85 +22,45 @@ from itertools import combinations
 # ==========================================
 _PATH_CACHE = {}
 
-def find_distance_limit_by_efficiency(protocol, detector, traffic, topology_name):
-    """
-    动态标杆 (Dynamic Benchmarking) V11.0：
-    统一使用 CV-QKD 在 80km 处的性能 (1.15 Mbps) 作为全网能效红线。
-    逻辑：traffic load 越低，允许的 Bypass 长度就越长。
-    """
-    # 1. 确定全网黄金标杆 (CV-QKD 在 80km 处的 SKR)
-    ref_skr_bench = 1150000 
-    ref_traffic_bench = config.Traffic_cases.get(topology_name, {}).get('High', 90000)
-    
-    # 2. 计算当前流量下的目标码率阈值 (Target SKR)
-    # 逻辑：Target_SKR / Current_Traffic = Bench_SKR / High_Traffic
-    # 即：Target_SKR = Current_Traffic * (Bench_SKR / High_Traffic)
-    target_skr = traffic * (ref_skr_bench / ref_traffic_bench)
-    
-    # 3. 二分查找反解物理距离上限 (范围 1-200km)
-    low, high = 1, 200
-    limit_dist = 1
-    
-    while low <= high:
-        mid = (low + high) // 2
-        current_skr = compute_key_rate(mid, protocol, detector)
-        
-        if current_skr >= target_skr:
-            limit_dist = mid
-            low = mid + 1
-        else:
-            high = mid - 1
-            
-    # 4. 物理大局观兜底：
-    # 即使在低负载下，Bypass 也不应超过 120km，否则其物理功耗和频谱代价将超过 Relay 收益
-    return min(120, limit_dist)
-
-def get_cached_paths(G, src, dst, is_bypass, traffic, topology_name):
-    """
-    能效对齐动态剪枝 (Efficiency-Aligned Pruning)：
-    以 V4 成功经验为基准，动态解算不同协议下的物理距离上限。
-    """
-    protocol = config.protocol
-    detector = config.detector
-    
-    key = (src, dst, is_bypass, protocol, traffic, detector, topology_name)
+def get_cached_paths(G, src, dst, is_bypass):
+    key = (src, dst, is_bypass)
     if key in _PATH_CACHE:
         return _PATH_CACHE[key]
     
-    paths = []
     if is_bypass:
         try:
+            # 获取最短物理距离作为参考
             min_dist = nx.shortest_path_length(G, src, dst, weight='distance')
-            # 动态计算该协议的“原生标杆”剪枝上限
-            max_dist_limit = find_distance_limit_by_efficiency(protocol, detector, traffic, topology_name)
             
+            # 预生成候选路径
             gen = nx.shortest_simple_paths(G, src, dst, weight='distance')
+            paths = []
+            # 探索前 100 条路径，但引入“大局观”剪枝
             for path in itertools.islice(gen, 100):
                 d = calculate_distance(G, src, dst, path)
-                
-                # 1. 物理直连 (1-hop) 永远允许，保证连通性
-                if len(path) == 2:
-                    paths.append(path)
-                    continue
-                
-                # 2. Bypass 路径 (multi-hop) 必须满足原生能效红线
-                if d <= max_dist_limit and d <= min_dist * 2.5:
+                # 剪枝逻辑：
+                # 1. 物理距离不能超过最短距离的 2 倍 (防止绕路太远)
+                # 2. 物理距离不能超过 80km (在 80km 以上 KeyRate 极低，导致波长爆炸，功耗剧增)
+                if d <= min_dist * 2.0 and d <= 80:
                     paths.append(path)
                 
-                if len(paths) >= 20: 
+                if len(paths) >= 20: # 20 条高质量路径通常足够，过多会降低仿真效率
                     break
+                    
+            _PATH_CACHE[key] = paths
+            return paths
         except (nx.NetworkXNoPath, nx.NodeNotFound):
-            pass
+            _PATH_CACHE[key] = []
+            return []
     else:
-        # --- No-Bypass 模式下的逻辑：仅允许 1-hop 物理路径 ---
         try:
-            if G.has_edge(src, dst):
-                paths = [[src, dst]]
+            # 非 Bypass 模式只看直连
+            paths = list(nx.all_simple_paths(G, source=src, target=dst, cutoff=1))
+            _PATH_CACHE[key] = paths
+            return paths
         except:
-            pass
-            
-    _PATH_CACHE[key] = paths
-    return paths
+            _PATH_CACHE[key] = []
+            return []
 
 def clear_path_cache():
     """清空全局路径缓存"""
@@ -641,7 +601,7 @@ def build_temp_graph_for_path(topology, path, wavelength_combinations):
 # 核心重构：build_auxiliary_graph
 # ==========================================
 
-def build_auxiliary_graph(topology, wavelength_list, traffic, physical_topology, shared_key_rate_list, served_request, remain_num_request, link_future_demand=None, topology_name='Large'):
+def build_auxiliary_graph(topology, wavelength_list, traffic, physical_topology, shared_key_rate_list, served_request, remain_num_request, link_future_demand=None):
     """
     辅助图构建函数：基于物理拓扑和当前波长状态，生成逻辑层候选边。
     """
@@ -665,13 +625,11 @@ def build_auxiliary_graph(topology, wavelength_list, traffic, physical_topology,
     # 3. 遍历处理
     for src, dst in pairs:
         # --- 3.1 获取路径缓存引用 ---
-        path_list = get_cached_paths(physical_topology, src, dst, config.bypass, traffic, topology_name)
+        path_list = get_cached_paths(physical_topology, src, dst, config.bypass)
         if not path_list: continue
         
         # 缓存键用于判定 1, 步骤 B, 步骤 C 的永久剔除
-        protocol = config.protocol
-        detector = config.detector
-        cache_key = (src, dst, config.bypass, protocol, traffic, detector, topology_name)
+        cache_key = (src, dst, config.bypass)
         
         # 使用副本进行迭代
         for path in list(path_list):
