@@ -198,6 +198,29 @@ import os
 # utils.tools.build_auxiliary_graph, find_min_weight_path_with_relay, serve_traffic
 # 同时，全局变量 map_name 和 config 模块需要在工程中预先定义
 
+def calculate_static_global_heatmap(physical_topology, all_requests):
+    """
+    计算静态全量热力图：基于最短路径预测全网流量分布。
+    """
+    link_heat = {}
+    for req in all_requests:
+        src, dst, traffic = req[1], req[2], req[3]
+        try:
+            path = nx.shortest_path(physical_topology, src, dst, weight='distance')
+            for i in range(len(path) - 1):
+                u, v = path[i], path[i+1]
+                link_heat[(u, v)] = link_heat.get((u, v), 0) + traffic
+                link_heat[(v, u)] = link_heat.get((v, u), 0) + traffic
+        except:
+            continue
+    
+    # 归一化到 0~1
+    if link_heat:
+        max_heat = max(link_heat.values())
+        for k in link_heat:
+            link_heat[k] /= max_heat
+    return link_heat
+
 def process_mid(traffic_type, map_name, protocol, detector, bypass, key_rate_list, wavelength_list, num_runs,
                 ice_box_capacity, request_list):
     """
@@ -262,12 +285,15 @@ def process_mid(traffic_type, map_name, protocol, detector, bypass, key_rate_lis
                   desc=f"mid {mid} run {run + 1}/{num_runs}") as pbar:
             remain_num_request = len(traffic_matrix)
             
-            # --- 1. 顺序处理请求 (纯物理边际成本模型) ---
+            # --- 1. 计算全量静态热力图 (大局观预测) ---
+            link_future_demand = calculate_static_global_heatmap(physical_topology, traffic_matrix)
+            node_future_demand = {} # 暂不需要节点热力图
+            
+            # --- 2. 顺序处理请求 ---
             for i, request in enumerate(traffic_matrix):
                 id, src, dst, traffic = request[0], request[1], request[2], request[3]
                 
-                # --- 2. 构建正式寻路用的辅助图 ---
-                # 采用纯物理边际成本模型，不再传递预测热力图
+                # --- 3. 构建正式寻路用的辅助图 ---
                 auxiliary_graph = utils.tools.build_auxiliary_graph(
                     topology=topology,
                     wavelength_list=wavelength_list,
@@ -275,7 +301,8 @@ def process_mid(traffic_type, map_name, protocol, detector, bypass, key_rate_lis
                     physical_topology=physical_topology,
                     shared_key_rate_list=key_rate_list,
                     served_request=served_request,
-                    remain_num_request=remain_num_request
+                    remain_num_request=remain_num_request,
+                    link_future_demand=link_future_demand
                 )
 
                 result = find_min_weight_path_with_relay(auxiliary_graph=auxiliary_graph, src=src, dst=dst)
