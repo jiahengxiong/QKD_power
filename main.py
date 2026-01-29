@@ -200,11 +200,10 @@ import os
 
 def calculate_dynamic_heatmap(auxiliary_graph, future_requests):
     """
-    大局观热力图：全量预测未来，统计路径上所有节点的战略价值。
+    大局观热力图：全量预测未来，统计物理链路的负载压力。
     优化：增加缓存避免重复寻路。
     """
     link_demand = {}
-    node_strategic_value = {} 
     decay_base = 0.95
     
     # 局部缓存，避免在一次热力图计算中对相同的 (src, dst) 重复寻路
@@ -230,7 +229,7 @@ def calculate_dynamic_heatmap(auxiliary_graph, future_requests):
                 edge_data = auxiliary_graph.get_edge_data(u, v, key=key)
                 if edge_data and 'path' in edge_data:
                     physical_path = edge_data['path']
-                    # 1. 累加物理链路热度
+                    # 累加物理链路热度 (使用无向键，确保每条物理链路只累加一次)
                     for j in range(len(physical_path) - 1):
                         p_u, p_v = physical_path[j], physical_path[j+1]
                         link_demand[(p_u, p_v)] = link_demand.get((p_u, p_v), 0) + weighted_traffic
@@ -240,7 +239,7 @@ def calculate_dynamic_heatmap(auxiliary_graph, future_requests):
                     for p_node in physical_path:
                         node_strategic_value[p_node] = node_strategic_value.get(p_node, 0) + weighted_traffic
                         
-    return link_demand, node_strategic_value
+    return link_demand
 
 def process_mid(traffic_type, map_name, protocol, detector, bypass, key_rate_list, wavelength_list, num_runs,
                 ice_box_capacity, request_list):
@@ -336,18 +335,10 @@ def process_mid(traffic_type, map_name, protocol, detector, bypass, key_rate_lis
                 # --- 2. 动态更新热力图 (基于当前 AG) ---
                 if i % 1 == 0:
                     future_requests = traffic_matrix[i+1:]
-                    link_future_demand, node_raw_value = calculate_dynamic_heatmap(
+                    link_future_demand = calculate_dynamic_heatmap(
                         auxiliary_graph=auxiliary_graph,
                         future_requests=future_requests
                     )
-                    
-                    # 归一化节点战略价值 (0~1)
-                    node_future_demand = {}
-                    if node_raw_value:
-                        max_val = max(node_raw_value.values())
-                        if max_val > 0:
-                            for n, v in node_raw_value.items():
-                                node_future_demand[n] = v / max_val
                     
                     # 重新构建 AG 以应用最新的热度数据
                     auxiliary_graph = utils.tools.build_auxiliary_graph(
@@ -359,7 +350,7 @@ def process_mid(traffic_type, map_name, protocol, detector, bypass, key_rate_lis
                         served_request=served_request,
                         remain_num_request=remain_num_request,
                         link_future_demand=link_future_demand,
-                        node_future_demand=node_future_demand
+                        node_future_demand=None
                     )
 
                 result = find_min_weight_path_with_relay(auxiliary_graph=auxiliary_graph, src=src, dst=dst)
