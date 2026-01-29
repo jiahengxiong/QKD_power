@@ -22,54 +22,52 @@ from itertools import combinations
 # ==========================================
 _PATH_CACHE = {}
 
-def get_cached_paths(G, src, dst, is_bypass):
-    key = (src, dst, is_bypass)
+def get_cached_paths(G, src, dst, is_bypass, traffic):
+    """
+    公平对比路径生成引擎：
+    彻底移除人为的距离剪枝，只保留物理可行性过滤。
+    让 Dijkstra 在真实的物理成本（权重）面前做决策。
+    """
+    protocol = config.protocol
+    detector = config.detector
+    
+    key = (src, dst, is_bypass, protocol, traffic, detector)
     if key in _PATH_CACHE:
         return _PATH_CACHE[key]
     
+    paths = []
     if is_bypass:
         try:
-            # 获取最短物理距离作为参考
+            # 1. 寻找物理最短路径作为基准
             min_dist = nx.shortest_path_length(G, src, dst, weight='distance')
             
-            # 预生成候选路径
+            # 2. 探索候选路径空间
+            # 这里的 cutoff 设置为协议能通的最大物理极限 (例如 200km)
             gen = nx.shortest_simple_paths(G, src, dst, weight='distance')
-            paths = []
-            
-            # 动态距离阈值 (根据协议特性)
-            # CV-QKD 距离敏感度极高，限制在 60km；BB84 较宽松，允许到 120km
-            max_dist_limit = 60 if config.protocol == 'CV-QKD' else 120
             
             for path in itertools.islice(gen, 100):
                 d = calculate_distance(G, src, dst, path)
-                # 剪枝逻辑：
-                # 1. 物理直连 (1-hop) 永远允许，保证连通性
-                if len(path) == 2:
-                    paths.append(path)
-                    continue
                 
-                # 2. Bypass 路径 (multi-hop) 受到协议特性的软上限限制
-                # CV-QKD 极度敏感，限制在 60km；BB84 允许到 120km
-                if d <= min_dist * 2.5 and d <= max_dist_limit:
-                    paths.append(path)
+                # 唯一的剪枝逻辑是“非理性绕路”：如果路径长度超过最短距离的 3 倍，视为无意义
+                if d <= min_dist * 3.0:
+                    # 检查物理上是否还能产生密钥 (哪怕只有 1 bps)
+                    if compute_key_rate(d, protocol, detector) > 0:
+                        paths.append(path)
                 
                 if len(paths) >= 20: 
                     break
-                    
-            _PATH_CACHE[key] = paths
-            return paths
         except (nx.NetworkXNoPath, nx.NodeNotFound):
-            _PATH_CACHE[key] = []
-            return []
+            pass
     else:
+        # --- No-Bypass 模式：仅允许物理上的 1-hop 路径 ---
         try:
-            # 非 Bypass 模式只看直连
-            paths = list(nx.all_simple_paths(G, source=src, target=dst, cutoff=1))
-            _PATH_CACHE[key] = paths
-            return paths
+            if G.has_edge(src, dst):
+                paths = [[src, dst]]
         except:
-            _PATH_CACHE[key] = []
-            return []
+            pass
+            
+    _PATH_CACHE[key] = paths
+    return paths
 
 def clear_path_cache():
     """清空全局路径缓存"""
@@ -492,31 +490,17 @@ def calculate_data_auxiliary_edge(G, path, wavelength_combination, wavelength_ca
                     marginal_weight += (component_power['source'] + component_power['detector'] + component_power['other'])
                     marginal_weight += smoothed_ice_box_cost_per_det
 
-            # C. 基于物理资源密度的频谱代价 (Resource Density Tax)
-            # 大局观：不仅看占用了多少波长，还要看在单位公里的“频谱占用效率”
+            # C. 基于物理资源密度的频谱代价 (回归 V4 线性大局观)
             spectrum_opportunity_cost = 0.0
             
-            # 计算该逻辑边在物理链路上的“波长-公里”负担
-            # 核心：1/KeyRate 已经通过 num_wls_needed 引入，现在将其分布到每一公里
-            # 这里的 KeyRate 是 protocol-specific 的
-            
-            # 确定覆盖范围：如果 laser_node 为 None，说明全路径已激活
+            # 确定覆盖范围
             if laser_node is not None and det_node is not None:
                 l_start_idx = path.index(laser_node)
                 d_end_idx = path.index(det_node)
-                logical_edge_dist = calculate_distance(G, laser_node, det_node, path)
             else:
                 l_start_idx = 0
                 d_end_idx = len(path) - 1
-                logical_edge_dist = calculate_distance(G, path[0], path[-1], path)
             
-            # 如果 KeyRate 极低 (导致 num_wls 极大)，增加指数惩罚 (软剪枝)
-            # 阈值：若单波长码率低于 100 bps，视为频谱利用率极低
-            skr_per_wl = max_traffic / num_wls_needed
-            efficiency_penalty = 1.0
-            if skr_per_wl < 100:
-                efficiency_penalty = math.exp((100 - skr_per_wl) / 20.0)
-
             for i in range(l_start_idx, d_end_idx):
                 u_p, v_p = path[i], path[i+1]
                 p_edge_data = G.get_edge_data(u_p, v_p)
@@ -527,11 +511,12 @@ def calculate_data_auxiliary_edge(G, path, wavelength_combination, wavelength_ca
                 
                 occupied_wls = sum(1 for e in p_edge_data.values() if e.get('occupied', False))
                 total_wls = len(p_edge_data)
+                # 软截断拥塞
                 congestion = 1.0 / (1.05 - (occupied_wls / total_wls))
                 
-                # 资源税 = 占用波长数 * 物理长度 * 链路稀缺度 * 拥塞系数 * 码率惩罚
-                # 0.5 是一个归一化系数，将公里级负担转化为 Watts 级感官
-                spectrum_opportunity_cost += num_wls_needed * p_dist * link_heat * congestion * efficiency_penalty * 0.5
+                # V4+ 逻辑：资源税 = 占用波长数 * 物理长度 * 链路稀缺度 * 拥塞系数
+                # 移除了激进的效率惩罚，将决策权交给动态硬剪枝
+                spectrum_opportunity_cost += num_wls_needed * p_dist * link_heat * congestion * 0.2
 
             real_total_power = source_power + detector_power + other_power + real_ice_box_power
             # 最终权重 = 边际功耗 + 频谱资源税
@@ -658,11 +643,13 @@ def build_auxiliary_graph(topology, wavelength_list, traffic, physical_topology,
     # 3. 遍历处理
     for src, dst in pairs:
         # --- 3.1 获取路径缓存引用 ---
-        path_list = get_cached_paths(physical_topology, src, dst, config.bypass)
+        path_list = get_cached_paths(physical_topology, src, dst, config.bypass, traffic)
         if not path_list: continue
         
         # 缓存键用于判定 1, 步骤 B, 步骤 C 的永久剔除
-        cache_key = (src, dst, config.bypass)
+        protocol = config.protocol
+        detector = config.detector
+        cache_key = (src, dst, config.bypass, protocol, traffic, detector)
         
         # 使用副本进行迭代
         for path in list(path_list):
