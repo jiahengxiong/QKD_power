@@ -20,62 +20,48 @@ from itertools import combinations
 # ==========================================
 # 路径缓存与永久剪枝逻辑
 # ==========================================
+
 _PATH_CACHE = {}
 
 def get_cached_paths(G, src, dst, is_bypass, traffic):
     """
-    公平对比路径生成引擎：
-    彻底移除人为的距离剪枝，只保留物理可行性过滤。
-    让 Dijkstra 在真实的物理成本（权重）面前做决策。
+    路径缓存引擎：
+    1. 第一次访问时使用 nx.shortest_simple_paths 生成路径。
+    2. 后续访问直接从 _PATH_CACHE 读取副本。
     """
     protocol = config.protocol
     detector = config.detector
     
-    key = (src, dst, is_bypass, protocol, traffic, detector)
+    # 缓存键：源、宿、是否旁路、协议、检测器
+    # 注意：我们不把 traffic 放在 key 里，因为物理路径是通用的。
+    # 我们在 build_auxiliary_graph 中根据流量动态剔除。
+    key = (src, dst, is_bypass, protocol, detector)
+    
     if key in _PATH_CACHE:
-        return _PATH_CACHE[key]
+        # 返回副本，防止外部修改影响缓存
+        return list(_PATH_CACHE[key])
     
     paths = []
     if is_bypass:
         try:
-            # 1. 寻找物理最短路径作为基准
-            min_dist = nx.shortest_path_length(G, src, dst, weight='distance')
-            
-            # 2. 探索候选路径空间
-            # 这里的 cutoff 设置为协议能通的最大物理极限 (例如 200km)
+            # 获取物理拓扑上的前 K 条路径
             gen = nx.shortest_simple_paths(G, src, dst, weight='distance')
-            
-            for path in itertools.islice(gen, 100):
+            for path in itertools.islice(gen, 50): # 搜索空间限制为前 50 条
                 d = calculate_distance(G, src, dst, path)
-                
-                # 彻底移除人为的“非理性绕路”剪枝 (如 3.0 倍限制)
-                # 仅保留物理可行性检查：只要物理上能产生密钥，就允许作为候选
+                # 预热物理过滤：只要物理上能通 (SKR > 0) 就加入缓存
                 if compute_key_rate(d, protocol, detector) > 0:
                     paths.append(path)
-                
-                if len(paths) >= 20: 
+                if len(paths) >= 20: # 最终保留 20 条
                     break
         except (nx.NetworkXNoPath, nx.NodeNotFound):
             pass
     else:
-        # --- No-Bypass 模式：仅允许物理上的 1-hop 路径 ---
-        try:
-            if G.has_edge(src, dst):
-                paths = [[src, dst]]
-        except:
-            pass
+        # 非 bypass 模式：仅尝试 1-hop 物理边
+        if G.has_edge(src, dst):
+            paths = [[src, dst]]
             
     _PATH_CACHE[key] = paths
-    return paths
-
-def clear_path_cache():
-    """清空全局路径缓存"""
-    global _PATH_CACHE
-    _PATH_CACHE = {}
-
-# ==========================================
-# 核心构建与辅助函数 (保持不变或微调)
-# ==========================================
+    return list(paths)
 
 def build_network_slice(wavelength_list, topology, traffic):
     network_slice = {}
@@ -338,27 +324,22 @@ def calculate_power(laser_detector_position, path, G):
         ice_box_power = 3000
     else:
         ice_box_power = 0
-    
     laser_position = laser_detector_position['laser']
     detector_position = laser_detector_position['detector']
-    
     if laser_position is not None and detector_position is not None:
         distance = calculate_distance(G=G, path=path, start=laser_position, end=detector_position)
         power = compute_power(distance=distance, protocol=config.protocol, receiver=config.detector)
         component_power['source'] = power['source']
         component_power['detector'] = power['detector']
         component_power['other'] = power['other']
-        
-        # 使用平滑冰箱成本模型 (大局观)
-        # 每个探测器承担 1/capacity 的冰箱功耗
-        if config.detector == 'SNSPD':
-            unit_ice_box_power = ice_box_power / config.ice_box_capacity
-            component_power['ice_box'] = unit_ice_box_power
-            component_power['total'] = power['source'] + power['detector'] + power['other'] + unit_ice_box_power
-        else:
-            component_power['total'] = power['total']
+        total_power = power['total']
+        num_detector = G.nodes[detector_position]['num_detector']
+        if num_detector % config.ice_box_capacity == 0:
+            total_power = ice_box_power + total_power
+            component_power['ice_box'] = ice_box_power
     else:
-        component_power['total'] = 0
+        total_power = 0
+    component_power['total'] = total_power
     return component_power
 
 
@@ -407,34 +388,24 @@ except ImportError:
     pass
 
 def calculate_data_auxiliary_edge(G, path, wavelength_combination, wavelength_capacity, laser_detector_position,
-                                  traffic, network_slice, remain_num_request, link_future_demand=None, topology=None, map_name=None, benchmark_dist=80.0):
-    """
-    核心重构：基于“大局观”的边际功耗模型。
-    1. 仅对需要开启的新波长计费。
-    2. 使用平滑的冰箱功耗 (375W/探测器) 替代阶跃函数，增强稳定性。
-    3. 引入基于动态标杆 (Dynamic Benchmarking) 的软能效惩罚。
-    """
+                                  traffic, network_slice, remain_num_request, link_future_demand=None, topology=None, node_future_demand=None):
     data = []
     keys = laser_detector_position.keys()
     values = laser_detector_position.values()
     wavelength_laser_detector_list = [dict(zip(keys, combo)) for combo in product(*values)]
     
+    # === 获取全局配置 ===
+    # 默认为 SNSPD
     detector_type = getattr(config, 'detector', 'SNSPD')
     ice_box_capacity = getattr(config, 'ice_box_capacity', 8)
     unit_cooling_power = getattr(config, 'unit_cooling_power', 3000)
-    
-    # 获取当前协议在“标杆距离”下的原生 SKR
-    # 标杆距离定义为当前拓扑中最大的物理链路长度，确保 No-Bypass 模式下的物理边永远不会被惩罚。
-    benchmark_skr = compute_key_rate(benchmark_dist, config.protocol, config.detector)
-
-    # 平滑冰箱成本：每个探测器平摊的制冷功耗
-    smoothed_ice_box_cost_per_det = unit_cooling_power / ice_box_capacity if detector_type == 'SNSPD' else 0
 
     for wavelength_laser_detector in wavelength_laser_detector_list:
         wavelength_traffic_limitation = {}
         max_traffic = 0
         wavelength_used_laser_detector = {}
         
+        # 1. 计算容量
         for wavelength, laser_detector in wavelength_laser_detector.items():
             key_rate, used_laser_detector = Max_capacity(
                 laser_detector=laser_detector,
@@ -447,22 +418,23 @@ def calculate_data_auxiliary_edge(G, path, wavelength_combination, wavelength_ca
             max_traffic += wavelength_traffic_limitation[wavelength]
             wavelength_used_laser_detector[wavelength] = used_laser_detector
 
+        # 2. 只有满足流量才计算功耗
         if max_traffic >= traffic:
             source_power = 0
-            detector_power = 0 
+            detector_power = 0 # 仅指探测器自身运作功耗（不含制冷）
             other_power = 0
-            real_ice_box_power = 0
             
-            # 边际寻路权重
-            marginal_weight = 0.0
-            num_wls_needed = max(1.0, traffic / max_traffic)
+            spectrum = 0
+            LD = 0
+            used_LD = 0
+            node_new_detectors_count = {}
             
+            # === 3. 统计频谱与物理参数 ===
+            spectrum = 0
             for wavelength, laser_detector in wavelength_laser_detector.items():
-                laser_node, det_node = laser_detector
-                
-                # A. 基础物理参数
+                # 调用 calculate_power 获取基础组件功耗
                 component_power = calculate_power(
-                    laser_detector_position={'laser': laser_node, 'detector': det_node}, 
+                    laser_detector_position={'laser': laser_detector[0], 'detector': laser_detector[1]}, 
                     path=path,
                     G=network_slice[wavelength]
                 )
@@ -470,84 +442,126 @@ def calculate_data_auxiliary_edge(G, path, wavelength_combination, wavelength_ca
                 source_power += component_power['source']
                 detector_power += component_power['detector'] 
                 other_power += component_power['other']
-                real_ice_box_power += component_power['ice_box']
                 
-                # B. 精确边际成本判断 (大局观核心)
-                # 只有当该波长在该路径段上尚未建立 LD 对时，才计入硬件开启功耗
-                is_already_active = False
+                # 统计 LD 距离
+                if laser_detector[0] is not None:
+                    LD += (path.index(laser_detector[1]) - path.index(laser_detector[0]) - 1)
                 
-                # 安全检查：如果 laser_node 为 None，说明该波长在全路径上已激活
-                if laser_node is None:
-                    is_already_active = True
-                elif laser_node in G.nodes and wavelength in G.nodes[laser_node].get('laser', {}):
-                    l_idx, d_idx = path.index(laser_node), path.index(det_node)
-                    cover_links = path[l_idx:d_idx+1]
-                    if cover_links in G.nodes[laser_node]['laser'][wavelength]:
-                        is_already_active = True
-                
-                if is_already_active:
-                    # 硬件已开启，边际成本仅为激光器增量 (极小)
-                    marginal_weight += (component_power['source'] * 0.1)
-                else:
-                    # 硬件未开启，计入全额组件功耗 + 平滑后的冰箱份额
-                    marginal_weight += (component_power['source'] + component_power['detector'] + component_power['other'])
-                    marginal_weight += smoothed_ice_box_cost_per_det
+                used_LD += len(wavelength_used_laser_detector[wavelength])
 
-            # C. 频谱代价计算 (Spectrum Tax Calculation)
-            # 差异化逻辑：
-            # 1. 物理边 (1-hop): 按实际流量计费，保护物理底线。
-            # 2. 旁路边 (Multi-hop): 按“虚拟频谱税”计费，施加高压，防止低效占用。
-            spectrum_opportunity_cost = 0.0
-            is_bypass_edge = len(path) > 2
+                # 统计新增探测器位置
+                det_node = laser_detector[1]
+                if det_node is not None:
+                    node_new_detectors_count[det_node] = node_new_detectors_count.get(det_node, 0) + 1
+
+                # 统计物理波长占用 (新增占用)
+                for i in range(len(path) - 1):
+                    u_p, v_p = path[i], path[i+1]
+                    edges_data = G.get_edge_data(u_p, v_p)
+                    if not edges_data: continue
+                    for edge_key, edge_attrs in edges_data.items():
+                        if edge_attrs.get('wavelength') == wavelength:
+                            if not edge_attrs.get('occupied', False):
+                                spectrum += 1
+
+            # === 4. 计算动态拥塞惩罚 (基于物理链路的未来总需求) ===
+            future_penalty = 0.0
+            if link_future_demand:
+                for i in range(len(path) - 1):
+                    u_p, v_p = path[i], path[i+1]
+                    
+                    # 直接获取该链路未来的预测总需求 (来自动态热力图)
+                    demand = link_future_demand.get((u_p, v_p), link_future_demand.get((v_p, u_p), 0))
+                    
+                    # 惩罚项直接与热度成正比
+                    # 系数 1000.0 将惩罚项量级对齐到功耗项 (1e8)
+                    # 例如：未来有 10 万流量经过此路，则产生 1e8 的惩罚，引导 Dijkstra 避让
+                    future_penalty += demand
             
-            if is_bypass_edge:
-                # 旁路边：为了实现“小负载严惩”，假设其至少占用能达到平均水平的带宽
-                virtual_num_wls = max(1.0, benchmark_skr / max_traffic)
+            # === 5. 统一计算共享冰箱功耗 (只针对 SNSPD) ===
+            ice_box_power = 0
+            marginal_fridges = 0
+            
+            if detector_type == 'SNSPD':
+                for node, new_count in node_new_detectors_count.items():
+                    # 获取该节点当前已有的探测器数量
+                    if node in G.nodes:
+                        current_num = G.nodes[node].get('num_detector', 0)
+                    else:
+                        current_num = 0
+                    
+                    # 之前的冰箱数 = ceil(当前数量 / 容量)
+                    fridges_before = math.ceil(current_num / ice_box_capacity)
+                    
+                    # 加上新增探测器后的总量
+                    total_num_after = current_num + new_count
+                    
+                    # 之后的冰箱数
+                    fridges_after = math.ceil(total_num_after / ice_box_capacity)
+                    
+                    # 只有当冰箱数量确实增加时，才计入 3000W
+                    marginal_fridges = fridges_after - fridges_before
+                    if marginal_fridges > 0:
+                        # === 核心改进：引入未来热度奖励因子 ===
+                        # 如果该节点未来有很多请求结束，说明它是一个潜在的“探测器聚集地”。
+                        # 此时开冰箱的代价应该被“摊薄”（给予折扣奖励）。
+                        future_node_demand = node_future_demand.get(node, 0) if node_future_demand else 0
+                        # 归一化折扣因子：需求越高，折扣越大，最低 0.5 (即 1500W)
+                        # 参考基准：当前请求流量 * 剩余请求数
+                        reference_demand = traffic * (remain_num_request + 1)
+                        discount = max(0.5, 1.0 - (future_node_demand / (reference_demand * 5.0 + 1.0)))
+                        
+                        ice_box_power += marginal_fridges * unit_cooling_power * discount
             else:
-                # 物理边：按需计费，不额外惩罚
-                virtual_num_wls = num_wls_needed
+                # APD 或其他类型不需要冰箱
+                ice_box_power = 0
+
+            # === 4. 汇总 ===
+            total_power = source_power + detector_power + other_power
             
-            # 确定覆盖范围
-            if laser_node is not None and det_node is not None:
-                l_start_idx = path.index(laser_node)
-                d_end_idx = path.index(det_node)
+            distance = calculate_distance(G=G, path=path, start=path[0], end=path[-1])
+            if config.bypass:
+                bypass_val = 1
             else:
-                l_start_idx = 0
-                d_end_idx = len(path) - 1
-            
-            for i in range(l_start_idx, d_end_idx):
-                u_p, v_p = path[i], path[i+1]
-                p_edge_data = G.get_edge_data(u_p, v_p)
-                if not p_edge_data: continue
-                
-                p_dist = p_edge_data[next(iter(p_edge_data))].get('distance', 1.0)
-                link_heat = link_future_demand.get((u_p, v_p), 0) if link_future_demand else 0
-                
-                occupied_wls = sum(1 for e in p_edge_data.values() if e.get('occupied', False))
-                total_wls = 40 
-                congestion = 1.0 / (1.05 - (occupied_wls / total_wls))
-                
-                spectrum_opportunity_cost += virtual_num_wls * p_dist * link_heat * congestion * 10.0
+                bypass_val = 0
 
-            # D. 自适应能效惩罚 (Adaptive Efficiency Penalty)
-            # 差异化逻辑：
-            # 1. 物理边 (1-hop): 惩罚系数为 1.0，不强制干预。
-            # 2. 旁路边 (Multi-hop): 如果 SKR 低于平均水平，施加幂律惩罚。
-            efficiency_penalty = 1.0
-            if is_bypass_edge:
-                exponent = 3 if config.protocol == 'CV-QKD' else 2
-                efficiency_penalty = max(1.0, pow(benchmark_skr / max_traffic, exponent))
+            # 你的权重公式
+            eps = 1e-12
 
-            real_total_power = source_power + detector_power + other_power + real_ice_box_power
-            # 最终权重 = (边际功耗 + 频谱税) * 能效惩罚
-            weight = max(1.0, (marginal_weight + spectrum_opportunity_cost) * efficiency_penalty)
+            # 1) 主项：单位能力功耗（grooming 的“摊薄成本”核心）
+            unit_power = ((total_power + ice_box_power*0.125 ) / max(max_traffic, eps)) * 1e9
 
+            # 2) 新增段数：新增 vs 复用（越多越不grooming，但必须摊薄）
+            new_segments = sum(1 for w, ld in wavelength_laser_detector.items() if ld[0] is not None)
+            seg_penalty = (new_segments / max(max_traffic, eps)) * 1e9
+
+            # 3) 波长数：越多越碎，也摊薄
+            wl_penalty = (len(wavelength_combination) / max(max_traffic, eps))
+            wl_penalty = wl_penalty * wl_penalty * 1e9
+
+            # 4) 紧张度：避免“刚刚够”，给网络留可 groom 的余量
+            tightness = (traffic) / max(max_traffic, eps)      # (0,1]
+            tight_penalty = tightness * tightness            # 平滑
+
+            # 5) 你原来的 S：做成非常弱的项，别让它主导
+            s_penalty = ((spectrum) / max(len(wavelength_combination), 1))
+            s_penalty = s_penalty * s_penalty * 1e-4
+
+            weight = (
+                unit_power
+                + 0.05 * seg_penalty        # 0.01~0.2 调
+                + 0.02 * wl_penalty         # 0.005~0.1 调
+                + 1e3  * tight_penalty      # 1e2~1e4 调：越大越讨厌“刚刚够”
+                + s_penalty
+                + future_penalty            # 新增：未来动态拥塞感知
+            )
+            total_power = total_power + ice_box_power
             data.append({
-                'power': real_total_power,
+                'power': total_power,
                 'source_power': source_power,
                 'detector_power': detector_power,
                 'other_power': other_power,
-                'ice_box_power': real_ice_box_power, 
+                'ice_box_power': ice_box_power, # 这是计算后的真实共享冰箱功耗
                 'path': path, 
                 'laser_detector_position': wavelength_laser_detector,
                 'wavelength_traffic': wavelength_traffic_limitation,
@@ -639,9 +653,10 @@ def build_temp_graph_for_path(topology, path, wavelength_combinations):
 # 核心重构：build_auxiliary_graph
 # ==========================================
 
-def build_auxiliary_graph(topology, wavelength_list, traffic, physical_topology, shared_key_rate_list, served_request, remain_num_request, link_future_demand=None, map_name=None):
+def build_auxiliary_graph(topology, wavelength_list, traffic, physical_topology, shared_key_rate_list, served_request,remain_num_request, link_future_demand=None, node_future_demand=None):
     """
-    辅助图构建函数：基于物理拓扑和当前波长状态，生成逻辑层候选边。
+    终极修正版 V8：DFS 回溯 + 智能剪枝 (Backtracking with Pruning)
+    新增：link_future_demand (链路热力图), node_future_demand (节点热力图)
     """
     auxiliary_graph = nx.MultiDiGraph()
     
@@ -649,16 +664,6 @@ def build_auxiliary_graph(topology, wavelength_list, traffic, physical_topology,
     network_slice = build_network_slice(wavelength_list=wavelength_list, topology=topology, traffic=traffic)
     config.key_rate_list = shared_key_rate_list 
     
-    # 动态获取当前地图的物理链路平均长度，作为能效标杆的基准距离
-    # 理由：以网络原生平均性能作为“合格线”，既不偏袒 Bypass 也不偏袒 No-Bypass
-    total_dist = 0
-    num_edges = 0
-    for u, v, d in physical_topology.edges(data='distance'):
-        total_dist += d
-        num_edges += 1
-    
-    avg_physical_dist = total_dist / num_edges if num_edges > 0 else 80.0
-
     for node in topology.nodes():
         auxiliary_graph.add_node(node)
 
@@ -672,25 +677,27 @@ def build_auxiliary_graph(topology, wavelength_list, traffic, physical_topology,
     
     # 3. 遍历处理
     for src, dst in pairs:
-        # --- 3.1 获取路径缓存引用 ---
+        # --- 3.1 从路径缓存中读取候选路径 ---
         path_list = get_cached_paths(physical_topology, src, dst, config.bypass, traffic)
         if not path_list: continue
         
-        # 缓存键用于判定 1, 步骤 B, 步骤 C 的永久剔除
-        protocol = config.protocol
-        detector = config.detector
-        cache_key = (src, dst, config.bypass, protocol, traffic, detector)
+        # 获取用于永久剔除的缓存键
+        cache_key = (src, dst, config.bypass, config.protocol, config.detector)
         
-        # 使用副本进行迭代
+        # --- 3.2 遍历探测路径 ---
+        # 使用副本 list(path_list) 进行遍历，以便在循环中修改原始 path_list
         for path in list(path_list):
             # === 步骤 A: 收集并筛选候选波长 ===
             candidates = []
+            
             for wavelength in wavelength_list:
                 wl_slice = network_slice[wavelength]
                 
                 # 1. 容量筛选
                 min_cap = find_min_free_capacity(wavelength_slice=wl_slice, path=path)
                 if min_cap <= 0:
+                    if path in _PATH_CACHE[cache_key]:
+                        _PATH_CACHE[cache_key].remove(path)
                     continue 
 
                 # 2. 硬件筛选
@@ -698,90 +705,174 @@ def build_auxiliary_graph(topology, wavelength_list, traffic, physical_topology,
                     wavelength_slice=wl_slice, path=path, wavelength=wavelength
                 )
                 if len(positions) < 1:
+                    if path in _PATH_CACHE[cache_key]:
+                        _PATH_CACHE[cache_key].remove(path)
                     continue 
                 
                 candidates.append({
                     'wl': wavelength,
-                    'cap': min_cap, 
+                    'cap': min_cap, # 这里的 cap 是路径瓶颈容量
                     'pos': positions
                 })
             
-            # === 判定 1: 基础可行性探测 ===
             if not candidates:
-                # 此路径连一个空闲波长都凑不齐，彻底不可行，永久剔除
+                # [工程优化]：此路径目前连一个可用波长都没有。
+                # 由于资源不回收，该路径在本次实验后续也将永远不可用。
+                # 永久剔除，避免后续请求再次探测此无效路径。
                 if path in _PATH_CACHE[cache_key]:
                     _PATH_CACHE[cache_key].remove(path)
                 continue
 
-            # === 步骤 B: 流量承载能力探测 ===
-            total_possible_cap = sum(c['cap'] for c in candidates)
-            if total_possible_cap < traffic:
-                # 即使全选所有可用波长，容量也达不到 traffic 要求，永久剔除
-                if path in _PATH_CACHE[cache_key]:
-                    _PATH_CACHE[cache_key].remove(path)
-                continue
-
-            # === 步骤 C: DFS 深度组合探测 ===
-            path_found_flag = False
+            # === 步骤 B: 排序 (Best Fit Strategy) ===
             candidates.sort(key=lambda x: x['cap'], reverse=False)
 
-            def dfs_find_valid_set(idx, current_theoretical_sum, current_wls, current_pos_dict, current_cap_dict):
+            # === 步骤 C: 构建后缀和 (Suffix Sum) 用于剪枝 ===
+            n_candidates = len(candidates)
+            suffix_max_cap = [0.0] * n_candidates
+            current_sum = 0.0
+            for i in range(n_candidates - 1, -1, -1):
+                current_sum += candidates[i]['cap']
+                suffix_max_cap[i] = current_sum
+            
+            if suffix_max_cap[0] < traffic:
+                # [工程优化]：即使该路径所有可用波长全开，容量也达不到 traffic 要求。
+                # 考虑到资源只减不增，该路径对该流量等级及以上已彻底失效。
+                if path in _PATH_CACHE[cache_key]:
+                    _PATH_CACHE[cache_key].remove(path)
+                continue
+
+            # === 步骤 D: DFS 探测该物理路径是否能凑够 traffic ===
+            path_found_flag = False
+
+            def dfs_find_valid_set(idx, current_wls, current_pos_dict, current_cap_dict, current_theoretical_sum, remain_num_request):
                 nonlocal path_found_flag
                 if path_found_flag: return 
                 
                 if current_theoretical_sum >= traffic:
-                    # 验证波长干扰约束 (served_request)
                     if not check_path_validity_for_request(path, current_wls, served_request):
                         return 
                     
                     temp_G = build_temp_graph_for_path(topology, path, current_wls)
                     data = calculate_data_auxiliary_edge(
-                        G=temp_G, path=path, laser_detector_position=current_pos_dict, 
-                        wavelength_combination=current_wls, wavelength_capacity=current_cap_dict, 
-                        traffic=traffic, network_slice=network_slice, remain_num_request=remain_num_request, 
-                        link_future_demand=link_future_demand, topology=topology, map_name=map_name,
-                        benchmark_dist=avg_physical_dist
+                        G=temp_G, 
+                        path=path, 
+                        laser_detector_position=current_pos_dict, 
+                        wavelength_combination=current_wls, 
+                        wavelength_capacity=current_cap_dict, 
+                        traffic=traffic, 
+                        network_slice=network_slice, 
+                        remain_num_request=remain_num_request, 
+                        link_future_demand=link_future_demand, 
+                        node_future_demand=node_future_demand, 
+                        topology=topology 
                     )
                     del temp_G
                     
                     if data:
                         for edge_data in data:
-                            auxiliary_graph.add_edge(src, dst, key=uuid.uuid4().hex, **edge_data)
+                            auxiliary_graph.add_edge(path[0], path[-1], 
+                                                     key=uuid.uuid4().hex + str(current_wls), 
+                                                     **edge_data)
                         path_found_flag = True 
                     return 
 
-                if idx >= len(candidates): return
-                
-                # 选当前波长
-                target = candidates[idx]
-                new_pos = current_pos_dict.copy(); new_pos[target['wl']] = target['pos']
-                new_cap = current_cap_dict.copy(); new_cap[target['wl']] = target['cap']
-                dfs_find_valid_set(idx + 1, current_theoretical_sum + target['cap'], current_wls + [target['wl']], new_pos, new_cap)
+                if idx >= n_candidates:
+                    return 
+                if current_theoretical_sum + suffix_max_cap[idx] < traffic:
+                    return
+
+                # 选
+                current_wls.append(candidates[idx]['wl'])
+                current_pos_dict[candidates[idx]['wl']] = candidates[idx]['pos']
+                current_cap_dict[candidates[idx]['wl']] = candidates[idx]['cap']
+                dfs_find_valid_set(idx + 1, current_wls, current_pos_dict, current_cap_dict, 
+                                   current_theoretical_sum + candidates[idx]['cap'], remain_num_request)
                 
                 if path_found_flag: return
                 
-                # 不选当前波长
-                remaining_potential = sum(c['cap'] for c in candidates[idx+1:])
-                if current_theoretical_sum + remaining_potential >= traffic:
-                    dfs_find_valid_set(idx + 1, current_theoretical_sum, current_wls, current_pos_dict, current_cap_dict)
+                # 不选
+                current_wls.pop()
+                del current_pos_dict[candidates[idx]['wl']]
+                del current_cap_dict[candidates[idx]['wl']]
+                dfs_find_valid_set(idx + 1, current_wls, current_pos_dict, current_cap_dict, 
+                                   current_theoretical_sum, remain_num_request)
 
             # 执行探测
-            dfs_find_valid_set(0, 0, [], {}, {})
+            dfs_find_valid_set(0, [], {}, {}, 0, remain_num_request)
             
-            # 注意：如果 DFS 探测失败，说明该物理路径即使存在空闲波长，也无法满足流量需求或干扰约束。
-            # 根据“资源不回收”原则，这条路径对于该 traffic 级别已失效，永久剔除。
+            # [工程优化]：如果 DFS 没找到解，说明资源不足，永久剔除
             if not path_found_flag:
                 if path in _PATH_CACHE[cache_key]:
                     _PATH_CACHE[cache_key].remove(path)
-            
-            # 注意：此处不 break，继续寻找下一条物理路径，以增加辅助图的连通性。
-            # 只有当彻底不可行时才剔除。
+            else:
+                # 找到了物理路径，跳过后续探测（可选，根据你的算法需求决定是否只取最短）
+                break 
 
     del network_slice
     gc.collect()
 
     return auxiliary_graph
 
+
+
+
+
+def find_first_valid_physical_path(topology, physical_topology, src, dst, traffic, wavelength_list, served_request):
+    """
+    专门为动态热力图设计的探测函数：寻找第一条满足当前网络物理约束的可行路径。
+    采用与 build_auxiliary_graph 一致的缓存与流式探测逻辑。
+    """
+    # [工程优化]：使用路径缓存，避免在热力图计算中重复执行图搜索
+    path_list = get_cached_paths(physical_topology, src, dst, config.bypass, traffic)
+    if not path_list:
+        return None
+
+    # 获取用于永久剔除的缓存键
+    cache_key = (src, dst, config.bypass, config.protocol, config.detector)
+    
+    for path in list(path_list):
+        candidates = []
+        for wavelength in wavelength_list:
+            # 1. 检查容量 (直接从原拓扑检查)
+            path_min_cap = float('inf')
+            is_wavelength_available = True
+            for i in range(len(path) - 1):
+                u, v = path[i], path[i+1]
+                edge_found = False
+                if topology.has_edge(u, v):
+                    for key, data in topology[u][v].items():
+                        if data.get('wavelength') == wavelength and data.get('free_capacity', 0) > 0:
+                            path_min_cap = min(path_min_cap, data['free_capacity'])
+                            edge_found = True
+                            break
+                if not edge_found:
+                    is_wavelength_available = False
+                    break
+            
+            if not is_wavelength_available:
+                continue
+                
+            # 2. 检查硬件 (简化版：临时构建 slice 检查)
+            temp_slice = nx.Graph()
+            for k in range(len(path) - 1):
+                u_n, v_n = path[k], path[k+1]
+                temp_slice.add_edge(u_n, v_n)
+                temp_slice.nodes[u_n].update(topology.nodes[u_n])
+                temp_slice.nodes[v_n].update(topology.nodes[v_n])
+            
+            positions = find_laser_detector_position(temp_slice, path, wavelength)
+            if len(positions) > 0:
+                candidates.append(path_min_cap)
+        
+        # 3. 汇总检查是否能满足流量
+        if sum(candidates) >= traffic:
+            return path
+        else:
+            # [工程优化]：该路径在当前资源下不可用，永久剔除
+            if path in _PATH_CACHE[cache_key]:
+                _PATH_CACHE[cache_key].remove(path)
+                
+    return None
 
 # ==========================================
 # 流量生成函数 (保持不变)

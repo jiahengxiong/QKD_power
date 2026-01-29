@@ -198,28 +198,40 @@ import os
 # utils.tools.build_auxiliary_graph, find_min_weight_path_with_relay, serve_traffic
 # 同时，全局变量 map_name 和 config 模块需要在工程中预先定义
 
-def calculate_static_global_heatmap(physical_topology, all_requests):
+def calculate_dynamic_heatmap(auxiliary_graph, future_requests):
     """
-    计算静态全量热力图：基于最短路径预测全网流量分布。
+    大局观热力图：全量预测未来，统计路径上所有节点的战略价值。
     """
-    link_heat = {}
-    for req in all_requests:
-        src, dst, traffic = req[1], req[2], req[3]
-        try:
-            path = nx.shortest_path(physical_topology, src, dst, weight='distance')
-            for i in range(len(path) - 1):
-                u, v = path[i], path[i+1]
-                link_heat[(u, v)] = link_heat.get((u, v), 0) + traffic
-                link_heat[(v, u)] = link_heat.get((v, u), 0) + traffic
-        except:
-            continue
+    link_demand = {}
+    node_strategic_value = {} # 统计节点在未来路径中出现的总频率
+    decay_base = 0.95
     
-    # 归一化到 0~1
-    if link_heat:
-        max_heat = max(link_heat.values())
-        for k in link_heat:
-            link_heat[k] /= max_heat
-    return link_heat
+    for step, req in enumerate(future_requests):
+        r_src, r_dst, r_traffic = req[1], req[2], req[3]
+        weight = math.pow(decay_base, step)
+        weighted_traffic = r_traffic * weight
+        
+        result = find_min_weight_path_with_relay(auxiliary_graph=auxiliary_graph, src=r_src, dst=r_dst)
+        
+        if result:
+            _, best_path_edges, _, _, _ = result
+            
+            # 遍历预测路径中的每一条逻辑边
+            for (u, v, key) in best_path_edges:
+                edge_data = auxiliary_graph.get_edge_data(u, v, key=key)
+                if edge_data and 'path' in edge_data:
+                    physical_path = edge_data['path']
+                    # 1. 累加物理链路热度
+                    for j in range(len(physical_path) - 1):
+                        p_u, p_v = physical_path[j], physical_path[j+1]
+                        link_demand[(p_u, p_v)] = link_demand.get((p_u, p_v), 0) + weighted_traffic
+                        link_demand[(p_v, p_u)] = link_demand.get((p_v, p_u), 0) + weighted_traffic
+                    
+                    # 2. 累加物理节点战略价值 (大局观：路径上所有点都有复用潜力)
+                    for p_node in physical_path:
+                        node_strategic_value[p_node] = node_strategic_value.get(p_node, 0) + weighted_traffic
+                        
+    return link_demand, node_strategic_value
 
 def process_mid(traffic_type, map_name, protocol, detector, bypass, key_rate_list, wavelength_list, num_runs,
                 ice_box_capacity, request_list):
@@ -284,16 +296,22 @@ def process_mid(traffic_type, map_name, protocol, detector, bypass, key_rate_lis
         with tqdm(total=len(traffic_matrix), file=sys.stderr, colour="red",
                   desc=f"mid {mid} run {run + 1}/{num_runs}") as pbar:
             remain_num_request = len(traffic_matrix)
+            link_future_demand = {} 
+            node_future_demand = {} # 初始化节点热力图
             
-            # --- 1. 计算全量静态热力图 (大局观预测) ---
-            link_future_demand = calculate_static_global_heatmap(physical_topology, traffic_matrix)
-            node_future_demand = {} # 暂不需要节点热力图
+            # --- 1. 构建剩余需求热力图 (Future Demand Heatmap) ---
+            # 预计算所有剩余请求的最短路径，统计每条物理链路被“未来”经过的次数
+            # 这不需要非常精确（比如考虑波长），只需要基于物理距离的拓扑统计
+            # link_future_demand = {(u, v): traffic_weighted_count}
             
-            # --- 2. 顺序处理请求 ---
+            # --- 3. 顺序处理请求 (Greedy with Dynamic Heatmap) ---
             for i, request in enumerate(traffic_matrix):
-                id, src, dst, traffic = request[0], request[1], request[2], request[3]
+                id = request[0]
+                src = request[1]
+                dst = request[2]
+                traffic = request[3]
                 
-                # --- 3. 构建正式寻路用的辅助图 ---
+                # --- 1. 构建辅助图 (使用上一步的热力图) ---
                 auxiliary_graph = utils.tools.build_auxiliary_graph(
                     topology=topology,
                     wavelength_list=wavelength_list,
@@ -303,8 +321,37 @@ def process_mid(traffic_type, map_name, protocol, detector, bypass, key_rate_lis
                     served_request=served_request,
                     remain_num_request=remain_num_request,
                     link_future_demand=link_future_demand,
-                    map_name=map_name
+                    node_future_demand=node_future_demand # 启用节点热度反馈
                 )
+
+                # --- 2. 动态更新热力图 (基于当前 AG) ---
+                if i % 10 == 0:
+                    future_requests = traffic_matrix[i+1:]
+                    link_future_demand, node_raw_value = calculate_dynamic_heatmap(
+                        auxiliary_graph=auxiliary_graph,
+                        future_requests=future_requests
+                    )
+                    
+                    # 归一化节点战略价值 (0~1)
+                    node_future_demand = {}
+                    if node_raw_value:
+                        max_val = max(node_raw_value.values())
+                        if max_val > 0:
+                            for n, v in node_raw_value.items():
+                                node_future_demand[n] = v / max_val
+                    
+                    # 重新构建 AG 以应用最新的热度数据
+                    auxiliary_graph = utils.tools.build_auxiliary_graph(
+                        topology=topology,
+                        wavelength_list=wavelength_list,
+                        traffic=traffic,
+                        physical_topology=physical_topology,
+                        shared_key_rate_list=key_rate_list,
+                        served_request=served_request,
+                        remain_num_request=remain_num_request,
+                        link_future_demand=link_future_demand,
+                        node_future_demand=node_future_demand
+                    )
 
                 result = find_min_weight_path_with_relay(auxiliary_graph=auxiliary_graph, src=src, dst=dst)
 
