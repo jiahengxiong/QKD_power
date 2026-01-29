@@ -24,20 +24,18 @@ _PATH_CACHE = {}
 
 def find_distance_limit_by_efficiency(protocol, detector, traffic, topology_name):
     """
-    动态标杆 (Dynamic Benchmarking) V9.0：
-    基于 V4 标杆 (CV-QKD, 90k Traffic, 80km) 设定“全负载通用”能效红线。
-    无论当前流量是多少，Bypass 链路必须具备承载 High Traffic 的能力才被允许。
+    动态标杆 (Dynamic Benchmarking) V11.0：
+    统一使用 CV-QKD 在 80km 处的性能 (1.15 Mbps) 作为全网能效红线。
+    逻辑：traffic load 越低，允许的 Bypass 长度就越长。
     """
-    # 1. 确定 V4 黄金标杆 (CV-QKD 在 80km 处的性能)
-    # CV-QKD 在 80km 处的码率约为 1,150,000 bps
+    # 1. 确定全网黄金标杆 (CV-QKD 在 80km 处的 SKR)
     ref_skr_bench = 1150000 
-    ref_traffic_bench = 90000
-    efficiency_ratio_bench = ref_skr_bench / ref_traffic_bench # 约为 12.78
+    ref_traffic_bench = config.Traffic_cases.get(topology_name, {}).get('High', 90000)
     
-    # 2. 计算当前地图对应的 High Traffic 值作为“准入门槛”
-    # 核心修正：使用当前地图的 High 流量，而不是当前请求的流量
-    map_high_traffic = config.Traffic_cases.get(topology_name, {}).get('High', 90000)
-    target_skr = map_high_traffic * efficiency_ratio_bench
+    # 2. 计算当前流量下的目标码率阈值 (Target SKR)
+    # 逻辑：Target_SKR / Current_Traffic = Bench_SKR / High_Traffic
+    # 即：Target_SKR = Current_Traffic * (Bench_SKR / High_Traffic)
+    target_skr = traffic * (ref_skr_bench / ref_traffic_bench)
     
     # 3. 二分查找反解物理距离上限 (范围 1-200km)
     low, high = 1, 200
@@ -53,8 +51,9 @@ def find_distance_limit_by_efficiency(protocol, detector, traffic, topology_name
         else:
             high = mid - 1
             
-    # 兜底保护：Large 拓扑下上限不超过 150km
-    return min(150, limit_dist)
+    # 4. 物理大局观兜底：
+    # 即使在低负载下，Bypass 也不应超过 120km，否则其物理功耗和频谱代价将超过 Relay 收益
+    return min(120, limit_dist)
 
 def get_cached_paths(G, src, dst, is_bypass, traffic, topology_name):
     """
@@ -68,46 +67,40 @@ def get_cached_paths(G, src, dst, is_bypass, traffic, topology_name):
     if key in _PATH_CACHE:
         return _PATH_CACHE[key]
     
+    paths = []
     if is_bypass:
         try:
             min_dist = nx.shortest_path_length(G, src, dst, weight='distance')
-            
-            # 动态计算该协议的“高标准”剪枝上限
+            # 动态计算该协议的“原生标杆”剪枝上限
             max_dist_limit = find_distance_limit_by_efficiency(protocol, detector, traffic, topology_name)
             
             gen = nx.shortest_simple_paths(G, src, dst, weight='distance')
-            paths = []
-            
             for path in itertools.islice(gen, 100):
                 d = calculate_distance(G, src, dst, path)
                 
-                # 剪枝逻辑：
                 # 1. 物理直连 (1-hop) 永远允许，保证连通性
                 if len(path) == 2:
                     paths.append(path)
                     continue
                 
-                # 2. Bypass 路径 (multi-hop) 必须满足能效红线
+                # 2. Bypass 路径 (multi-hop) 必须满足原生能效红线
                 if d <= max_dist_limit and d <= min_dist * 2.5:
                     paths.append(path)
                 
                 if len(paths) >= 20: 
                     break
-                    
-            _PATH_CACHE[key] = paths
-            return paths
         except (nx.NetworkXNoPath, nx.NodeNotFound):
-            _PATH_CACHE[key] = []
-            return []
+            pass
     else:
+        # --- No-Bypass 模式下的逻辑：仅允许 1-hop 物理路径 ---
         try:
-            # 非 Bypass 模式只看直连
-            paths = list(nx.all_simple_paths(G, source=src, target=dst, cutoff=1))
-            _PATH_CACHE[key] = paths
-            return paths
+            if G.has_edge(src, dst):
+                paths = [[src, dst]]
         except:
-            _PATH_CACHE[key] = []
-            return []
+            pass
+            
+    _PATH_CACHE[key] = paths
+    return paths
 
 def clear_path_cache():
     """清空全局路径缓存"""
