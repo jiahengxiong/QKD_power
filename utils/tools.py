@@ -408,12 +408,12 @@ except ImportError:
     pass
 
 def calculate_data_auxiliary_edge(G, path, wavelength_combination, wavelength_capacity, laser_detector_position,
-                                  traffic, network_slice, remain_num_request, link_future_demand=None, topology=None):
+                                  traffic, network_slice, remain_num_request, link_future_demand=None, topology=None, map_name=None):
     """
     核心重构：基于“大局观”的边际功耗模型。
     1. 仅对需要开启的新波长计费。
     2. 使用平滑的冰箱功耗 (375W/探测器) 替代阶跃函数，增强稳定性。
-    3. 引入基于静态热力图的频谱机会成本。
+    3. 引入基于动态标杆 (Dynamic Benchmarking) 的软能效惩罚。
     """
     data = []
     keys = laser_detector_position.keys()
@@ -424,6 +424,20 @@ def calculate_data_auxiliary_edge(G, path, wavelength_combination, wavelength_ca
     ice_box_capacity = getattr(config, 'ice_box_capacity', 8)
     unit_cooling_power = getattr(config, 'unit_cooling_power', 3000)
     
+    # 获取当前协议的原生 80km 标杆
+    # 这里的 80km 是学术上的“黄金分割点”
+    skr_80 = compute_key_rate(80.0, config.protocol, config.detector)
+    
+    # 获取当前地图的 High Traffic 负载作为分母
+    # 默认回退到 Large 的 90000
+    map_name_key = map_name if map_name else "Large"
+    high_traffic = config.Traffic_cases.get(map_name_key, {}).get("High", 90000)
+    
+    # 动态能效标杆：TargetSKR 随流量线性缩放
+    # 逻辑：流量越低，我们对 SKR 的容忍度越低 (即允许更长的距离)
+    # TargetSKR = current_traffic * (SKR_80 / High_Traffic)
+    target_skr = traffic * (skr_80 / high_traffic)
+
     # 平滑冰箱成本：每个探测器平摊的制冷功耗
     smoothed_ice_box_cost_per_det = unit_cooling_power / ice_box_capacity if detector_type == 'SNSPD' else 0
 
@@ -510,17 +524,24 @@ def calculate_data_auxiliary_edge(G, path, wavelength_combination, wavelength_ca
                 link_heat = link_future_demand.get((u_p, v_p), 0) if link_future_demand else 0
                 
                 occupied_wls = sum(1 for e in p_edge_data.values() if e.get('occupied', False))
-                total_wls = len(p_edge_data)
+                total_wls = 40 # 假设波长总数
+                
                 # 软截断拥塞
                 congestion = 1.0 / (1.05 - (occupied_wls / total_wls))
                 
-                # V4+ 逻辑：资源税 = 占用波长数 * 物理长度 * 链路稀缺度 * 拥塞系数
-                # 移除了激进的效率惩罚，将决策权交给动态硬剪枝
-                spectrum_opportunity_cost += num_wls_needed * p_dist * link_heat * congestion * 0.2
+                # 恢复 V4 的高压频谱税：系数 10.0
+                spectrum_opportunity_cost += num_wls_needed * p_dist * link_heat * congestion * 10.0
+
+            # D. 软能效惩罚 (Soft Efficiency Penalty) - 基于动态标杆
+            # 逻辑：如果当前旁路的 SKR 低于“动态标杆”，则进行惩罚
+            efficiency_penalty = 1.0
+            if max_traffic < target_skr:
+                # 采用平方级惩罚，强制让低效长距离在 Dijkstra 中落败
+                efficiency_penalty = (target_skr / max_traffic) ** 2
 
             real_total_power = source_power + detector_power + other_power + real_ice_box_power
-            # 最终权重 = 边际功耗 + 频谱资源税
-            weight = max(1.0, marginal_weight + spectrum_opportunity_cost)
+            # 最终权重 = (边际功耗 + 频谱资源税) * 能效惩罚
+            weight = max(1.0, (marginal_weight + spectrum_opportunity_cost) * efficiency_penalty)
 
             data.append({
                 'power': real_total_power,
@@ -619,7 +640,7 @@ def build_temp_graph_for_path(topology, path, wavelength_combinations):
 # 核心重构：build_auxiliary_graph
 # ==========================================
 
-def build_auxiliary_graph(topology, wavelength_list, traffic, physical_topology, shared_key_rate_list, served_request, remain_num_request, link_future_demand=None):
+def build_auxiliary_graph(topology, wavelength_list, traffic, physical_topology, shared_key_rate_list, served_request, remain_num_request, link_future_demand=None, map_name=None):
     """
     辅助图构建函数：基于物理拓扑和当前波长状态，生成逻辑层候选边。
     """
@@ -709,7 +730,7 @@ def build_auxiliary_graph(topology, wavelength_list, traffic, physical_topology,
                         G=temp_G, path=path, laser_detector_position=current_pos_dict, 
                         wavelength_combination=current_wls, wavelength_capacity=current_cap_dict, 
                         traffic=traffic, network_slice=network_slice, remain_num_request=remain_num_request, 
-                        link_future_demand=link_future_demand, topology=topology 
+                        link_future_demand=link_future_demand, topology=topology, map_name=map_name
                     )
                     del temp_G
                     

@@ -302,7 +302,8 @@ def process_mid(traffic_type, map_name, protocol, detector, bypass, key_rate_lis
                     shared_key_rate_list=key_rate_list,
                     served_request=served_request,
                     remain_num_request=remain_num_request,
-                    link_future_demand=link_future_demand
+                    link_future_demand=link_future_demand,
+                    map_name=map_name
                 )
 
                 result = find_min_weight_path_with_relay(auxiliary_graph=auxiliary_graph, src=src, dst=dst)
