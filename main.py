@@ -201,17 +201,26 @@ import os
 def calculate_dynamic_heatmap(auxiliary_graph, future_requests):
     """
     大局观热力图：全量预测未来，统计路径上所有节点的战略价值。
+    优化：增加缓存避免重复寻路。
     """
     link_demand = {}
-    node_strategic_value = {} # 统计节点在未来路径中出现的总频率
+    node_strategic_value = {} 
     decay_base = 0.95
+    
+    # 局部缓存，避免在一次热力图计算中对相同的 (src, dst) 重复寻路
+    path_cache = {}
     
     for step, req in enumerate(future_requests):
         r_src, r_dst, r_traffic = req[1], req[2], req[3]
         weight = math.pow(decay_base, step)
         weighted_traffic = r_traffic * weight
         
-        result = find_min_weight_path_with_relay(auxiliary_graph=auxiliary_graph, src=r_src, dst=r_dst)
+        cache_key = (r_src, r_dst)
+        if cache_key in path_cache:
+            result = path_cache[cache_key]
+        else:
+            result = find_min_weight_path_with_relay(auxiliary_graph=auxiliary_graph, src=r_src, dst=r_dst)
+            path_cache[cache_key] = result
         
         if result:
             _, best_path_edges, _, _, _ = result

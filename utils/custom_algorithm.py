@@ -87,84 +87,78 @@ from networkx.exception import NodeNotFound, NetworkXNoPath
 
     return path_key, weight"""
 
-def Dijkstra_single_path(graph, src, dst):
-    import heapq
+def Dijkstra_single_path(graph, src, dst, forbidden_nodes=None):
+    """
+    使用 NetworkX 原生 Dijkstra 算法获取最短路径。
+    支持通过 forbidden_nodes 过滤物理路径冲突的边。
+    """
+    def weight_func(u, v, data):
+        # 如果边经过了禁用的物理节点，则视为不可达
+        if forbidden_nodes:
+            path = data.get('path', [])
+            for node in path:
+                if node in forbidden_nodes:
+                    return None
+        return data.get('weight', 1.0)
 
-    heap = []
-    heapq.heappush(heap, (0, src))  # 状态仅保留节点和累计权重
-
-    # 记录到达每个节点的最小权重和前驱信息
-    visited = {src: 0}
-    predecessors = {}  # Key: 当前节点, Value: (前驱节点, 边标识)
-
-    while heap:
-        current_weight, u = heapq.heappop(heap)
-
-        if u == dst:
-            # 回溯路径
-            path_edges = []
-            current_node = u
-            while current_node in predecessors:
-                prev_node, key = predecessors[current_node]
-                path_edges.append((prev_node, current_node, key))
-                current_node = prev_node
-            path_edges.reverse()
-            return path_edges, current_weight
-
-        # Step 1: 按目标节点分组，找到每个目标节点的最小成本边
-        edges_by_v = {}
-        for _, v, key, data in graph.out_edges(u, keys=True, data=True):
-            if v not in edges_by_v:
-                edges_by_v[v] = []
-            edges_by_v[v].append((key, data))
-
-        # Step 2: 对每个目标节点，仅处理最小成本边
-        for v in edges_by_v:
-            min_weight = min(data['weight'] for (_, data) in edges_by_v[v])
-            min_edges = [(key, data) for (key, data) in edges_by_v[v] if data['weight'] == min_weight]
-
-            for key, data in min_edges:
-                new_weight = current_weight + data['weight']
-                # 若新路径更优，则更新
-                if v not in visited or new_weight < visited.get(v, float('inf')):
-                    visited[v] = new_weight
-                    predecessors[v] = (u, key)
-                    heapq.heappush(heap, (new_weight, v))
-
-    return [], current_weight
+    try:
+        # NetworkX 的原生算法比纯 Python 循环快得多
+        # 对于 MultiDiGraph，它会自动选择权重最小的边
+        weight, path_nodes = nx.single_source_dijkstra(
+            graph, src, target=dst, weight=weight_func
+        )
+        
+        # 重构路径边（包含 key）
+        path_edges = []
+        for i in range(len(path_nodes) - 1):
+            u, v = path_nodes[i], path_nodes[i+1]
+            edges = graph[u][v]
+            
+            # 在多边中找到权重最小且符合条件的 key
+            best_key = None
+            min_w = float('inf')
+            for key, data in edges.items():
+                w = weight_func(u, v, data)
+                if w is not None and w < min_w:
+                    min_w = w
+                    best_key = key
+            
+            if best_key is None:
+                return [], float('inf')
+            path_edges.append((u, v, best_key))
+            
+        return path_edges, weight
+        
+    except (nx.NetworkXNoPath, nx.NodeNotFound):
+        return [], float('inf')
 
 
-def Dijkstra_double_path(graph, src, delay, dst):
-    # 第一步，找到src到delay的最短路径
+def Dijkstra_double_path(graph, src, dst, delay):
+    """
+    计算经过中继的最短路径 (src->delay 和 dst->delay)。
+    要求两条路径在物理节点上不冲突（除了 delay 节点）。
+    """
+    # 1. 寻找 src -> delay 的最短路径
     path1_edges, path1_weight = Dijkstra_single_path(graph, src, delay)
     if not path1_edges:
-        return [], [], None
+        return [], [], float('inf')
 
-    # 收集path1中所有物理节点，除了delay
+    # 2. 收集 path1 中占用的所有物理节点
     forbidden_physical_nodes = set()
     for u, v, key in path1_edges:
-        path = graph[u][v][key].get('path', [])
-        forbidden_physical_nodes.update(node for node in path if node != delay)
-
-    # 创建图的拷贝
-    graph_copy = graph.copy()
-
-    # 遍历图的拷贝，移除包含forbidden_physical_nodes的边
-    edges_to_remove = []
-    for u, v, key, data in graph_copy.edges(data=True, keys=True):
-        path = data.get('path', [])
-        if any(node in forbidden_physical_nodes for node in path):
-            edges_to_remove.append((u, v, key))
-
-    graph_copy.remove_edges_from(edges_to_remove)
-
-    # 第二步，在处理后的图上，找到dst到delay的最短路径
-    path2_edges, path2_weight = Dijkstra_single_path(graph_copy, dst, delay)
-    del graph_copy
+        p_path = graph[u][v][key].get('path', [])
+        forbidden_physical_nodes.update(p_path)
     
+    # 中继节点本身是可以复用的，从禁用列表中移除
+    forbidden_physical_nodes.discard(delay)
+
+    # 3. 在排除掉冲突物理节点后，寻找 dst -> delay 的最短路径
+    # 直接通过 forbidden_nodes 参数传递，无需复制整个图
+    path2_edges, path2_weight = Dijkstra_single_path(
+        graph, dst, delay, forbidden_nodes=forbidden_physical_nodes
+    )
 
     if path2_edges:
-        weight = path1_weight + path2_weight
-        return path1_edges, path2_edges, weight
+        return path1_edges, path2_edges, path1_weight + path2_weight
     else:
-        return [], [], None
+        return [], [], float('inf')
