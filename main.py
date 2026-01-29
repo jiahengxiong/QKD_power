@@ -325,7 +325,7 @@ def process_mid(traffic_type, map_name, protocol, detector, bypass, key_rate_lis
                 )
 
                 # --- 2. 动态更新热力图 (基于当前 AG) ---
-                if i % 10 == 0:
+                if i % 1 == 0:
                     future_requests = traffic_matrix[i+1:]
                     link_future_demand, node_raw_value = calculate_dynamic_heatmap(
                         auxiliary_graph=auxiliary_graph,

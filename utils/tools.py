@@ -487,11 +487,16 @@ def calculate_data_auxiliary_edge(G, path, wavelength_combination, wavelength_ca
                 p_dist = p_edge_data[next(iter(p_edge_data))].get('distance', 1.0)
                 link_heat = link_future_demand.get((u_p, v_p), 0.5) if link_future_demand else 0.5
                 
+                # 显式计入节点战略价值 (Node Strategic Value)
+                u_node_heat = node_future_demand.get(u_p, 0.5) if node_future_demand else 0.5
+                v_node_heat = node_future_demand.get(v_p, 0.5) if node_future_demand else 0.5
+                combined_heat = link_heat + (u_node_heat + v_node_heat) * 0.5
+                
                 occupied_wls = sum(1 for e in p_edge_data.values() if e.get('occupied', False))
                 total_wls = 40 
                 congestion = 1.0 / (1.1 - (occupied_wls / total_wls))
                 
-                spectrum_opportunity_cost += virtual_num_wls * p_dist * (0.5 + link_heat) * congestion * 50.0
+                spectrum_opportunity_cost += virtual_num_wls * p_dist * (0.5 + combined_heat) * congestion * 50.0
 
             # D. 自适应能效惩罚
             efficiency_penalty = 1.0
