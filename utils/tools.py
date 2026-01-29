@@ -493,12 +493,19 @@ def calculate_data_auxiliary_edge(G, path, wavelength_combination, wavelength_ca
                     marginal_weight += (component_power['source'] + component_power['detector'] + component_power['other'])
                     marginal_weight += smoothed_ice_box_cost_per_det
 
-            # C. 虚拟频谱代价 (Virtual Spectrum Tax)
-            # 理由：为了实现“小负载施加和大负载相当的惩罚”，在寻路权重中，
-            # 我们假设该路径至少需要承载 benchmark_skr 级别的流量。
-            # 这确保了在 Low Traffic 下，低效的长距离旁路也会因为“虚拟拥塞”而变得昂贵。
+            # C. 频谱代价计算 (Spectrum Tax Calculation)
+            # 差异化逻辑：
+            # 1. 物理边 (1-hop): 按实际流量计费，保护物理底线。
+            # 2. 旁路边 (Multi-hop): 按“虚拟频谱税”计费，施加高压，防止低效占用。
             spectrum_opportunity_cost = 0.0
-            virtual_num_wls = max(1.0, benchmark_skr / max_traffic)
+            is_bypass_edge = len(path) > 2
+            
+            if is_bypass_edge:
+                # 旁路边：为了实现“小负载严惩”，假设其至少占用能达到平均水平的带宽
+                virtual_num_wls = max(1.0, benchmark_skr / max_traffic)
+            else:
+                # 物理边：按需计费，不额外惩罚
+                virtual_num_wls = num_wls_needed
             
             # 确定覆盖范围
             if laser_node is not None and det_node is not None:
@@ -520,18 +527,19 @@ def calculate_data_auxiliary_edge(G, path, wavelength_combination, wavelength_ca
                 total_wls = 40 
                 congestion = 1.0 / (1.05 - (occupied_wls / total_wls))
                 
-                # 使用虚拟波长数进行计费
                 spectrum_opportunity_cost += virtual_num_wls * p_dist * link_heat * congestion * 10.0
 
-            # D. 自适应单向能效惩罚 (Adaptive One-Way Efficiency Penalty)
-            # 理由：权重惩罚必须 >= 1.0，确保不因高容量而产生“虚假折扣”。
-            # 对于 CV-QKD，采用更高的幂次 (5) 以应对其巨大的容量范围。
-            exponent = 5 if config.protocol == 'CV-QKD' else 2
-            efficiency_penalty = max(1.0, pow(benchmark_skr / max_traffic, exponent))
+            # D. 自适应能效惩罚 (Adaptive Efficiency Penalty)
+            # 差异化逻辑：
+            # 1. 物理边 (1-hop): 惩罚系数为 1.0，不强制干预。
+            # 2. 旁路边 (Multi-hop): 如果 SKR 低于平均水平，施加幂律惩罚。
+            efficiency_penalty = 1.0
+            if is_bypass_edge:
+                exponent = 3 if config.protocol == 'CV-QKD' else 2
+                efficiency_penalty = max(1.0, pow(benchmark_skr / max_traffic, exponent))
 
             real_total_power = source_power + detector_power + other_power + real_ice_box_power
-            # 最终权重 = (边际功耗 + 虚拟频谱税) * 能效惩罚
-            # 这是一个连续且单调的代价函数，确保 Dijkstra 永远偏向物理能效最优解
+            # 最终权重 = (边际功耗 + 频谱税) * 能效惩罚
             weight = max(1.0, (marginal_weight + spectrum_opportunity_cost) * efficiency_penalty)
 
             data.append({
