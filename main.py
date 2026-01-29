@@ -199,47 +199,43 @@ import os
 # 同时，全局变量 map_name 和 config 模块需要在工程中预先定义
 
 def calculate_dynamic_heatmap(auxiliary_graph, future_requests):
-    """
-    大局观热力图：全量预测未来，统计物理链路的负载压力。
-    优化：增加缓存避免重复寻路。
-    """
-    link_demand = {}
-    decay_base = 0.95
-    
-    # 局部缓存，避免在一次热力图计算中对相同的 (src, dst) 重复寻路
-    path_cache = {}
-    
-    for step, req in enumerate(future_requests):
-        r_src, r_dst, r_traffic = req[1], req[2], req[3]
-        weight = math.pow(decay_base, step)
-        weighted_traffic = r_traffic * weight
-        
-        cache_key = (r_src, r_dst)
-        if cache_key in path_cache:
-            result = path_cache[cache_key]
-        else:
-            result = find_min_weight_path_with_relay(auxiliary_graph=auxiliary_graph, src=r_src, dst=r_dst)
-            path_cache[cache_key] = result
-        
-        if result:
-            _, best_path_edges, _, _, _ = result
-            
-            # 遍历预测路径中的每一条逻辑边
-            for (u, v, key) in best_path_edges:
-                edge_data = auxiliary_graph.get_edge_data(u, v, key=key)
-                if edge_data and 'path' in edge_data:
-                    physical_path = edge_data['path']
-                    # 累加物理链路热度 (使用无向键，确保每条物理链路只累加一次)
-                    for j in range(len(physical_path) - 1):
-                        p_u, p_v = physical_path[j], physical_path[j+1]
-                        link_demand[(p_u, p_v)] = link_demand.get((p_u, p_v), 0) + weighted_traffic
-                        link_demand[(p_v, p_u)] = link_demand.get((p_v, p_u), 0) + weighted_traffic
-                    
-                    # 2. 累加物理节点战略价值 (大局观：路径上所有点都有复用潜力)
-                    for p_node in physical_path:
-                        node_strategic_value[p_node] = node_strategic_value.get(p_node, 0) + weighted_traffic
-                        
-    return link_demand
+     """
+     大局观热力图：全量预测未来，统计物理链路的负载压力。
+     优化：增加缓存避免重复寻路。
+     """
+     link_demand = {}
+     decay_base = 0.95
+     
+     # 局部缓存，避免在一次热力图计算中对相同的 (src, dst) 重复寻路
+     path_cache = {}
+     
+     for step, req in enumerate(future_requests):
+         r_src, r_dst, r_traffic = req[1], req[2], req[3]
+         weight = math.pow(decay_base, step)
+         weighted_traffic = r_traffic * weight
+         
+         cache_key = (r_src, r_dst)
+         if cache_key in path_cache:
+             result = path_cache[cache_key]
+         else:
+             result = find_min_weight_path_with_relay(auxiliary_graph=auxiliary_graph, src=r_src, dst=r_dst)
+             path_cache[cache_key] = result
+         
+         if result:
+             _, best_path_edges, _, _, _ = result
+             
+             # 遍历预测路径中的每一条逻辑边
+             for (u, v, key) in best_path_edges:
+                 edge_data = auxiliary_graph.get_edge_data(u, v, key=key)
+                 if edge_data and 'path' in edge_data:
+                     physical_path = edge_data['path']
+                     # 累加物理链路热度 (对称存储，方便查询)
+                     for j in range(len(physical_path) - 1):
+                         p_u, p_v = physical_path[j], physical_path[j+1]
+                         link_demand[(p_u, p_v)] = link_demand.get((p_u, p_v), 0) + weighted_traffic
+                         link_demand[(p_v, p_u)] = link_demand.get((p_v, p_u), 0) + weighted_traffic
+                         
+     return link_demand
 
 def process_mid(traffic_type, map_name, protocol, detector, bypass, key_rate_list, wavelength_list, num_runs,
                 ice_box_capacity, request_list):

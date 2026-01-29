@@ -485,13 +485,10 @@ def calculate_data_auxiliary_edge(G, path, wavelength_combination, wavelength_ca
                 if not p_edge_data: continue
                 
                 p_dist = p_edge_data[next(iter(p_edge_data))].get('distance', 1.0)
-                
-                # 使用无向键查询链路热度
-                link_key = tuple(sorted((u_p, v_p)))
-                link_heat = link_future_demand.get(link_key, 0.0) if link_future_demand else 0.0
+                link_heat = link_future_demand.get((u_p, v_p), 0.0) if link_future_demand else 0.0
                 
                 # 计算相对热度：未来需求总量 / 当前请求流量
-                # 这代表了“未来还有多少个等效请求需要竞争该资源”
+                # 既然没有归一化，使用相对值可以很好地平衡不同 Traffic Case 下的权重
                 relative_heat = link_heat / traffic if traffic > 0 else 0.0
                 
                 occupied_wls = sum(1 for e in p_edge_data.values() if e.get('occupied', False))
