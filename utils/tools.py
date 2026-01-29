@@ -493,8 +493,12 @@ def calculate_data_auxiliary_edge(G, path, wavelength_combination, wavelength_ca
                     marginal_weight += (component_power['source'] + component_power['detector'] + component_power['other'])
                     marginal_weight += smoothed_ice_box_cost_per_det
 
-            # C. 基于物理资源密度的频谱代价 (回归 V4 线性大局观)
+            # C. 虚拟频谱代价 (Virtual Spectrum Tax)
+            # 理由：为了实现“小负载施加和大负载相当的惩罚”，在寻路权重中，
+            # 我们假设该路径至少需要承载 benchmark_skr 级别的流量。
+            # 这确保了在 Low Traffic 下，低效的长距离旁路也会因为“虚拟拥塞”而变得昂贵。
             spectrum_opportunity_cost = 0.0
+            virtual_num_wls = max(1.0, benchmark_skr / max_traffic)
             
             # 确定覆盖范围
             if laser_node is not None and det_node is not None:
@@ -513,24 +517,21 @@ def calculate_data_auxiliary_edge(G, path, wavelength_combination, wavelength_ca
                 link_heat = link_future_demand.get((u_p, v_p), 0) if link_future_demand else 0
                 
                 occupied_wls = sum(1 for e in p_edge_data.values() if e.get('occupied', False))
-                total_wls = 40 # 假设波长总数
-                
-                # 软截断拥塞
+                total_wls = 40 
                 congestion = 1.0 / (1.05 - (occupied_wls / total_wls))
                 
-                # 恢复 V4 的高压频谱税：系数 10.0
-                spectrum_opportunity_cost += num_wls_needed * p_dist * link_heat * congestion * 10.0
+                # 使用虚拟波长数进行计费
+                spectrum_opportunity_cost += virtual_num_wls * p_dist * link_heat * congestion * 10.0
 
-            # D. 统一能效代价公式 (Unified Efficiency Cost Formula)
-            # 理由：不再使用 if 显式区分门限，而是通过一个连续函数 [benchmark_skr / max_traffic] 
-            # 自动调节权重。当旁路效率低于全网平均水平时，权重随幂次指数级上升；
-            # 当效率高于平均水平时，该项小于 1，起到奖励（Reward）高效路径的作用。
-            exponent = 3 if config.protocol == 'CV-QKD' else 2
-            efficiency_penalty = pow(benchmark_skr / max_traffic, exponent)
+            # D. 自适应单向能效惩罚 (Adaptive One-Way Efficiency Penalty)
+            # 理由：权重惩罚必须 >= 1.0，确保不因高容量而产生“虚假折扣”。
+            # 对于 CV-QKD，采用更高的幂次 (5) 以应对其巨大的容量范围。
+            exponent = 5 if config.protocol == 'CV-QKD' else 2
+            efficiency_penalty = max(1.0, pow(benchmark_skr / max_traffic, exponent))
 
             real_total_power = source_power + detector_power + other_power + real_ice_box_power
-            # 最终权重 = (边际功耗 + 频谱资源税) * 能效惩罚
-            # 这是一个连续且单调的代价函数，Dijkstra 会自动在“节省硬件”与“浪费频谱”间寻找最优解
+            # 最终权重 = (边际功耗 + 虚拟频谱税) * 能效惩罚
+            # 这是一个连续且单调的代价函数，确保 Dijkstra 永远偏向物理能效最优解
             weight = max(1.0, (marginal_weight + spectrum_opportunity_cost) * efficiency_penalty)
 
             data.append({
