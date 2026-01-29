@@ -37,7 +37,7 @@ def get_cached_paths(G, src, dst, is_bypass):
             paths = []
             # 探索前 100 条路径，但引入“大局观”剪枝
             for path in itertools.islice(gen, 100):
-                d = calculate_distance(G, path, src, dst)
+                d = calculate_distance(G, src, dst, path)
                 # 剪枝逻辑：
                 # 1. 物理距离不能超过最短距离的 2 倍 (防止绕路太远)
                 # 2. 物理距离不能超过 80km (在 80km 以上 KeyRate 极低，导致波长爆炸，功耗剧增)
