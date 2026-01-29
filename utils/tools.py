@@ -48,11 +48,10 @@ def get_cached_paths(G, src, dst, is_bypass, traffic):
             for path in itertools.islice(gen, 100):
                 d = calculate_distance(G, src, dst, path)
                 
-                # 唯一的剪枝逻辑是“非理性绕路”：如果路径长度超过最短距离的 3 倍，视为无意义
-                if d <= min_dist * 3.0:
-                    # 检查物理上是否还能产生密钥 (哪怕只有 1 bps)
-                    if compute_key_rate(d, protocol, detector) > 0:
-                        paths.append(path)
+                # 彻底移除人为的“非理性绕路”剪枝 (如 3.0 倍限制)
+                # 仅保留物理可行性检查：只要物理上能产生密钥，就允许作为候选
+                if compute_key_rate(d, protocol, detector) > 0:
+                    paths.append(path)
                 
                 if len(paths) >= 20: 
                     break
@@ -408,7 +407,7 @@ except ImportError:
     pass
 
 def calculate_data_auxiliary_edge(G, path, wavelength_combination, wavelength_capacity, laser_detector_position,
-                                  traffic, network_slice, remain_num_request, link_future_demand=None, topology=None, map_name=None):
+                                  traffic, network_slice, remain_num_request, link_future_demand=None, topology=None, map_name=None, benchmark_dist=80.0):
     """
     核心重构：基于“大局观”的边际功耗模型。
     1. 仅对需要开启的新波长计费。
@@ -424,19 +423,9 @@ def calculate_data_auxiliary_edge(G, path, wavelength_combination, wavelength_ca
     ice_box_capacity = getattr(config, 'ice_box_capacity', 8)
     unit_cooling_power = getattr(config, 'unit_cooling_power', 3000)
     
-    # 获取当前协议的原生 80km 标杆
-    # 这里的 80km 是学术上的“黄金分割点”
-    skr_80 = compute_key_rate(80.0, config.protocol, config.detector)
-    
-    # 获取当前地图的 High Traffic 负载作为分母
-    # 默认回退到 Large 的 90000
-    map_name_key = map_name if map_name else "Large"
-    high_traffic = config.Traffic_cases.get(map_name_key, {}).get("High", 90000)
-    
-    # 动态能效标杆：TargetSKR 随流量线性缩放
-    # 逻辑：流量越低，我们对 SKR 的容忍度越低 (即允许更长的距离)
-    # TargetSKR = current_traffic * (SKR_80 / High_Traffic)
-    target_skr = traffic * (skr_80 / high_traffic)
+    # 获取当前协议在“标杆距离”下的原生 SKR
+    # 标杆距离定义为当前拓扑中最大的物理链路长度，确保 No-Bypass 模式下的物理边永远不会被惩罚。
+    benchmark_skr = compute_key_rate(benchmark_dist, config.protocol, config.detector)
 
     # 平滑冰箱成本：每个探测器平摊的制冷功耗
     smoothed_ice_box_cost_per_det = unit_cooling_power / ice_box_capacity if detector_type == 'SNSPD' else 0
@@ -532,15 +521,16 @@ def calculate_data_auxiliary_edge(G, path, wavelength_combination, wavelength_ca
                 # 恢复 V4 的高压频谱税：系数 10.0
                 spectrum_opportunity_cost += num_wls_needed * p_dist * link_heat * congestion * 10.0
 
-            # D. 软能效惩罚 (Soft Efficiency Penalty) - 基于动态标杆
-            # 逻辑：如果当前旁路的 SKR 低于“动态标杆”，则进行惩罚
-            efficiency_penalty = 1.0
-            if max_traffic < target_skr:
-                # 采用平方级惩罚，强制让低效长距离在 Dijkstra 中落败
-                efficiency_penalty = (target_skr / max_traffic) ** 2
+            # D. 统一能效代价公式 (Unified Efficiency Cost Formula)
+            # 理由：不再使用 if 显式区分门限，而是通过一个连续函数 [benchmark_skr / max_traffic] 
+            # 自动调节权重。当旁路效率低于全网平均水平时，权重随幂次指数级上升；
+            # 当效率高于平均水平时，该项小于 1，起到奖励（Reward）高效路径的作用。
+            exponent = 3 if config.protocol == 'CV-QKD' else 2
+            efficiency_penalty = pow(benchmark_skr / max_traffic, exponent)
 
             real_total_power = source_power + detector_power + other_power + real_ice_box_power
             # 最终权重 = (边际功耗 + 频谱资源税) * 能效惩罚
+            # 这是一个连续且单调的代价函数，Dijkstra 会自动在“节省硬件”与“浪费频谱”间寻找最优解
             weight = max(1.0, (marginal_weight + spectrum_opportunity_cost) * efficiency_penalty)
 
             data.append({
@@ -650,6 +640,16 @@ def build_auxiliary_graph(topology, wavelength_list, traffic, physical_topology,
     network_slice = build_network_slice(wavelength_list=wavelength_list, topology=topology, traffic=traffic)
     config.key_rate_list = shared_key_rate_list 
     
+    # 动态获取当前地图的物理链路平均长度，作为能效标杆的基准距离
+    # 理由：以网络原生平均性能作为“合格线”，既不偏袒 Bypass 也不偏袒 No-Bypass
+    total_dist = 0
+    num_edges = 0
+    for u, v, d in physical_topology.edges(data='distance'):
+        total_dist += d
+        num_edges += 1
+    
+    avg_physical_dist = total_dist / num_edges if num_edges > 0 else 80.0
+
     for node in topology.nodes():
         auxiliary_graph.add_node(node)
 
@@ -730,7 +730,8 @@ def build_auxiliary_graph(topology, wavelength_list, traffic, physical_topology,
                         G=temp_G, path=path, laser_detector_position=current_pos_dict, 
                         wavelength_combination=current_wls, wavelength_capacity=current_cap_dict, 
                         traffic=traffic, network_slice=network_slice, remain_num_request=remain_num_request, 
-                        link_future_demand=link_future_demand, topology=topology, map_name=map_name
+                        link_future_demand=link_future_demand, topology=topology, map_name=map_name,
+                        benchmark_dist=avg_physical_dist
                     )
                     del temp_G
                     
