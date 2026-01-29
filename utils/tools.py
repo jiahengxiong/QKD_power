@@ -460,15 +460,15 @@ def calculate_data_auxiliary_edge(G, path, wavelength_combination, wavelength_ca
             # === 4. 计算频谱机会成本 (基于链路热度与占用波长数) ===
             # 大局观：占用波长越多，对未来的阻塞风险越大
             future_spectrum_cost = 0.0
+            num_wls = max(1.0, traffic / max_traffic)
             if link_future_demand:
-                # 预估占用的波长数
-                num_wls = max(1.0, traffic / max_traffic)
                 for i in range(len(path) - 1):
                     u_p, v_p = path[i], path[i+1]
                     link_heat = link_future_demand.get((u_p, v_p), link_future_demand.get((v_p, u_p), 0))
-                    # 频谱成本 = 占用波长数 * 链路热度 * 调节系数
-                    # 1e4 是为了将成本对齐到 Watts 级 (1~3000)
-                    future_spectrum_cost += num_wls * link_heat * 1e4
+                    # 频谱成本逻辑：占用波长数 * (链路热度^2) * 调节系数
+                    # 使用平方项来对冲高热链路的阻塞风险
+                    # link_heat 在 main.py 中是 num_wls 的累加，量级在 10~500 之间
+                    future_spectrum_cost += num_wls * (link_heat ** 1.5) * 20.0 
             
             # === 4.1 大局观战略引导：惩罚跳过高价值节点的“新开旁路” ===
             strategic_bypass_tax = 0.0
@@ -477,8 +477,9 @@ def calculate_data_auxiliary_edge(G, path, wavelength_combination, wavelength_ca
                 for skipped_node in path[1:-1]:
                     # 节点战略系数已在 main.py 归一化为 0~1
                     skipped_value = node_future_demand.get(skipped_node, 0)
-                    # 惩罚量级设为 500W，代表“错失复用枢纽”的机会成本
-                    strategic_bypass_tax += skipped_value * 500.0
+                    # 惩罚量级设为 30W，代表一个普通中继节点的典型功耗
+                    # 这样只有当 Bypass 带来的物理节省 > 30W * 节点价值时，才会执行旁路
+                    strategic_bypass_tax += skipped_value * 30.0
             
             # === 5. 计算共享冰箱功耗与战略折扣 ===
             real_ice_box_power = 0 
@@ -500,9 +501,9 @@ def calculate_data_auxiliary_edge(G, path, wavelength_combination, wavelength_ca
                         node_real_fridge_power = marginal_fridges * unit_cooling_power
                         real_ice_box_power += node_real_fridge_power
                         
-                        # 战略引导：在枢纽节点开冰箱获得 50% 权重折扣 (视为投资未来)
+                        # 战略引导：在枢纽节点开冰箱获得 70% 权重折扣 (鼓励在枢纽扩容)
                         node_s_value = node_future_demand.get(node, 0) if node_future_demand else 0
-                        discount = 1.0 - (0.5 * node_s_value)
+                        discount = 1.0 - (0.7 * node_s_value)
                         weighted_ice_box_power += node_real_fridge_power * discount
             
             # === 6. 汇总与权重计算 (资源消耗平衡模型) ===
@@ -511,27 +512,20 @@ def calculate_data_auxiliary_edge(G, path, wavelength_combination, wavelength_ca
             # A. 基础功耗成本：激光器 + 探测器 + 加权冰箱
             power_cost = source_power + detector_power + other_power + weighted_ice_box_power
             
-            # B. 战略折扣：如果在高价值节点安装新硬件，给予硬件成本折扣
+            # B. 战略折扣：如果在高价值节点安装新硬件，给予硬件成本折扣 (对冲 Bypass 倾向)
             if new_segments > 0 and node_future_demand:
-                # 粗略估计每个新硬件的“战略返利”
                 for node in node_new_detectors_count:
                     s_value = node_future_demand.get(node, 0)
-                    # 激光器+探测器大约 5W，在枢纽安装最高减免 2.5W 权重
-                    power_cost -= (new_segments * 5.0 * 0.5 * s_value)
+                    # 给予一定的硬件战略返利 (5~10W 级别)
+                    power_cost -= (5.0 * s_value)
 
             # C. 权重合成
-            # 我们不再使用 1e6 放大，而是保持在物理量级 (Watts)
-            # 引入资源紧张度 (Tightness) 作为风险溢价
-            eps = 1e-12
-            tightness = (traffic) / max(max_traffic, eps)
-            
-            # 最终权重公式：功耗成本 + 频谱成本 + 旁路税 + 风险溢价
-            # 确保所有项都在 Watts 级，Dijkstra 才能做出平衡决策
+            # 最终权重公式：功耗成本 + 频谱惩罚 + 旁路税
+            # 确保所有项都在 Watts 级 (1~5000)
             raw_weight = (
                 power_cost 
-                + (future_spectrum_cost / 1e6) # 将频谱成本从 traffic 级降到 Watts 级
+                + (future_spectrum_cost / 1e3) # 调整缩放系数，增强频谱保护
                 + strategic_bypass_tax
-                + (tightness * 10.0) # 风险溢价，最高 10W
             )
             weight = max(1.0, raw_weight)
 
