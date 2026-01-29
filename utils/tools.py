@@ -27,6 +27,17 @@ def get_cached_paths(G, src, dst, is_bypass):
     if key in _PATH_CACHE:
         return _PATH_CACHE[key]
     
+    # 获取当前拓扑的最大单链路长度作为物理剪枝的基础
+    # 这样可以确保 Bypass 模式至少能涵盖所有 No-Bypass 的直连链路
+    max_link_dist = 0
+    for u, v, d in G.edges(data=True):
+        dist = d.get('distance', 0)
+        if dist > max_link_dist:
+            max_link_dist = dist
+    
+    # 动态设定剪枝上限：取 80km 和最大链路长度中的较大值
+    pruning_limit = max(80, max_link_dist)
+    
     if is_bypass:
         try:
             # 获取最短物理距离作为参考
@@ -39,12 +50,12 @@ def get_cached_paths(G, src, dst, is_bypass):
             for path in itertools.islice(gen, 100):
                 d = calculate_distance(G, src, dst, path)
                 # 剪枝逻辑：
-                # 1. 物理距离不能超过最短距离的 2 倍 (防止绕路太远)
-                # 2. 物理距离不能超过 80km (在 80km 以上 KeyRate 极低，导致波长爆炸，功耗剧增)
-                if d <= min_dist * 2.0 and d <= 80:
+                # 1. 物理距离不能超过最短距离的 2.5 倍 (适度放宽绕路限制)
+                # 2. 物理距离不能超过动态计算的剪枝上限
+                if d <= min_dist * 2.5 and d <= pruning_limit:
                     paths.append(path)
                 
-                if len(paths) >= 20: # 20 条高质量路径通常足够，过多会降低仿真效率
+                if len(paths) >= 20: 
                     break
                     
             _PATH_CACHE[key] = paths
