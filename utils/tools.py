@@ -716,9 +716,7 @@ def build_auxiliary_graph(topology, wavelength_list, traffic, physical_topology,
                 })
             
             if not candidates:
-                # [工程优化]：此路径目前连一个可用波长都没有。
-                # 由于资源不回收，该路径在本次实验后续也将永远不可用。
-                # 永久剔除，避免后续请求再次探测此无效路径。
+                # 只有当路径上没有任何波长有剩余容量时，才视为物理枯竭，永久剔除
                 if path in _PATH_CACHE[cache_key]:
                     _PATH_CACHE[cache_key].remove(path)
                 continue
@@ -735,10 +733,7 @@ def build_auxiliary_graph(topology, wavelength_list, traffic, physical_topology,
                 suffix_max_cap[i] = current_sum
             
             if suffix_max_cap[0] < traffic:
-                # [工程优化]：即使该路径所有可用波长全开，容量也达不到 traffic 要求。
-                # 考虑到资源只减不增，该路径对该流量等级及以上已彻底失效。
-                if path in _PATH_CACHE[cache_key]:
-                    _PATH_CACHE[cache_key].remove(path)
+                # 注意：这里不能剔除路径，因为虽然不满足当前大流量，但可能满足后续的小流量
                 continue
 
             # === 步骤 D: DFS 探测该物理路径是否能凑够 traffic ===
@@ -754,17 +749,11 @@ def build_auxiliary_graph(topology, wavelength_list, traffic, physical_topology,
                     
                     temp_G = build_temp_graph_for_path(topology, path, current_wls)
                     data = calculate_data_auxiliary_edge(
-                        G=temp_G, 
-                        path=path, 
-                        laser_detector_position=current_pos_dict, 
-                        wavelength_combination=current_wls, 
-                        wavelength_capacity=current_cap_dict, 
-                        traffic=traffic, 
-                        network_slice=network_slice, 
-                        remain_num_request=remain_num_request, 
-                        link_future_demand=link_future_demand, 
-                        node_future_demand=node_future_demand, 
-                        topology=topology 
+                        G=temp_G, path=path, laser_detector_position=current_pos_dict, 
+                        wavelength_combination=current_wls, wavelength_capacity=current_cap_dict, 
+                        traffic=traffic, network_slice=network_slice, remain_num_request=remain_num_request, 
+                        link_future_demand=link_future_demand, node_future_demand=node_future_demand, 
+                        topology=topology, benchmark_dist=avg_physical_dist
                     )
                     del temp_G
                     
@@ -800,13 +789,10 @@ def build_auxiliary_graph(topology, wavelength_list, traffic, physical_topology,
             # 执行探测
             dfs_find_valid_set(0, [], {}, {}, 0, remain_num_request)
             
-            # [工程优化]：如果 DFS 没找到解，说明资源不足，永久剔除
-            if not path_found_flag:
-                if path in _PATH_CACHE[cache_key]:
-                    _PATH_CACHE[cache_key].remove(path)
-            else:
-                # 找到了物理路径，跳过后续探测（可选，根据你的算法需求决定是否只取最短）
-                break 
+            # [核心逻辑修改]：一对节点只需要建立一条辅助边。
+            # 一旦找到最短且可用的物理路径并成功建立逻辑边，立即停止对该节点对的后续路径探测。
+            if path_found_flag:
+                break
 
     del network_slice
     gc.collect()
@@ -867,10 +853,8 @@ def find_first_valid_physical_path(topology, physical_topology, src, dst, traffi
         # 3. 汇总检查是否能满足流量
         if sum(candidates) >= traffic:
             return path
-        else:
-            # [工程优化]：该路径在当前资源下不可用，永久剔除
-            if path in _PATH_CACHE[cache_key]:
-                _PATH_CACHE[cache_key].remove(path)
+        # [工程优化]：即便不满足当前预测的 traffic，也不在这里剔除路径，
+        # 因为热力图预测可能使用的是较大流量，不能误删。
                 
     return None
 
