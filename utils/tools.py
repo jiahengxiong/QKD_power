@@ -463,14 +463,10 @@ def calculate_data_auxiliary_edge(G, path, wavelength_combination, wavelength_ca
                     if detector_type == 'SNSPD':
                         marginal_weight += (unit_cooling_power / ice_box_capacity)
 
-            # C. 频谱代价计算
-            spectrum_opportunity_cost = 0.0
+            # C. 拥塞保护因子计算 (Congestion Guard)
+            # 策略：以能耗为基础，通过热度和拥塞情况对能耗进行“加成”惩罚
+            congestion_multiplier = 0.0
             is_bypass_edge = len(path) > 2
-            
-            if is_bypass_edge:
-                virtual_num_wls = max(1.0, benchmark_skr / max_traffic)
-            else:
-                virtual_num_wls = num_wls_needed
             
             if laser_node is not None and det_node is not None:
                 l_start_idx = path.index(laser_node)
@@ -484,31 +480,35 @@ def calculate_data_auxiliary_edge(G, path, wavelength_combination, wavelength_ca
                 p_edge_data = G.get_edge_data(u_p, v_p)
                 if not p_edge_data: continue
                 
-                p_dist = p_edge_data[next(iter(p_edge_data))].get('distance', 1.0)
+                # 获取该物理链路的热度
                 link_heat = link_future_demand.get((u_p, v_p), 0.0) if link_future_demand else 0.0
-                
-                # 计算相对热度：未来需求总量 / 当前请求流量
-                # 既然没有归一化，使用相对值可以很好地平衡不同 Traffic Case 下的权重
                 relative_heat = link_heat / traffic if traffic > 0 else 0.0
                 
+                # 获取物理拥塞程度 (0.0 ~ 1.0)
                 occupied_wls = sum(1 for e in p_edge_data.values() if e.get('occupied', False))
                 total_wls = 40 
-                congestion = 1.0 / (1.1 - (occupied_wls / total_wls))
+                physical_stress = occupied_wls / total_wls
                 
-                # 权重调整：基础代价 0.1 + 相对热度贡献
-                spectrum_opportunity_cost += virtual_num_wls * p_dist * (0.1 + relative_heat) * congestion * 20.0
+                # 链路压力系数：结合未来热度和物理饱和度
+                # 使用 log1p 平滑热度冲击，避免量纲爆炸
+                link_stress_factor = math.log1p(relative_heat) * (1.0 + physical_stress)
+                congestion_multiplier += link_stress_factor
 
-            # D. 自适应能效惩罚
+            # D. 自适应能效惩罚 (针对 Bypass)
+            # 策略：适度惩罚低能效的长距离 Bypass，但不再是指数级压制
             efficiency_penalty = 1.0
             if is_bypass_edge:
-                exponent = 4 if config.protocol == 'CV-QKD' else 3
-                efficiency_penalty = max(1.0, pow(benchmark_skr / max_traffic, exponent))
+                # 使用更温和的幂次 (1.5 ~ 2.0)
+                efficiency_penalty = max(1.0, pow(benchmark_skr / max_traffic, 2.0))
 
-            real_total_power = source_power + detector_power + other_power + real_ice_box_power
-            weight = max(1.0, (marginal_weight + spectrum_opportunity_cost) * efficiency_penalty)
+            # E. 最终权重汇总 (能效优先公式)
+            # Weight = 边际能耗 * (1 + 拥塞因子) * 能效惩罚
+            # 这样确保了权重的主体永远是“能量”，频谱代价作为“修正项”出现
+            weight = marginal_weight * (1.0 + congestion_multiplier * 0.2) * efficiency_penalty
+            weight = max(1.0, weight)
 
             data.append({
-                'power': real_total_power,
+                'power': source_power + detector_power + other_power + real_ice_box_power,
                 'source_power': source_power,
                 'detector_power': detector_power,
                 'other_power': other_power,
@@ -521,9 +521,7 @@ def calculate_data_auxiliary_edge(G, path, wavelength_combination, wavelength_ca
                 'transverse_laser_detector': wavelength_used_laser_detector,
                 'marginal_weight': marginal_weight,
                 'efficiency_penalty': efficiency_penalty,
-                'virtual_num_wls': virtual_num_wls,
-                'l_start_idx': l_start_idx,
-                'd_end_idx': d_end_idx,
+                'congestion_multiplier': congestion_multiplier,
                 'is_bypass_edge': is_bypass_edge
             })
 
