@@ -198,46 +198,6 @@ import os
 # utils.tools.build_auxiliary_graph, find_min_weight_path_with_relay, serve_traffic
 # 同时，全局变量 map_name 和 config 模块需要在工程中预先定义
 
-def calculate_dynamic_heatmap(auxiliary_graph, future_requests):
-    """
-    大局观热力图 2.0：预测未来波长占用 (Wavelength-based Heatmap)。
-    """
-    link_demand = {}
-    node_strategic_value = {} 
-    decay_base = 0.95
-    
-    for step, req in enumerate(future_requests):
-        r_src, r_dst, r_traffic = req[1], req[2], req[3]
-        weight_decay = math.pow(decay_base, step)
-        
-        result = find_min_weight_path_with_relay(auxiliary_graph=auxiliary_graph, src=r_src, dst=r_dst)
-        
-        if result:
-            _, best_path_edges, _, _, _ = result
-            
-            for (u, v, key) in best_path_edges:
-                edge_data = auxiliary_graph.get_edge_data(u, v, key=key)
-                if edge_data and 'path' in edge_data:
-                    # 估算该请求在该逻辑边上占用的波长数
-                    # num_wls = traffic / KeyRate
-                    # 这里的 traffic_limitation 反映了物理 KeyRate
-                    avg_key_rate = sum(edge_data['wavelength_traffic'].values()) / len(edge_data['wavelength_traffic'])
-                    num_wls = r_traffic / max(1.0, avg_key_rate)
-                    
-                    physical_path = edge_data['path']
-                    # 累加波长占用热度 (Wavelength-Hops)
-                    heat_contribution = num_wls * weight_decay
-                    
-                    for j in range(len(physical_path) - 1):
-                        p_u, p_v = physical_path[j], physical_path[j+1]
-                        link_demand[(p_u, p_v)] = link_demand.get((p_u, p_v), 0) + heat_contribution
-                        link_demand[(p_v, p_u)] = link_demand.get((p_v, p_u), 0) + heat_contribution
-                    
-                    for p_node in physical_path:
-                        node_strategic_value[p_node] = node_strategic_value.get(p_node, 0) + heat_contribution
-                        
-    return link_demand, node_strategic_value
-
 def process_mid(traffic_type, map_name, protocol, detector, bypass, key_rate_list, wavelength_list, num_runs,
                 ice_box_capacity, request_list):
     """
@@ -302,18 +262,12 @@ def process_mid(traffic_type, map_name, protocol, detector, bypass, key_rate_lis
                   desc=f"mid {mid} run {run + 1}/{num_runs}") as pbar:
             remain_num_request = len(traffic_matrix)
             
-            # --- 1. 静态大局观：计算介数中心性 (Static Betweenness) ---
-            # 这为节点提供了一个基础的“战略价值”，不随流量动态变化，避免反馈环
-            node_betweenness = nx.betweenness_centrality(physical_topology, weight='distance')
-            max_betweenness = max(node_betweenness.values()) if node_betweenness else 1.0
-            node_future_demand = {n: v / max_betweenness for n, v in node_betweenness.items()}
-            link_future_demand = {} # 链路热度改为由 tools.py 实时计算
-            
-            # --- 2. 顺序处理请求 ---
+            # --- 1. 顺序处理请求 (纯物理边际成本模型) ---
             for i, request in enumerate(traffic_matrix):
                 id, src, dst, traffic = request[0], request[1], request[2], request[3]
                 
-                # --- 3. 构建正式寻路用的辅助图 ---
+                # --- 2. 构建正式寻路用的辅助图 ---
+                # 采用纯物理边际成本模型，不再传递预测热力图
                 auxiliary_graph = utils.tools.build_auxiliary_graph(
                     topology=topology,
                     wavelength_list=wavelength_list,
@@ -321,9 +275,7 @@ def process_mid(traffic_type, map_name, protocol, detector, bypass, key_rate_lis
                     physical_topology=physical_topology,
                     shared_key_rate_list=key_rate_list,
                     served_request=served_request,
-                    remain_num_request=remain_num_request,
-                    link_future_demand=link_future_demand,
-                    node_future_demand=node_future_demand
+                    remain_num_request=remain_num_request
                 )
 
                 result = find_min_weight_path_with_relay(auxiliary_graph=auxiliary_graph, src=src, dst=dst)
