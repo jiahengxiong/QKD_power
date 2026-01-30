@@ -161,20 +161,26 @@ class Network:
         return G
 
     def get_topology(self, map_name):
-        G = nx.MultiGraph()
+        G = nx.MultiDiGraph()
         if map_name == "Test":
             edges = [(0, 1, 10),
                      (1, 2, 10),]
             for node1, node2, distance in edges:
                 for wavelength in self.wavelength_list:
                     self.num_wavelength += 1
-                    G.add_edge(node1, node2, distance=distance, key=uuid.uuid4().hex,
-                               wavelength=wavelength, laser=0, detector=0,
-                               capacity=compute_key_rate(distance=distance, protocol=self.protocol,
-                                                         receiver=self.receiver),
-                               used_capacity=0, occupied=False,
-                               free_capacity=compute_key_rate(distance=distance, protocol=self.protocol,
-                                                              receiver=self.receiver))
+                    cap = compute_key_rate(distance=distance, protocol=self.protocol, receiver=self.receiver)
+                    attrs = dict(
+                        distance=distance,
+                        wavelength=wavelength,
+                        laser=0,
+                        detector=0,
+                        capacity=cap,
+                        used_capacity=0,
+                        occupied=False,
+                        free_capacity=cap,
+                    )
+                    G.add_edge(node1, node2, key=uuid.uuid4().hex, **attrs)
+                    G.add_edge(node2, node1, key=uuid.uuid4().hex, **attrs)
             for node in G.nodes:
                 G.nodes[node]['laser'] = {}
                 G.nodes[node]['laser_capacity'] = {}
@@ -212,13 +218,19 @@ class Network:
             for node1, node2, distance in edges:
                 for wavelength in self.wavelength_list:
                     self.num_wavelength += 1
-                    G.add_edge(node1, node2, distance=distance, key=uuid.uuid4().hex,
-                               wavelength=wavelength, laser=0, detector=0,
-                               capacity=compute_key_rate(distance=distance, protocol=self.protocol,
-                                                         receiver=self.receiver),
-                               used_capacity=0, occupied=False,
-                               free_capacity=compute_key_rate(distance=distance, protocol=self.protocol,
-                                                              receiver=self.receiver))
+                    cap = compute_key_rate(distance=distance, protocol=self.protocol, receiver=self.receiver)
+                    attrs = dict(
+                        distance=distance,
+                        wavelength=wavelength,
+                        laser=0,
+                        detector=0,
+                        capacity=cap,
+                        used_capacity=0,
+                        occupied=False,
+                        free_capacity=cap,
+                    )
+                    G.add_edge(node1, node2, key=uuid.uuid4().hex, **attrs)
+                    G.add_edge(node2, node1, key=uuid.uuid4().hex, **attrs)
 
             for node in G.nodes:
                 G.nodes[node]['laser'] = {}
@@ -249,13 +261,19 @@ class Network:
             for node1, node2, distance in edges:
                 for wavelength in self.wavelength_list:
                     self.num_wavelength += 1
-                    G.add_edge(node1, node2, distance=distance, key=uuid.uuid4().hex,
-                               wavelength=wavelength, laser=0, detector=0,
-                               capacity=compute_key_rate(distance=distance, protocol=self.protocol,
-                                                         receiver=self.receiver),
-                               used_capacity=0, occupied=False,
-                               free_capacity=compute_key_rate(distance=distance, protocol=self.protocol,
-                                                              receiver=self.receiver))
+                    cap = compute_key_rate(distance=distance, protocol=self.protocol, receiver=self.receiver)
+                    attrs = dict(
+                        distance=distance,
+                        wavelength=wavelength,
+                        laser=0,
+                        detector=0,
+                        capacity=cap,
+                        used_capacity=0,
+                        occupied=False,
+                        free_capacity=cap,
+                    )
+                    G.add_edge(node1, node2, key=uuid.uuid4().hex, **attrs)
+                    G.add_edge(node2, node1, key=uuid.uuid4().hex, **attrs)
             for node in G.nodes:
                 G.nodes[node]['laser'] = {}
                 G.nodes[node]['detector'] = {}
@@ -288,14 +306,20 @@ class Network:
             for i in range(len(edge_list)):
                 for wavelength in self.wavelength_list:
                     self.num_wavelength += 1
-                    G.add_edge(edge_list[i][0], edge_list[i][1], distance=length_list[i], key=uuid.uuid4().hex,
-                               wavelength=wavelength, laser=0, detector=0,
-                               capacity=compute_key_rate(distance=length_list[i], protocol=self.protocol,
-                                                         receiver=self.receiver),
-                               used_capacity=0, occupied=False,
-                               free_capacity=compute_key_rate(distance=length_list[i], protocol=self.protocol,
-                                                              receiver=self.receiver)
-                               )
+                    cap = compute_key_rate(distance=length_list[i], protocol=self.protocol, receiver=self.receiver)
+                    attrs = dict(
+                        distance=length_list[i],
+                        wavelength=wavelength,
+                        laser=0,
+                        detector=0,
+                        capacity=cap,
+                        used_capacity=0,
+                        occupied=False,
+                        free_capacity=cap,
+                    )
+                    u, v = edge_list[i][0], edge_list[i][1]
+                    G.add_edge(u, v, key=uuid.uuid4().hex, **attrs)
+                    G.add_edge(v, u, key=uuid.uuid4().hex, **attrs)
             for node in G.nodes:
                 G.nodes[node]['laser'] = {}
                 G.nodes[node]['detector'] = {}
@@ -353,14 +377,20 @@ class Network:
             for i in range(len(edge_list)):
                 for wavelength in self.wavelength_list:
                     self.num_wavelength += 1
-                    G.add_edge(edge_list[i][0], edge_list[i][1], distance=length_list[i], key=uuid.uuid4().hex,
-                               wavelength=wavelength, laser=0, detector=0,
-                               capacity=compute_key_rate(distance=length_list[i], protocol=self.protocol,
-                                                         receiver=self.receiver),
-                               used_capacity=0, occupied=False,
-                               free_capacity=compute_key_rate(distance=length_list[i], protocol=self.protocol,
-                                                              receiver=self.receiver)
-                               )
+                    cap = compute_key_rate(distance=length_list[i], protocol=self.protocol, receiver=self.receiver)
+                    attrs = dict(
+                        distance=length_list[i],
+                        wavelength=wavelength,
+                        laser=0,
+                        detector=0,
+                        capacity=cap,
+                        used_capacity=0,
+                        occupied=False,
+                        free_capacity=cap,
+                    )
+                    u, v = edge_list[i][0], edge_list[i][1]
+                    G.add_edge(u, v, key=uuid.uuid4().hex, **attrs)
+                    G.add_edge(v, u, key=uuid.uuid4().hex, **attrs)
             for node in G.nodes:
                 G.nodes[node]['laser'] = {}
                 G.nodes[node]['detector'] = {}

@@ -23,6 +23,10 @@ from itertools import combinations
 
 _PATH_CACHE = {}
 
+def clear_path_cache():
+    global _PATH_CACHE
+    _PATH_CACHE = {}
+
 def get_cached_paths(G, src, dst, is_bypass, traffic):
     """
     路径缓存引擎：
@@ -51,7 +55,7 @@ def get_cached_paths(G, src, dst, is_bypass, traffic):
                 # 预热物理过滤：只要物理上能通 (SKR > 0) 就加入缓存
                 if compute_key_rate(d, protocol, detector) > 0:
                     paths.append(path)
-                if len(paths) >= 20: # 最终保留 20 条
+                if len(paths) >= 15: # 最终保留 15 条
                     break
         except (nx.NetworkXNoPath, nx.NodeNotFound):
             pass
@@ -73,7 +77,7 @@ def build_network_slice(wavelength_list, topology, traffic):
     network_slice = {}
     for wavelength in wavelength_list:
         # 创建一个包含所有节点的新图，但不包含边
-        wavelength_slice = nx.Graph()
+        wavelength_slice = nx.DiGraph()
         wavelength_slice.add_nodes_from(topology.nodes(data=True))
         
         # 仅添加满足该波长且有剩余容量的边
@@ -223,10 +227,12 @@ def find_laser_detector_position(wavelength_slice, path, wavelength):
                 bypass_link_set.add((to_tuple(u), to_tuple(v)))
 
         if 'laser' in node_data and wavelength in node_data['laser']:
-            add_links(node_data['laser'][wavelength])
+            for links in node_data['laser'][wavelength]:
+                add_links(links)
         
         if 'detector' in node_data and wavelength in node_data['detector']:
-            add_links(node_data['detector'][wavelength])
+            for links in node_data['detector'][wavelength]:
+                add_links(links)
 
     # --- 4. 预计算 Path 上的边是否被覆盖 ---
     # path_edges_covered[k] = True 表示 path[k]->path[k+1] 这段路在 bypass 中
@@ -238,8 +244,8 @@ def find_laser_detector_position(wavelength_slice, path, wavelength):
         u_t = to_tuple(u)
         v_t = to_tuple(v)
         
-        # 检查正向或反向是否在集合中
-        if (u_t, v_t) in bypass_link_set or (v_t, u_t) in bypass_link_set:
+        # 严格检查正向是否在集合中（有向光纤）
+        if (u_t, v_t) in bypass_link_set:
             path_edges_covered[k] = True
 
     # --- 5. 生成并筛选 Pairs ---
@@ -433,7 +439,9 @@ def calculate_data_auxiliary_edge(G, path, wavelength_combination, wavelength_ca
             real_ice_box_power = 0
             
             marginal_weight = 0.0
-            num_wls_needed = max(1.0, traffic / max_traffic)
+            
+            # 记录本逻辑边涉及的所有物理链路，用于功耗去重
+            unique_links = set()
             
             for wavelength, laser_detector in wavelength_laser_detector.items():
                 laser_node, det_node = laser_detector
@@ -444,7 +452,8 @@ def calculate_data_auxiliary_edge(G, path, wavelength_combination, wavelength_ca
                 )
                 source_power += component_power['source']
                 detector_power += component_power['detector'] 
-                other_power += component_power['other']
+                # other_power 和 ice_box_power 逻辑需要更精细的去重
+                # 这里暂时累加，但在 marginal_weight 中体现共享
                 real_ice_box_power += component_power['ice_box']
                 
                 is_already_active = False
@@ -457,54 +466,52 @@ def calculate_data_auxiliary_edge(G, path, wavelength_combination, wavelength_ca
                         is_already_active = True
                 
                 if is_already_active:
+                    # 如果已经激活，仅增加 10% 的激光器维持功耗
                     marginal_weight += (component_power['source'] * 0.1)
                 else:
+                    # 如果是新激活，增加完整的硬件功耗 (170W base + source + detector)
                     marginal_weight += (component_power['source'] + component_power['detector'] + component_power['other'])
                     if detector_type == 'SNSPD':
                         marginal_weight += (unit_cooling_power / ice_box_capacity)
 
-            # C. 拥塞保护因子计算 (Congestion Guard)
-            # 策略：以能耗为基础，通过热度和拥塞情况对能耗进行“加成”惩罚
+            # 修正统计信息中的 other_power：对于同一条逻辑路径，base power 只计一次
+            # 假设 calculate_power 返回的 other 是 170W
+            first_wl = next(iter(wavelength_laser_detector))
+            first_laser, first_det = wavelength_laser_detector[first_wl]
+            base_comp_power = calculate_power({'laser': first_laser, 'detector': first_det}, path, G)
+            other_power = base_comp_power['other']
+
+            # C. 频谱占用成本 (Spectrum Occupation Cost)
+            num_links = len(path) - 1
+            num_wls = len(wavelength_combination)
+            spectrum_occupied = num_wls * num_links
+            
+            # 这里的代价要低，因为用户希望 Bypass 的频谱占用也低
+            # 如果代价太高，Dijkstra 可能会为了省波长而放弃 Bypass
+            spectrum_cost = spectrum_occupied * 1.0 
+
+            # D. 节点固定成本 (Node Management Cost)
+            # 核心：这是区分 Bypass 和 No-Bypass 的关键
+            # 每多经过一个中继节点（即多一条逻辑边），就增加巨额成本
+            node_management_cost = 500000.0 
+
+            # E. 拥塞保护 (Congestion Guard)
             congestion_multiplier = 0.0
+            
+            # F. 最终权重计算
+            # 权重必须直接反映我们的目标：最小化逻辑跳数 (Power) 和 频谱 (Spectrum)
             is_bypass_edge = len(path) > 2
             
-            if laser_node is not None and det_node is not None:
-                l_start_idx = path.index(laser_node)
-                d_end_idx = path.index(det_node)
-            else:
-                l_start_idx = 0
-                d_end_idx = len(path) - 1
-            
-            for i in range(l_start_idx, d_end_idx):
-                u_p, v_p = path[i], path[i+1]
-                p_edge_data = G.get_edge_data(u_p, v_p)
-                if not p_edge_data: continue
-                
-                # 获取该物理链路的热度
-                link_heat = link_future_demand.get((u_p, v_p), 0.0) if link_future_demand else 0.0
-                relative_heat = link_heat / traffic if traffic > 0 else 0.0
-                
-                # 获取物理拥塞程度 (0.0 ~ 1.0)
-                occupied_wls = sum(1 for e in p_edge_data.values() if e.get('occupied', False))
-                total_wls = 40 
-                physical_stress = occupied_wls / total_wls
-                
-                # 链路压力系数：结合未来热度和物理饱和度
-                # 使用 log1p 平滑热度冲击，避免量纲爆炸
-                link_stress_factor = math.log1p(relative_heat) * (1.0 + physical_stress)
-                congestion_multiplier += link_stress_factor
-
-            # D. 自适应能效惩罚 (针对 Bypass)
-            # 策略：适度惩罚低能效的长距离 Bypass，但不再是指数级压制
-            efficiency_penalty = 1.0
+            # 如果是 Bypass 边，我们给予一定的权重优惠，反映其透明转发的优势
             if is_bypass_edge:
-                # 使用更温和的幂次 (1.5 ~ 2.0)
-                efficiency_penalty = max(1.0, pow(benchmark_skr / max_traffic, 2.0))
-
-            # E. 最终权重汇总 (能效优先公式)
-            # Weight = 边际能耗 * (1 + 拥塞因子) * 能效惩罚
-            # 这样确保了权重的主体永远是“能量”，频谱代价作为“修正项”出现
-            weight = marginal_weight * (1.0 + congestion_multiplier * 0.2) * efficiency_penalty
+                marginal_weight *= 0.5
+                spectrum_cost *= 0.5
+                node_management_cost = 1000.0 # Bypass 逻辑边本身的开销极低
+            else:
+                # OEO 边（1-hop）保留高昂的固定开销
+                node_management_cost = 500000.0 
+            
+            weight = marginal_weight + spectrum_cost + node_management_cost
             weight = max(1.0, weight)
 
             data.append({
@@ -520,8 +527,10 @@ def calculate_data_auxiliary_edge(G, path, wavelength_combination, wavelength_ca
                 'wavelength_list': wavelength_combination,
                 'transverse_laser_detector': wavelength_used_laser_detector,
                 'marginal_weight': marginal_weight,
-                'efficiency_penalty': efficiency_penalty,
-                'congestion_multiplier': congestion_multiplier,
+                'spectrum_cost': spectrum_cost,
+                'node_management_cost': node_management_cost,
+                'efficiency_penalty': 1.0,
+                'congestion_multiplier': 0.0,
                 'is_bypass_edge': is_bypass_edge
             })
 
@@ -530,7 +539,9 @@ def calculate_data_auxiliary_edge(G, path, wavelength_combination, wavelength_ca
 
 def get_k_shortest_paths(graph, src, dst, k=5, weight="distance"):
     if isinstance(graph, (nx.MultiGraph, nx.MultiDiGraph)):
-        G = nx.Graph() 
+        # 如果是多重图，转换为简单图以调用 shortest_simple_paths
+        # 根据输入图的有向性选择 Graph 或 DiGraph
+        G = nx.DiGraph() if graph.is_directed() else nx.Graph()
         for u, v, data in graph.edges(data=True):
             w = data.get(weight, 1.0)
             if G.has_edge(u, v):
@@ -548,7 +559,8 @@ def get_k_shortest_paths(graph, src, dst, k=5, weight="distance"):
         return []
 
 def check_path_coverage(path_links, wavelength_covered_links):
-    norm = lambda e: frozenset(e)
+    # 使用 tuple 保持有向性，解决双向链路误判问题
+    norm = lambda e: tuple(e)
     path_set = {norm(edge) for edge in path_links}
     wl_set   = {norm(edge) for edge in wavelength_covered_links}
 
@@ -718,10 +730,6 @@ def build_auxiliary_graph(topology, wavelength_list, traffic, physical_topology,
             # === 步骤 C: 结果判定 ===
             if path_found_flag:
                 break # 找到一条可行路径就收工
-            else:
-                # 无论什么原因（没波长、总容量不够、DFS组合不出来），只要这条路径不可行，直接移除
-                if path in _PATH_CACHE[cache_key]:
-                    _PATH_CACHE[cache_key].remove(path)
 
     del network_slice
     gc.collect()
@@ -769,7 +777,7 @@ def find_first_valid_physical_path(topology, physical_topology, src, dst, traffi
                 continue
                 
             # 2. 检查硬件 (简化版：临时构建 slice 检查)
-            temp_slice = nx.Graph()
+            temp_slice = nx.DiGraph()
             for k in range(len(path) - 1):
                 u_n, v_n = path[k], path[k+1]
                 temp_slice.add_edge(u_n, v_n)
@@ -786,10 +794,6 @@ def find_first_valid_physical_path(topology, physical_topology, src, dst, traffi
             
         if path_is_valid:
             return path
-        else:
-            # 只要这条路径不可行，直接移除
-            if path in _PATH_CACHE[cache_key]:
-                _PATH_CACHE[cache_key].remove(path)
                 
     return None
 

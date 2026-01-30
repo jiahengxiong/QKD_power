@@ -61,8 +61,8 @@ def calculate_distance(G, start, end, path):
             print(f"No edges between {src} and {dst}")
             return 0.00001  # 或根据需求抛出异常
 
-        # 多图处理逻辑
-        if isinstance(G, nx.MultiGraph):
+        # 多图处理逻辑 (兼容无向和有向多重图)
+        if isinstance(G, (nx.MultiGraph, nx.MultiDiGraph)):
             # 策略示例：选择第一条边（可替换为最短边、随机边等）
             first_edge_key = next(iter(edges_data))
             edge_distance = edges_data[first_edge_key].get('distance', 0)

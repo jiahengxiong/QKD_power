@@ -233,7 +233,6 @@ def calculate_dynamic_heatmap(auxiliary_graph, future_requests):
                      for j in range(len(physical_path) - 1):
                          p_u, p_v = physical_path[j], physical_path[j+1]
                          link_demand[(p_u, p_v)] = link_demand.get((p_u, p_v), 0) + weighted_traffic
-                         link_demand[(p_v, p_u)] = link_demand.get((p_v, p_u), 0) + weighted_traffic
                          
      return link_demand
 
@@ -252,6 +251,9 @@ def process_mid(traffic_type, map_name, protocol, detector, bypass, key_rate_lis
     config.key_rate_list = key_rate_list
     config.ice_box_capacity = ice_box_capacity
     flag = True
+
+    # 每次开始前清空路径缓存，确保不同 traffic 之间不干扰
+    utils.tools.clear_path_cache()
 
     # 打印当前进程ID及开始处理的信息
 
@@ -442,6 +444,10 @@ def main():
 
     # 每个 mid 内部的运行次数
     num_runs = 1 
+
+    # 清空 result.txt
+    with open('result.txt', 'w') as f:
+        f.write("--- 仿真开始 ---\n")
 
     manager = Manager()
     # 创建共享字典用于 key_rate（按原逻辑使用）
