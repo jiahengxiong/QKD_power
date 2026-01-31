@@ -115,75 +115,101 @@ def find_min_weight_path_with_relay(auxiliary_graph, src, dst):
 
 def serve_traffic(G, AG, path_edge_list, request_traffic, pbar, served_request):
     occupied_wavelength = 0
+    actual_power = {'source': 0, 'detector': 0, 'other': 0, 'ice_box': 0}
+    
+    # === 获取全局配置 ===
+    detector_type = getattr(config, 'detector', 'SNSPD')
+    ice_box_capacity = getattr(config, 'ice_box_capacity', 8)
+    unit_cooling_power = getattr(config, 'unit_cooling_power', 3000)
+
     for (src, dst, key) in path_edge_list:
         edge_data = AG.get_edge_data(u=src, v=dst, key=key)
-        # print(f' src: {src}, dst: {dst}, key: {key}, edge_data: {edge_data}')
         wavelength_list = edge_data['wavelength_list']
         path = edge_data['path']
         edge_traffic = request_traffic
         edge_laser_detector_list = edge_data['transverse_laser_detector']
+        
+        # 逻辑边基础管理功耗 (只计一次)
+        actual_power['other'] += 170.0 # 假设基础管理功耗为 170W
+        
         for wavelength in wavelength_list:
             if wavelength not in list(served_request.keys()):
                 served_request[wavelength] = []
+            
             laser_postion = edge_data['laser_detector_position'][wavelength][0]
             detector_postion = edge_data['laser_detector_position'][wavelength][1]
             traffic_limitation = edge_data['wavelength_traffic'][wavelength]
             trans_traffic = min(edge_traffic, traffic_limitation)
             
             if trans_traffic <= 0:
-                print(f"ERROR!!! trans_traffic = {trans_traffic}")
                 continue
+
+            # 统计硬件功耗 (Source + Detector)
+            # 使用 utils.tools.calculate_power 获取精确组件功耗
+            component_power = utils.tools.calculate_power(
+                laser_detector_position={'laser': laser_postion, 'detector': detector_postion}, 
+                path=path,
+                G=G # 传入当前物理图以获取最新距离
+            )
+            actual_power['source'] += component_power['source']
+            actual_power['detector'] += component_power['detector']
 
             if laser_postion is not None and detector_postion is not None:
                 laser_index = path.index(laser_postion)
                 detector_index = path.index(detector_postion)
-                if laser_index >= detector_index:
-                    tqdm.write(f'ERROR !!! Laser is after Detector')
                 cover_links = path[laser_index:detector_index + 1]
-                pbar.write(
-                    f"{wavelength}: laser-detector: {laser_postion} -> {detector_postion}, cover links: {cover_links}")
+                
+                # 如果该物理链路上没有现成的硬件，则新建
                 if cover_links not in G.nodes[laser_postion]['laser'][wavelength]:
                     new_list = list(zip(cover_links, cover_links[1:]))
                     served_request[wavelength].append(new_list)
                     G.nodes[laser_postion]['laser'][wavelength].append(cover_links)
                     G.nodes[detector_postion]['detector'][wavelength].append(cover_links)
-                    # todo: add the key rate of new laser_detector (cover links)
+                    
                     G.nodes[laser_postion]['laser_capacity'][wavelength][tuple(cover_links)] = calculate_keyrate(
                         laser_detector_position={'laser': laser_postion, 'detector': detector_postion}, path=path, G=G)
+                    
+                    # --- 冰箱功耗计算 (阶跃式) ---
+                    if detector_type == 'SNSPD':
+                        current_num = G.nodes[detector_postion].get('num_detector', 0)
+                        # 检查是否需要新开冰箱
+                        if current_num % ice_box_capacity == 0:
+                            actual_power['ice_box'] += unit_cooling_power
+                    
                     G.nodes[detector_postion]['num_detector'] += 1
 
-            # add traffic in each wavelength slice
+            # 物理资源扣减与频谱统计
             for i in range(len(path) - 1):
-                source = path[i]
-                destination = path[i + 1]
-                edges = G.get_edge_data(source, destination)
+                p_src, p_dst = path[i], path[i + 1]
+                edges = G.get_edge_data(p_src, p_dst)
                 for edge_key, edge_attrs in edges.items():
                     if edge_attrs.get('wavelength') == wavelength:
-                        G.edges[source, destination, edge_key]['free_capacity'] -= trans_traffic
-                        if G.edges[source, destination, edge_key]['occupied'] is False:
-                            G.edges[source, destination, edge_key]['occupied'] = True
+                        G.edges[p_src, p_dst, edge_key]['free_capacity'] -= trans_traffic
+                        if G.edges[p_src, p_dst, edge_key]['occupied'] is False:
+                            G.edges[p_src, p_dst, edge_key]['occupied'] = True
                             occupied_wavelength += 1
-                        pbar.write(
-                            f"{wavelength}: {source} -> {destination} with {trans_traffic}, {G.edges[source, destination, edge_key]['free_capacity']}, {G.edges[source, destination, edge_key]['capacity']}")
+            
+            # 更新现有的 Bypass 链路容量
             for transverse_laser_detector in edge_laser_detector_list[wavelength]:
-                # print("edge_laser_detector_list: ", edge_laser_detector_list)
-                source = transverse_laser_detector[0]
-                G.nodes[source]['laser_capacity'][wavelength][tuple(transverse_laser_detector)] -= trans_traffic
-                if G.nodes[source]['laser_capacity'][wavelength][tuple(transverse_laser_detector)] < 0:
-                    pbar.write('ERROR!!!')
-            edge_traffic -= trans_traffic
-            # todo add the traffic consumption of laser detector
-            # add laser-detector cover links, add detector
-            """if cover_links not in G.nodes[laser_postion]['key_rate'].keys():
-                G.nodes[laser_postion]['key_rate'][cover_links] = compute_key_rate(laser_postion, detector_postion)"""
-            for transverse_laser_detector in edge_laser_detector_list[wavelength]:
+                source_node = transverse_laser_detector[0]
+                G.nodes[source_node]['laser_capacity'][wavelength][tuple(transverse_laser_detector)] -= trans_traffic
+                
+                # 级联更新物理链路的 free_capacity
                 for i in range(len(transverse_laser_detector) - 1):
-                    edges = G.get_edge_data(transverse_laser_detector[i], transverse_laser_detector[i+1])
-                    for edge_key, edge_attrs in edges.items():
-                        if edge_attrs.get('wavelength') == wavelength:
-                            G.edges[transverse_laser_detector[i], transverse_laser_detector[i+1], edge_key]['free_capacity'] = min(G.edges[transverse_laser_detector[i], transverse_laser_detector[i+1], edge_key]['free_capacity'],G.nodes[transverse_laser_detector[0]]['laser_capacity'][wavelength][tuple(transverse_laser_detector)])
+                    p_u, p_v = transverse_laser_detector[i], transverse_laser_detector[i+1]
+                    p_edges = G.get_edge_data(p_u, p_v)
+                    for pk, pa in p_edges.items():
+                        if pa.get('wavelength') == wavelength:
+                            G.edges[p_u, p_v, pk]['free_capacity'] = min(
+                                G.edges[p_u, p_v, pk]['free_capacity'],
+                                G.nodes[source_node]['laser_capacity'][wavelength][tuple(transverse_laser_detector)]
+                            )
 
-    return occupied_wavelength
+            edge_traffic -= trans_traffic
+            if edge_traffic <= 0:
+                break # 流量已满，不再处理后续波长
+
+    return occupied_wavelength, actual_power
 
 
 from multiprocessing import Pool, Manager
@@ -197,44 +223,6 @@ import os
 # Network, assign_traffic_values, generate_and_sort_requests,
 # utils.tools.build_auxiliary_graph, find_min_weight_path_with_relay, serve_traffic
 # 同时，全局变量 map_name 和 config 模块需要在工程中预先定义
-
-def calculate_dynamic_heatmap(auxiliary_graph, future_requests):
-     """
-     大局观热力图：全量预测未来，统计物理链路的负载压力。
-     优化：增加缓存避免重复寻路。
-     """
-     link_demand = {}
-     decay_base = 0.95
-     
-     # 局部缓存，避免在一次热力图计算中对相同的 (src, dst) 重复寻路
-     path_cache = {}
-     
-     for step, req in enumerate(future_requests):
-         r_src, r_dst, r_traffic = req[1], req[2], req[3]
-         weight = math.pow(decay_base, step)
-         weighted_traffic = r_traffic * weight
-         
-         cache_key = (r_src, r_dst)
-         if cache_key in path_cache:
-             result = path_cache[cache_key]
-         else:
-             result = find_min_weight_path_with_relay(auxiliary_graph=auxiliary_graph, src=r_src, dst=r_dst)
-             path_cache[cache_key] = result
-         
-         if result:
-             _, best_path_edges, _, _, _ = result
-             
-             # 遍历预测路径中的每一条逻辑边
-             for (u, v, key) in best_path_edges:
-                 edge_data = auxiliary_graph.get_edge_data(u, v, key=key)
-                 if edge_data and 'path' in edge_data:
-                     physical_path = edge_data['path']
-                     # 累加物理链路热度 (对称存储，方便查询)
-                     for j in range(len(physical_path) - 1):
-                         p_u, p_v = physical_path[j], physical_path[j+1]
-                         link_demand[(p_u, p_v)] = link_demand.get((p_u, p_v), 0) + weighted_traffic
-                         
-     return link_demand
 
 def process_mid(traffic_type, map_name, protocol, detector, bypass, key_rate_list, wavelength_list, num_runs,
                 ice_box_capacity, request_list):
@@ -274,6 +262,8 @@ def process_mid(traffic_type, map_name, protocol, detector, bypass, key_rate_lis
 
 
     for run in range(num_runs):
+        # 每次 run 开始前清空路径缓存，确保不同 run 之间的拓扑状态不干扰
+        utils.tools.clear_path_cache()
 
         total_power_each_run = 0.0
         component_power = {'source': 0, 'detector': 0, 'other': 0, 'ice_box': 0}
@@ -302,22 +292,15 @@ def process_mid(traffic_type, map_name, protocol, detector, bypass, key_rate_lis
         with tqdm(total=len(traffic_matrix), file=sys.stderr, colour="red",
                   desc=f"mid {mid} run {run + 1}/{num_runs}") as pbar:
             remain_num_request = len(traffic_matrix)
-            link_future_demand = {} 
-            node_future_demand = {} # 初始化节点热力图
             
-            # --- 1. 构建剩余需求热力图 (Future Demand Heatmap) ---
-            # 预计算所有剩余请求的最短路径，统计每条物理链路被“未来”经过的次数
-            # 这不需要非常精确（比如考虑波长），只需要基于物理距离的拓扑统计
-            # link_future_demand = {(u, v): traffic_weighted_count}
-            
-            # --- 3. 顺序处理请求 (Greedy with Dynamic Heatmap) ---
+            # --- 3. 顺序处理请求 (Greedy) ---
             for i, request in enumerate(traffic_matrix):
                 id = request[0]
                 src = request[1]
                 dst = request[2]
                 traffic = request[3]
                 
-                # --- 1. 构建辅助图 (使用上一步的热力图) ---
+                # --- 1. 构建正式辅助图 ---
                 auxiliary_graph = utils.tools.build_auxiliary_graph(
                     topology=topology,
                     wavelength_list=wavelength_list,
@@ -325,31 +308,8 @@ def process_mid(traffic_type, map_name, protocol, detector, bypass, key_rate_lis
                     physical_topology=physical_topology,
                     shared_key_rate_list=key_rate_list,
                     served_request=served_request,
-                    remain_num_request=remain_num_request,
-                    link_future_demand=link_future_demand,
-                    node_future_demand=node_future_demand # 启用节点热度反馈
+                    remain_num_request=remain_num_request
                 )
-
-                # --- 2. 动态更新热力图 (基于当前 AG) ---
-                if i % 1 == 0:
-                    future_requests = traffic_matrix[i+1:]
-                    link_future_demand = calculate_dynamic_heatmap(
-                        auxiliary_graph=auxiliary_graph,
-                        future_requests=future_requests
-                    )
-                    
-                    # 重新构建 AG 以应用最新的热度数据
-                    auxiliary_graph = utils.tools.build_auxiliary_graph(
-                        topology=topology,
-                        wavelength_list=wavelength_list,
-                        traffic=traffic,
-                        physical_topology=physical_topology,
-                        shared_key_rate_list=key_rate_list,
-                        served_request=served_request,
-                        remain_num_request=remain_num_request,
-                        link_future_demand=link_future_demand,
-                        node_future_demand=None
-                    )
 
                 result = find_min_weight_path_with_relay(auxiliary_graph=auxiliary_graph, src=src, dst=dst)
 
@@ -361,21 +321,22 @@ def process_mid(traffic_type, map_name, protocol, detector, bypass, key_rate_lis
                     else:
                         pbar.write(
                             f"[PID {os.getpid()}] 从 {src} 到 {dst} 最优路径(方向: {direction}): {best_path_edges}, 最小功率: {min_power}")
-                    occupied_wavelength = serve_traffic(G=topology,
+                    # --- [方案 B]：获取真实功耗回馈 ---
+                    occupied_wavelength, actual_p = serve_traffic(G=topology,
                                                         AG=auxiliary_graph,
                                                         path_edge_list=best_path_edges,
                                                         request_traffic=traffic,
                                                         pbar=pbar,
                                                         served_request = served_request)
                     
-                    total_power_each_run += min_power / len(traffic_matrix)
+                    # 统计真实功耗与频谱占用
+                    total_power_each_run += sum(actual_p.values()) / len(traffic_matrix)
                     spectrum_occupied += occupied_wavelength / network.num_wavelength
-                    for (u, v, key) in best_path_edges:
-                        edge_data = auxiliary_graph.get_edge_data(u=u, v=v, key=key)
-                        component_power['source'] = component_power['source'] + edge_data['source_power'] / len(traffic_matrix)
-                        component_power['detector'] = component_power['detector'] + edge_data['detector_power'] / len(traffic_matrix)
-                        component_power['other'] = component_power['other'] + edge_data['other_power'] / len(traffic_matrix)
-                        component_power['ice_box'] = component_power['ice_box'] + edge_data['ice_box_power'] / len(traffic_matrix)
+                    
+                    component_power['source'] += actual_p['source'] / len(traffic_matrix)
+                    component_power['detector'] += actual_p['detector'] / len(traffic_matrix)
+                    component_power['other'] += actual_p['other'] / len(traffic_matrix)
+                    component_power['ice_box'] += actual_p['ice_box'] / len(traffic_matrix)
 
                     pbar.update(1)
                 else:
@@ -448,6 +409,9 @@ def main():
     # 清空 result.txt
     with open('result.txt', 'w') as f:
         f.write("--- 仿真开始 ---\n")
+
+    # 仿真开始前清空一次路径缓存，确保不同 Traffic 下的物理过滤逻辑不干扰
+    utils.tools.clear_path_cache()
 
     manager = Manager()
     # 创建共享字典用于 key_rate（按原逻辑使用）

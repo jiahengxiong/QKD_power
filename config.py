@@ -200,7 +200,7 @@ cases = [
 ]"""
 Traffic_cases = {'Paris':{'Low': 50000, 'Medium':100000, 'High':400000},
                  'Tokyo':{'Low': 350000, 'Medium':700000, 'High':2000000},
-                 'Large': {'Low': 12500, 'Medium': 25000, 'High': 90000}}
+                 'Large': {'Low': 25000, 'Medium': 50000, 'High': 180000}}
 
 
 # cases = [
