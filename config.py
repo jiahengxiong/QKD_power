@@ -3,45 +3,62 @@ global detector
 global ice_box_capacity
 global bypass
 global key_rate_list
+global weights
+global random_seed
+
+random_seed = 42
+
+weights = {
+    'a0': 1.0,
+    'a1': 1.0,
+    'a2': 1.0,
+    'a3': 1.0,
+    'a4': 1.0,
+    'a5': 1.0,
+    'a6': 1.0,
+    'a7': 1.0,
+    'a8': 1.0,
+    'a9': 1.0
+}
 # cases = [{'Topology': 'Large', 'Protocol': 'BB84', 'Bypass': True, 'Detector': 'SNSPD', 'Traffic': 'Medium'},
 #          {'Topology': 'Large', 'Protocol': 'BB84', 'Bypass': False, 'Detector': 'SNSPD', 'Traffic': 'Medium'}]
 
 
-cases = [
-    {'Topology': 'Large', 'Protocol': 'BB84', 'Bypass': True, 'Detector': 'APD', 'Traffic': 'Low'},
-    {'Topology': 'Large', 'Protocol': 'BB84', 'Bypass': True, 'Detector': 'APD', 'Traffic': 'Medium'},
-    {'Topology': 'Large', 'Protocol': 'BB84', 'Bypass': True, 'Detector': 'SNSPD', 'Traffic': 'Low'},
-    {'Topology': 'Large', 'Protocol': 'BB84', 'Bypass': True, 'Detector': 'SNSPD', 'Traffic': 'Medium'},
-    {'Topology': 'Large', 'Protocol': 'BB84', 'Bypass': True, 'Detector': 'SNSPD', 'Traffic': 'High'},
-    {'Topology': 'Large', 'Protocol': 'BB84', 'Bypass': False, 'Detector': 'APD', 'Traffic': 'Low'},
-    {'Topology': 'Large', 'Protocol': 'BB84', 'Bypass': False, 'Detector': 'APD', 'Traffic': 'Medium'},
-    {'Topology': 'Large', 'Protocol': 'BB84', 'Bypass': False, 'Detector': 'SNSPD', 'Traffic': 'Low'},
-    {'Topology': 'Large', 'Protocol': 'BB84', 'Bypass': False, 'Detector': 'SNSPD', 'Traffic': 'Medium'},
-    {'Topology': 'Large', 'Protocol': 'BB84', 'Bypass': False, 'Detector': 'SNSPD', 'Traffic': 'High'},
-    {'Topology': 'Large', 'Protocol': 'CV-QKD', 'Bypass': True, 'Detector': 'ThorlabsPDB', 'Traffic': 'Low'},
-    {'Topology': 'Large', 'Protocol': 'CV-QKD', 'Bypass': True, 'Detector': 'ThorlabsPDB', 'Traffic': 'Medium'},
-    {'Topology': 'Large', 'Protocol': 'CV-QKD', 'Bypass': True, 'Detector': 'ThorlabsPDB', 'Traffic': 'High'},
-    {'Topology': 'Large', 'Protocol': 'CV-QKD', 'Bypass': False, 'Detector': 'ThorlabsPDB', 'Traffic': 'Low'},
-    {'Topology': 'Large', 'Protocol': 'CV-QKD', 'Bypass': False, 'Detector': 'ThorlabsPDB', 'Traffic': 'Medium'},
-    {'Topology': 'Large', 'Protocol': 'CV-QKD', 'Bypass': False, 'Detector': 'ThorlabsPDB', 'Traffic': 'High'}
-   ]
+# cases = [
+#     {'Topology': 'Large', 'Protocol': 'BB84', 'Bypass': True, 'Detector': 'APD', 'Traffic': 'Low'},
+#     {'Topology': 'Large', 'Protocol': 'BB84', 'Bypass': True, 'Detector': 'APD', 'Traffic': 'Medium'},
+#     {'Topology': 'Large', 'Protocol': 'BB84', 'Bypass': True, 'Detector': 'SNSPD', 'Traffic': 'Low'},
+#     {'Topology': 'Large', 'Protocol': 'BB84', 'Bypass': True, 'Detector': 'SNSPD', 'Traffic': 'Medium'},
+#     {'Topology': 'Large', 'Protocol': 'BB84', 'Bypass': True, 'Detector': 'SNSPD', 'Traffic': 'High'},
+#     {'Topology': 'Large', 'Protocol': 'BB84', 'Bypass': False, 'Detector': 'APD', 'Traffic': 'Low'},
+#     {'Topology': 'Large', 'Protocol': 'BB84', 'Bypass': False, 'Detector': 'APD', 'Traffic': 'Medium'},
+#     {'Topology': 'Large', 'Protocol': 'BB84', 'Bypass': False, 'Detector': 'SNSPD', 'Traffic': 'Low'},
+#     {'Topology': 'Large', 'Protocol': 'BB84', 'Bypass': False, 'Detector': 'SNSPD', 'Traffic': 'Medium'},
+#     {'Topology': 'Large', 'Protocol': 'BB84', 'Bypass': False, 'Detector': 'SNSPD', 'Traffic': 'High'},
+#     {'Topology': 'Large', 'Protocol': 'CV-QKD', 'Bypass': True, 'Detector': 'ThorlabsPDB', 'Traffic': 'Low'},
+#     {'Topology': 'Large', 'Protocol': 'CV-QKD', 'Bypass': True, 'Detector': 'ThorlabsPDB', 'Traffic': 'Medium'},
+#     {'Topology': 'Large', 'Protocol': 'CV-QKD', 'Bypass': True, 'Detector': 'ThorlabsPDB', 'Traffic': 'High'},
+#     {'Topology': 'Large', 'Protocol': 'CV-QKD', 'Bypass': False, 'Detector': 'ThorlabsPDB', 'Traffic': 'Low'},
+#     {'Topology': 'Large', 'Protocol': 'CV-QKD', 'Bypass': False, 'Detector': 'ThorlabsPDB', 'Traffic': 'Medium'},
+#     {'Topology': 'Large', 'Protocol': 'CV-QKD', 'Bypass': False, 'Detector': 'ThorlabsPDB', 'Traffic': 'High'}
+#    ]
 # cases = [{'Topology': 'Test', 'Protocol': 'BB84', 'Bypass': True, 'Detector': 'APD', 'Traffic': 'Low'}]
-# cases = [{'Topology': 'Paris', 'Protocol': 'BB84', 'Bypass': True, 'Detector': 'APD', 'Traffic': 'Low'},
-#          {'Topology': 'Paris', 'Protocol': 'BB84', 'Bypass': True, 'Detector': 'APD', 'Traffic': 'Medium'},
-#          {'Topology': 'Paris', 'Protocol': 'BB84', 'Bypass': True, 'Detector': 'SNSPD', 'Traffic': 'Low'},
-#          {'Topology': 'Paris', 'Protocol': 'BB84', 'Bypass': True, 'Detector': 'SNSPD', 'Traffic': 'Medium'},
-#          {'Topology': 'Paris', 'Protocol': 'BB84', 'Bypass': True, 'Detector': 'SNSPD', 'Traffic': 'High'},
-#          {'Topology': 'Paris', 'Protocol': 'BB84', 'Bypass': False, 'Detector': 'APD', 'Traffic': 'Low'},
-#          {'Topology': 'Paris', 'Protocol': 'BB84', 'Bypass': False, 'Detector': 'APD', 'Traffic': 'Medium'},
-#          {'Topology': 'Paris', 'Protocol': 'BB84', 'Bypass': False, 'Detector': 'SNSPD', 'Traffic': 'Low'},
-#          {'Topology': 'Paris', 'Protocol': 'BB84', 'Bypass': False, 'Detector': 'SNSPD', 'Traffic': 'Medium'},
-#          {'Topology': 'Paris', 'Protocol': 'BB84', 'Bypass': False, 'Detector': 'SNSPD', 'Traffic': 'High'},
-#          {'Topology': 'Paris', 'Protocol': 'CV-QKD', 'Bypass': True, 'Detector': 'ThorlabsPDB', 'Traffic': 'Low'},
-#          {'Topology': 'Paris', 'Protocol': 'CV-QKD', 'Bypass': True, 'Detector': 'ThorlabsPDB', 'Traffic': 'Medium'},
-#          {'Topology': 'Paris', 'Protocol': 'CV-QKD', 'Bypass': True, 'Detector': 'ThorlabsPDB', 'Traffic': 'High'},
-#          {'Topology': 'Paris', 'Protocol': 'CV-QKD', 'Bypass': False, 'Detector': 'ThorlabsPDB', 'Traffic': 'Low'},
-#          {'Topology': 'Paris', 'Protocol': 'CV-QKD', 'Bypass': False, 'Detector': 'ThorlabsPDB', 'Traffic': 'Medium'},
-#          {'Topology': 'Paris', 'Protocol': 'CV-QKD', 'Bypass': False, 'Detector': 'ThorlabsPDB', 'Traffic': 'High'}]
+cases = [{'Topology': 'Paris', 'Protocol': 'BB84', 'Bypass': True, 'Detector': 'APD', 'Traffic': 'Low'},
+         {'Topology': 'Paris', 'Protocol': 'BB84', 'Bypass': True, 'Detector': 'APD', 'Traffic': 'Medium'},
+         {'Topology': 'Paris', 'Protocol': 'BB84', 'Bypass': True, 'Detector': 'SNSPD', 'Traffic': 'Low'},
+         {'Topology': 'Paris', 'Protocol': 'BB84', 'Bypass': True, 'Detector': 'SNSPD', 'Traffic': 'Medium'},
+         {'Topology': 'Paris', 'Protocol': 'BB84', 'Bypass': True, 'Detector': 'SNSPD', 'Traffic': 'High'},
+         {'Topology': 'Paris', 'Protocol': 'BB84', 'Bypass': False, 'Detector': 'APD', 'Traffic': 'Low'},
+         {'Topology': 'Paris', 'Protocol': 'BB84', 'Bypass': False, 'Detector': 'APD', 'Traffic': 'Medium'},
+         {'Topology': 'Paris', 'Protocol': 'BB84', 'Bypass': False, 'Detector': 'SNSPD', 'Traffic': 'Low'},
+         {'Topology': 'Paris', 'Protocol': 'BB84', 'Bypass': False, 'Detector': 'SNSPD', 'Traffic': 'Medium'},
+         {'Topology': 'Paris', 'Protocol': 'BB84', 'Bypass': False, 'Detector': 'SNSPD', 'Traffic': 'High'},
+         {'Topology': 'Paris', 'Protocol': 'CV-QKD', 'Bypass': True, 'Detector': 'ThorlabsPDB', 'Traffic': 'Low'},
+         {'Topology': 'Paris', 'Protocol': 'CV-QKD', 'Bypass': True, 'Detector': 'ThorlabsPDB', 'Traffic': 'Medium'},
+         {'Topology': 'Paris', 'Protocol': 'CV-QKD', 'Bypass': True, 'Detector': 'ThorlabsPDB', 'Traffic': 'High'},
+         {'Topology': 'Paris', 'Protocol': 'CV-QKD', 'Bypass': False, 'Detector': 'ThorlabsPDB', 'Traffic': 'Low'},
+         {'Topology': 'Paris', 'Protocol': 'CV-QKD', 'Bypass': False, 'Detector': 'ThorlabsPDB', 'Traffic': 'Medium'},
+         {'Topology': 'Paris', 'Protocol': 'CV-QKD', 'Bypass': False, 'Detector': 'ThorlabsPDB', 'Traffic': 'High'}]
 
 # cases = [
 #     # Tokyo 拓扑组
@@ -198,8 +215,8 @@ cases = [
     {"Protocol": "CV-QKD", "Bypass": False, "Detector": "ThorlabsPDB", "Topology": "Large", "Traffic": "Medium"},
     {"Protocol": "CV-QKD", "Bypass": False, "Detector": "ThorlabsPDB", "Topology": "Large", "Traffic": "High"}
 ]"""
-Traffic_cases = {'Paris':{'Low': 50000, 'Medium':100000, 'High':400000},
-                 'Tokyo':{'Low': 350000, 'Medium':700000, 'High':2000000},
+Traffic_cases = {'Paris':{'Low': 100000, 'Medium':200000, 'High':800000},
+                 'Tokyo':{'Low': 700000, 'Medium':1400000, 'High':4000000},
                  'Large': {'Low': 25000, 'Medium': 50000, 'High': 180000}}
 
 

@@ -1,0 +1,66 @@
+[
+    {
+        "protocol": "BB84",
+        "detector": "APD",
+        "traffic": "Low",
+        "nobypass_power": 794.1818181818181,
+        "bypass_power": 794.1818181818181,
+        "improvement": 0.0
+    },
+    {
+        "protocol": "BB84",
+        "detector": "APD",
+        "traffic": "Medium",
+        "nobypass_power": 1474.909090909091,
+        "bypass_power": 1361.4545454545455,
+        "improvement": 7.692307692307694
+    },
+    {
+        "protocol": "BB84",
+        "detector": "SNSPD",
+        "traffic": "Low",
+        "nobypass_power": 560.4363636363636,
+        "bypass_power": 527.1272727272727,
+        "improvement": 5.943420711134173
+    },
+    {
+        "protocol": "BB84",
+        "detector": "SNSPD",
+        "traffic": "Medium",
+        "nobypass_power": 643.709090909091,
+        "bypass_power": 610.4,
+        "improvement": 5.174556547282802
+    },
+    {
+        "protocol": "BB84",
+        "detector": "SNSPD",
+        "traffic": "High",
+        "nobypass_power": 1482.6909090909091,
+        "bypass_power": 1273.6727272727273,
+        "improvement": 14.097218815912099
+    },
+    {
+        "protocol": "CV-QKD",
+        "detector": "ThorlabsPDB",
+        "traffic": "Low",
+        "nobypass_power": 86.71636363636362,
+        "bypass_power": 72.26363636363637,
+        "improvement": 16.66666666666665
+    },
+    {
+        "protocol": "CV-QKD",
+        "detector": "ThorlabsPDB",
+        "traffic": "Medium",
+        "nobypass_power": 93.94272727272727,
+        "bypass_power": 79.49,
+        "improvement": 15.384615384615385
+    },
+    {
+        "protocol": "CV-QKD",
+        "detector": "ThorlabsPDB",
+        "traffic": "High",
+        "nobypass_power": 122.84818181818181,
+        "bypass_power": 101.1690909090909,
+        "improvement": 17.64705882352942
+    }
+]

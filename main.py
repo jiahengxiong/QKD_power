@@ -129,9 +129,6 @@ def serve_traffic(G, AG, path_edge_list, request_traffic, pbar, served_request):
         edge_traffic = request_traffic
         edge_laser_detector_list = edge_data['transverse_laser_detector']
         
-        # 逻辑边基础管理功耗 (只计一次)
-        actual_power['other'] += 170.0 # 假设基础管理功耗为 170W
-        
         for wavelength in wavelength_list:
             if wavelength not in list(served_request.keys()):
                 served_request[wavelength] = []
@@ -144,39 +141,45 @@ def serve_traffic(G, AG, path_edge_list, request_traffic, pbar, served_request):
             if trans_traffic <= 0:
                 continue
 
-            # 统计硬件功耗 (Source + Detector)
-            # 使用 utils.tools.calculate_power 获取精确组件功耗
-            component_power = utils.tools.calculate_power(
-                laser_detector_position={'laser': laser_postion, 'detector': detector_postion}, 
-                path=path,
-                G=G # 传入当前物理图以获取最新距离
-            )
-            actual_power['source'] += component_power['source']
-            actual_power['detector'] += component_power['detector']
-
             if laser_postion is not None and detector_postion is not None:
                 laser_index = path.index(laser_postion)
                 detector_index = path.index(detector_postion)
                 cover_links = path[laser_index:detector_index + 1]
+                cover_links_tuple = tuple(cover_links)
                 
-                # 如果该物理链路上没有现成的硬件，则新建
-                if cover_links not in G.nodes[laser_postion]['laser'][wavelength]:
-                    new_list = list(zip(cover_links, cover_links[1:]))
-                    served_request[wavelength].append(new_list)
-                    G.nodes[laser_postion]['laser'][wavelength].append(cover_links)
-                    G.nodes[detector_postion]['detector'][wavelength].append(cover_links)
+                # [核心修正]：检查该波长下的硬件是否已存在。
+                # 只有当该 (节点, 波长, 覆盖路径) 的组合是第一次出现时，才计入硬件功耗。
+                is_new_hardware = False
+                if cover_links_tuple not in G.nodes[laser_postion]['laser_capacity'][wavelength]:
+                    is_new_hardware = True
                     
-                    G.nodes[laser_postion]['laser_capacity'][wavelength][tuple(cover_links)] = calculate_keyrate(
+                if is_new_hardware:
+                    component_power = utils.tools.calculate_power(
+                        laser_detector_position={'laser': laser_postion, 'detector': detector_postion}, 
+                        path=path,
+                        G=G
+                    )
+                    actual_power['source'] += component_power['source']
+                    actual_power['detector'] += component_power['detector']
+                    actual_power['other'] += component_power['other']
+                    
+                    # 初始化容量
+                    G.nodes[laser_postion]['laser_capacity'][wavelength][cover_links_tuple] = calculate_keyrate(
                         laser_detector_position={'laser': laser_postion, 'detector': detector_postion}, path=path, G=G)
-                    
-                    # --- 冰箱功耗计算 (阶跃式) ---
+
+                    # --- 冰箱功耗计算 (仅在新建硬件时增加检测器计数) ---
                     if detector_type == 'SNSPD':
                         current_num = G.nodes[detector_postion].get('num_detector', 0)
-                        # 检查是否需要新开冰箱
-                        if current_num % ice_box_capacity == 0:
-                            actual_power['ice_box'] += unit_cooling_power
-                    
-                    G.nodes[detector_postion]['num_detector'] += 1
+                        fridges_before = math.ceil(current_num / ice_box_capacity)
+                        G.nodes[detector_postion]['num_detector'] = current_num + 1
+                        fridges_after = math.ceil((current_num + 1) / ice_box_capacity)
+                        actual_power['ice_box'] += (fridges_after - fridges_before) * unit_cooling_power
+                
+                # 记录占用情况
+                new_list = list(zip(cover_links, cover_links[1:]))
+                served_request[wavelength].append(new_list)
+                G.nodes[laser_postion]['laser'][wavelength].append(cover_links)
+                G.nodes[detector_postion]['detector'][wavelength].append(cover_links)
 
             # 物理资源扣减与频谱统计
             for i in range(len(path) - 1):

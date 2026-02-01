@@ -167,7 +167,7 @@ class Network:
                      (1, 2, 10),]
             for node1, node2, distance in edges:
                 for wavelength in self.wavelength_list:
-                    self.num_wavelength += 1
+                    self.num_wavelength += 2
                     cap = compute_key_rate(distance=distance, protocol=self.protocol, receiver=self.receiver)
                     attrs = dict(
                         distance=distance,
@@ -217,7 +217,7 @@ class Network:
             ]
             for node1, node2, distance in edges:
                 for wavelength in self.wavelength_list:
-                    self.num_wavelength += 1
+                    self.num_wavelength += 2
                     cap = compute_key_rate(distance=distance, protocol=self.protocol, receiver=self.receiver)
                     attrs = dict(
                         distance=distance,
@@ -260,7 +260,7 @@ class Network:
             ]
             for node1, node2, distance in edges:
                 for wavelength in self.wavelength_list:
-                    self.num_wavelength += 1
+                    self.num_wavelength += 2
                     cap = compute_key_rate(distance=distance, protocol=self.protocol, receiver=self.receiver)
                     attrs = dict(
                         distance=distance,
@@ -305,7 +305,7 @@ class Network:
 
             for i in range(len(edge_list)):
                 for wavelength in self.wavelength_list:
-                    self.num_wavelength += 1
+                    self.num_wavelength += 2
                     cap = compute_key_rate(distance=length_list[i], protocol=self.protocol, receiver=self.receiver)
                     attrs = dict(
                         distance=length_list[i],
@@ -376,7 +376,7 @@ class Network:
             length_list = [int(round(x)) for x in scaled_list]
             for i in range(len(edge_list)):
                 for wavelength in self.wavelength_list:
-                    self.num_wavelength += 1
+                    self.num_wavelength += 2
                     cap = compute_key_rate(distance=length_list[i], protocol=self.protocol, receiver=self.receiver)
                     attrs = dict(
                         distance=length_list[i],

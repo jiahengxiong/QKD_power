@@ -95,11 +95,23 @@ def Dijkstra_single_path(graph, src, dst, forbidden_nodes=None):
     def weight_func(u, v, data):
         # 如果边经过了禁用的物理节点，则视为不可达
         if forbidden_nodes:
+            # 兼容 MultiDiGraph 的 data 结构
             path = data.get('path', [])
             for node in path:
                 if node in forbidden_nodes:
                     return None
-        return data.get('weight', 1.0)
+        
+        # 兼容 NetworkX 对 MultiDiGraph 可能传递整个 edge dict 的情况
+        if 'weight' not in data and len(data) > 0:
+            # 尝试从多边字典中找最小权重
+            weights = [d.get('weight') for d in data.values() if isinstance(d, dict) and 'weight' in d]
+            if weights:
+                return float(min(weights))
+        
+        w = data.get('weight')
+        if w is None:
+            return 1.0
+        return float(w)
 
     try:
         # NetworkX 的原生算法比纯 Python 循环快得多
