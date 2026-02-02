@@ -18,7 +18,7 @@ class DummyPbar:
     def update(self, n): pass
 
 def run_simulation(case, weights):
-    """执行单个 Case 的仿真并返回平均功耗"""
+    """执行单个 Case 的仿真并返回详细数据"""
     # 保存当前的随机状态
     np_state = np.random.get_state()
     py_state = random.getstate()
@@ -52,7 +52,7 @@ def run_simulation(case, weights):
         traffic_matrix = gen_traffic_matrix(traffic_type, map_name)
         
         served_request = {}
-        case_power = 0.0
+        total_p_dict = {'source': 0.0, 'detector': 0.0, 'other': 0.0, 'ice_box': 0.0}
         shared_key_rate = {}
         dummy_pbar = DummyPbar()
         success_count = 0
@@ -71,87 +71,125 @@ def run_simulation(case, weights):
                     G=topology, AG=auxiliary_graph, path_edge_list=best_path_edges, 
                     request_traffic=traffic, pbar=dummy_pbar, served_request=served_request
                 )
-                case_power += sum(actual_p.values())
+                for k in total_p_dict:
+                    total_p_dict[k] += actual_p.get(k, 0.0)
                 success_count += 1
                 
         blocking_rate = (len(traffic_matrix) - success_count) / len(traffic_matrix)
-        avg_power = case_power / len(traffic_matrix) if len(traffic_matrix) > 0 else 0
         
-        # 返回物理功耗和阻塞率惩罚
-        return avg_power + blocking_rate * 2000000
+        # 计算平均功耗
+        avg_p_dict = {k: v / len(traffic_matrix) for k, v in total_p_dict.items()}
+        total_avg_power = sum(avg_p_dict.values())
+        
+        # 计算平均频谱占用率
+        total_links = 0
+        occupied_links = 0
+        for u, v in topology.edges():
+            edge_dict = topology[u][v]
+            total_links += len(edge_dict)
+            occupied_links += sum(1 for _, d in edge_dict.items() if d.get('occupied'))
+        spectrum_occ = occupied_links / total_links if total_links > 0 else 0.0
+        
+        return {
+            'score': total_avg_power + blocking_rate * 2000000 + spectrum_occ,
+            'avg_power': total_avg_power,
+            'component_power': avg_p_dict,
+            'spectrum_occ': spectrum_occ,
+            'blocking_rate': blocking_rate
+        }
         
     finally:
         # 恢复随机状态
         np.random.set_state(np_state)
         random.setstate(py_state)
 
-def run_bo_for_bypass(case, n_trials=30):
-    """为 Bypass 场景寻找最优权重"""
+def run_bo_for_case(case, n_trials=100, early_stopping_patience=100):
+    """为指定 Case 寻找最优权重并返回完整结果，包含早停机制"""
+    best_res = {'score': float('inf')}
+    best_params = {}
+
     def objective(trial):
+        nonlocal best_res, best_params
+        # 14 维参数空间：8个系数 + 6个幂指数 (支持负指数)
         weights = {
-            'a0': trial.suggest_float('a0', 0.0, 5.0),
-            'a1': trial.suggest_float('a1', 0.1, 1000.0, log=True),
-            'a2': trial.suggest_float('a2', 10.0, 5000.0, log=True),
-            'a3': trial.suggest_float('a3', 10.0, 5000.0, log=True),
-            'a4': trial.suggest_float('a4', 10.0, 5000.0, log=True),
-            'a5': trial.suggest_float('a5', 0.1, 500.0, log=True),
-            'a6': trial.suggest_float('a6', 0.1, 500.0, log=True),
-            'a7': trial.suggest_float('a7', 100.0, 10000.0, log=True),
-            'a8': trial.suggest_float('a8', 0.1, 500.0, log=True),
-            'a9': trial.suggest_float('a9', 0.1, 500.0, log=True),
-            'a10': trial.suggest_float('a10', 0.1, 1000.0, log=True)
+            'a0': trial.suggest_float('a0', 0.01, 2.0),
+            'a1': trial.suggest_float('a1', 0.1, 500.0, log=True),
+            'p1': trial.suggest_float('p1', -2.5, 2.5),             # 功耗指数
+            'a2': trial.suggest_float('a2', 10.0, 2000.0, log=True),
+            'p2': trial.suggest_float('p2', -2.5, 2.5),             # 新硬件指数
+            'a3': trial.suggest_float('a3', 1.0, 500.0, log=True),
+            'p3': trial.suggest_float('p3', -2.5, 2.5),             # 波长指数
+            'a4': trial.suggest_float('a4', 1.0, 500.0, log=True),
+            'p4': trial.suggest_float('p4', -2.5, 2.5),             # 频谱指数
+            'a5': 0.0,
+            'a6': 0.0,
+            'a7': trial.suggest_float('a7', 100.0, 5000.0, log=True),
+            'p7': trial.suggest_float('p7', -2.5, 2.5),             # 冰箱指数
+            'a8': trial.suggest_float('a8', 0.1, 200.0, log=True),
+            'a9': 0.0,
+            'a10': trial.suggest_float('a10', 0.0, 5.0),
+            'p10': trial.suggest_float('p10', -2.5, 2.5)            # 奖励指数
         }
-        return run_simulation(case, weights)
+        res = run_simulation(case, weights)
+        if res['score'] < best_res['score']:
+            best_res = res
+            best_params = weights
+        return res['score']
+
+    # 早停回调类
+    class EarlyStoppingCallback:
+        def __init__(self, patience):
+            self.patience = patience
+            self.best_score = None
+            self.no_improvement_count = 0
+
+        def __call__(self, study, trial):
+            if self.best_score is None or trial.value < self.best_score:
+                self.best_score = trial.value
+                self.no_improvement_count = 0
+            else:
+                self.no_improvement_count += 1
+            
+            if self.no_improvement_count >= self.patience:
+                study.stop()
 
     sampler = optuna.samplers.TPESampler(seed=42)
     study = optuna.create_study(direction='minimize', sampler=sampler)
-    study.optimize(objective, n_trials=n_trials)
     
-    best_power = study.best_value if study.best_value < 1000000 else (study.best_value % 1000000)
-    return best_power, study.best_params
+    early_stopping = EarlyStoppingCallback(patience=early_stopping_patience)
+    study.optimize(objective, n_trials=n_trials, callbacks=[early_stopping])
+    
+    return best_res, best_params
 
-def run_experiment_pair(protocol, detector, traffic):
-    """运行一组 (Bypass vs No Bypass) 对比实验"""
-    print(f"\n>>> Starting Independent BO Experiment: Protocol={protocol}, Detector={detector}, Traffic={traffic}")
+def run_single_experiment(args):
+    """运行单个 (Bypass 或 No Bypass) 实验并进行 BO 优化"""
+    protocol, detector, traffic, bypass = args
+    strategy = "Bypass" if bypass else "NoBypass"
+    print(f"\n>>> Starting Independent BO: Protocol={protocol}, Detector={detector}, Traffic={traffic}, Strategy={strategy}")
     
-    # 1. No Bypass Baseline (使用默认权重)
-    nobypass_case = {
-        'Topology': 'Paris', 'Protocol': protocol, 'Detector': detector, 
-        'Traffic': traffic, 'Bypass': False
+    case = {
+        'Topology': 'Tokyo', 'Protocol': protocol, 'Detector': detector, 
+        'Traffic': traffic, 'Bypass': bypass
     }
-    default_weights = {k: 1.0 for k in ['a0','a1','a2','a3','a4','a5','a6','a7','a8','a9','a10']}
-    nobypass_power = run_simulation(nobypass_case, default_weights)
-    if nobypass_power > 1000000:
-        nobypass_power = nobypass_power % 1000000
-        nobypass_status = "BLOCKED"
-    else:
-        nobypass_status = "SUCCESS"
+    res, best_params = run_bo_for_case(case, n_trials=200)
     
-    # 2. Bypass with BO (增加迭代次数至 100 次，确保充分收敛)
-    bypass_case = {
-        'Topology': 'Paris', 'Protocol': protocol, 'Detector': detector, 
-        'Traffic': traffic, 'Bypass': True
-    }
-    bypass_power, best_params = run_bo_for_bypass(bypass_case, n_trials=100)
-    
-    print(f"  [DONE] {protocol}-{detector}-{traffic}: NoBypass={nobypass_power:.2f}W, Bypass={bypass_power:.2f}W")
+    print(f"  [DONE] {protocol}-{detector}-{traffic}-{strategy}: Power={res['avg_power']:.2f}W")
     
     return {
         'protocol': protocol,
         'detector': detector,
         'traffic': traffic,
-        'nobypass_power': nobypass_power,
-        'bypass_power': bypass_power,
-        'improvement': (nobypass_power - bypass_power) / nobypass_power * 100 if nobypass_power > 0 else 0,
-        'best_params': best_params
+        'bypass': bypass,
+        'res': {
+            'power': res['avg_power'],
+            'component_power': res['component_power'],
+            'spectrum_occ': res['spectrum_occ'],
+            'best_params': best_params
+        }
     }
 
-def run_experiment_pair_wrapper(args):
-    """用于多进程调用的包装器"""
-    return run_experiment_pair(*args)
-
 if __name__ == '__main__':
-    pairs = [
+    base_configs = [
         ('BB84', 'APD', 'Low'),
         ('BB84', 'APD', 'Medium'),
         ('BB84', 'SNSPD', 'Low'),
@@ -162,19 +200,45 @@ if __name__ == '__main__':
         ('CV-QKD', 'ThorlabsPDB', 'High')
     ]
     
-    print(f"Starting experiments for {len(pairs)} pairs in parallel...")
+    # 构造 16 个独立任务 (8 组 * 2 种策略)
+    tasks = []
+    for protocol, detector, traffic in base_configs:
+        tasks.append((protocol, detector, traffic, False)) # No Bypass
+        tasks.append((protocol, detector, traffic, True))  # Bypass
     
-    # 使用进程池并行执行 8 组实验
-    with Pool(processes=min(len(pairs), os.cpu_count())) as pool:
-        results = pool.map(run_experiment_pair_wrapper, pairs)
+    print(f"Starting {len(tasks)} independent experiments in parallel with 16 processes...")
+    
+    # 使用 16 个进程并行执行
+    with Pool(processes=16) as pool:
+        raw_results = pool.map(run_single_experiment, tasks)
         
+    # 将结果重新组合成对比格式
+    results_map = {}
+    for r in raw_results:
+        key = (r['protocol'], r['detector'], r['traffic'])
+        if key not in results_map:
+            results_map[key] = {'protocol': r['protocol'], 'detector': r['detector'], 'traffic': r['traffic']}
+        
+        if r['bypass']:
+            results_map[key]['bypass'] = r['res']
+        else:
+            results_map[key]['nobypass'] = r['res']
+            
+    final_results = []
+    for key in results_map:
+        r = results_map[key]
+        nb_p = r['nobypass']['power']
+        b_p = r['bypass']['power']
+        r['improvement'] = (nb_p - b_p) / nb_p * 100 if nb_p > 0 else 0
+        final_results.append(r)
+    
     # 打印最终表格
     print("\n\n" + "="*80)
     print(f"{'Protocol':<10} | {'Detector':<12} | {'Traffic':<8} | {'NoBypass(W)':<12} | {'Bypass(W)':<10} | {'Gain(%)':<8}")
     print("-"*80)
-    for r in results:
-        print(f"{r['protocol']:<10} | {r['detector']:<12} | {r['traffic']:<8} | {r['nobypass_power']:>12.2f} | {r['bypass_power']:>10.2f} | {r['improvement']:>7.2f}%")
+    for r in final_results:
+        print(f"{r['protocol']:<10} | {r['detector']:<12} | {r['traffic']:<8} | {r['nobypass']['power']:>12.2f} | {r['bypass']['power']:>10.2f} | {r['improvement']:>7.2f}%")
     print("="*80)
     
-    with open('paris_all_results.json', 'w') as f:
-        json.dump(results, f, indent=4)
+    with open('tokyo.json', 'w') as f:
+        json.dump(final_results, f, indent=4)

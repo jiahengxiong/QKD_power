@@ -512,9 +512,9 @@ def calculate_data_auxiliary_edge(G, path, wavelength_combination, wavelength_ca
             total_cap = num_wls * actual_max_traffic
             f_waste = max(0.0, 1.0 - traffic / (total_cap + eps))
             
-            # [新增]：Bypass 奖励项（1 if bypass else 0）
-            # 直接鼓励 Dijkstra 选择 Bypass 边，以抵消多波长带来的权重增加
-            f_bypass = 1.0 if len(path) > 2 else 0.0
+            # [新增]：Bypass 奖励项（按节省的中继节点数计算）
+            # len(path) - 2 即为中间被跳过的节点数（潜在节省的硬件套数）
+            f_bypass = max(0.0, float(len(path) - 2))
 
             # 最终特征字典
             raw_features = {
@@ -573,15 +573,33 @@ def get_k_shortest_paths(graph, src, dst, k=5, weight="distance"):
         return []
 
 def check_path_coverage(path_links, wavelength_covered_links):
-    # 使用 tuple 保持有向性，解决双向链路误判问题
+    # 使用 tuple 保持有向性
     norm = lambda e: tuple(e)
-    path_set = {norm(edge) for edge in path_links}
-    wl_set   = {norm(edge) for edge in wavelength_covered_links}
 
+    path_seq = [norm(edge) for edge in path_links]
+    wl_seq   = [norm(edge) for edge in wavelength_covered_links]
+
+    path_set = set(path_seq)
+    wl_set   = set(wl_seq)
+
+    # 1) 完全不相交：OK（你说这个没问题）
     if path_set.isdisjoint(wl_set):
         return True
-    if wl_set.issubset(path_set):
+
+    # 2) 有交集时：要求 wl 覆盖必须贴着 path 的一端（前缀或后缀），且顺序一致
+    Lp, Lw = len(path_seq), len(wl_seq)
+    if Lw == 0:
         return True
+    if Lw > Lp:
+        return False
+
+    # 前缀
+    if path_seq[:Lw] == wl_seq:
+        return True
+    # 后缀
+    if path_seq[-Lw:] == wl_seq:
+        return True
+
     return False
 
 def check_path_validity_for_request(path, wavelength_combination, served_request):
@@ -791,31 +809,44 @@ def build_auxiliary_graph(topology, wavelength_list, traffic, physical_topology,
         a9 = w.get('a9', 0.1) # f_waste
         a10 = w.get('a10', 0.1) # f_bypass
 
+        # 非线性指数参数 (默认为 1.0，即线性)
+        # 增加 eps 防止负指数导致的除零错误
+        eps = 1e-6
+        p1 = w.get('p1', 1.0)  # unit power exponent
+        p2 = w.get('p2', 1.0)  # num_new_LD exponent
+        p3 = w.get('p3', 1.0)  # num_wls exponent
+        p4 = w.get('p4', 1.0)  # delta_spectrum exponent
+        p7 = w.get('p7', 1.0)  # num_new_fridges exponent
+        p10 = w.get('p10', 1.0) # f_bypass exponent
+
         for e in all_raw_entries:
             rf = e['raw_features']
             
-            # [物理回归]：Dijkstra 权重应尽可能线性反映物理代价，以避免逻辑跳数偏差
-            # 1. 单位功耗贡献 (使用原始值比例，减少 log 压缩带来的 Relay 惩罚)
-            f_unit = rf['raw_unit'] / K_unit
-            
-            # 2. 拥塞与容量风险 (保持 Hinge)
+            # [物理回归]：引入幂函数，捕捉非线性边际代价
+            f_unit = (rf['raw_unit'] / K_unit + eps) ** p1
+            f_new_LD = (rf['num_new_LD'] + eps) ** p2
+            f_wls = (rf['num_wls'] + eps) ** p3
+            f_spectrum = (rf['delta_spectrum'] + eps) ** p4
+            f_fridge = (rf['num_new_fridges'] + eps) ** p7
+            f_bp_reward = (rf['f_bypass'] + eps) ** p10
+
+            # 拥塞与容量风险 (保持 Hinge)
             f_invcap = max(0.0, rf['raw_invcap'] - 0.8)
             f_bottle = max(0.0, traffic / (rf['min_free_cap'] + 1e-12) - 1.0)
             
             # 最终权重组合
-            # a0 现在作为“控制跳数”的微调参数，默认应设为极小值
             weight = (
                 a0
                 + a1 * f_unit
-                + a2 * rf['num_new_LD']
-                + a3 * rf['num_wls']
-                + a4 * rf['delta_spectrum']
+                + a2 * f_new_LD
+                + a3 * f_wls
+                + a4 * f_spectrum
                 + a5 * f_invcap
                 + a6 * rf['f_dist']
-                + a7 * rf['num_new_fridges']
+                + a7 * f_fridge
                 + a8 * rf['f_occ']
                 + a9 * rf['f_waste']
-                - a10 * rf['f_bypass'] # 奖励项
+                - a10 * f_bp_reward
                 + 1.0 * f_bottle 
             )
             # 确保权重非负 (Dijkstra 要求)
