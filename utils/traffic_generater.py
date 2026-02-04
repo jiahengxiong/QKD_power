@@ -77,7 +77,11 @@ import random
 import numpy as np
 
 
-def gen_traffic_matrix(mid, map_name, wavelength_list=None, protocol='BB84', detector='APD'):
+def gen_traffic_matrix(mid, map_name, wavelength_list=None, protocol='BB84', detector='APD', seed=42):
+    if seed is not None:
+        random.seed(seed)
+        np.random.seed(seed)
+        
     if wavelength_list is None:
         wavelength_list = [1]
     network = Network(map_name=map_name,

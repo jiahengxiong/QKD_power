@@ -129,10 +129,13 @@ def find_laser_detector_position(wavelength_slice, path, wavelength):
     if cache_key in _LD_POS_CACHE:
         return _LD_POS_CACHE[cache_key]
 
-    # --- 辅助函数：将 list 递归转为 tuple，使其可哈希 ---
+    # --- 辅助函数：将 list/dict 递归转为 tuple，使其可哈希 ---
     def to_tuple(obj):
         if isinstance(obj, list):
             return tuple(to_tuple(x) for x in obj)
+        if isinstance(obj, dict):
+            # 将字典转为排序后的 items tuple: ((key1, val1), (key2, val2), ...)
+            return tuple(sorted((k, to_tuple(v)) for k, v in obj.items()))
         return obj
 
     # --- 1. 建立路径索引映射 (优化 path.index) ---
@@ -623,31 +626,6 @@ def check_path_validity_for_request(path, wavelength_combination, served_request
 # 新增：轻量级临时图构建
 # ==========================================
 
-def build_temp_graph_for_path(topology, path, wavelength_combinations):
-    """
-    只构建路径相关的临时图，用于 calculate_data_auxiliary_edge 计算。
-    避免复制整个大图。
-    """
-    temp_G = nx.MultiDiGraph()
-    
-    # 只需要添加路径上的节点
-    for node in path:
-        if node in topology:
-            temp_G.add_node(node, **topology.nodes[node])
-            
-    # 只需要添加路径上的边
-    for i in range(len(path) - 1):
-        u, v = path[i], path[i+1]
-        if topology.has_edge(u, v):
-            # 获取两点间所有边
-            edges = topology[u][v]
-            for key, data in edges.items():
-                # 只保留当前波长组合内的边
-                if data.get('wavelength') in wavelength_combinations:
-                    temp_G.add_edge(u, v, key=key, **data)
-                    
-    return temp_G
-
 # ==========================================
 # 核心重构：build_auxiliary_graph
 # ==========================================
@@ -859,8 +837,155 @@ def build_auxiliary_graph(topology, wavelength_list, traffic, physical_topology,
     return auxiliary_graph
 
 # ==========================================
-# 流量生成函数 (保持不变)
+# RL 扩展：特征矩阵提取与外部权重应用
 # ==========================================
+
+def _dfs_wavelength_combinations(idx, traffic, candidates, suffix_max_cap, current_wls, current_cap_dict, current_theoretical_sum):
+    """内部辅助函数：DFS 寻找满足流量需求的波长组合"""
+    if current_theoretical_sum >= traffic:
+        yield current_wls[:], current_cap_dict.copy()
+        return
+
+    if idx >= len(candidates) or current_theoretical_sum + suffix_max_cap[idx] < traffic:
+        return
+
+    # 包含当前波长
+    current_wls.append(candidates[idx]['wl'])
+    current_cap_dict[candidates[idx]['wl']] = candidates[idx]['cap']
+    yield from _dfs_wavelength_combinations(idx + 1, traffic, candidates, suffix_max_cap, current_wls, current_cap_dict, 
+                                            current_theoretical_sum + candidates[idx]['cap'])
+
+    # 不包含当前波长
+    current_wls.pop()
+    del current_cap_dict[candidates[idx]['wl']]
+    yield from _dfs_wavelength_combinations(idx + 1, traffic, candidates, suffix_max_cap, current_wls, current_cap_dict, current_theoretical_sum)
+
+def extract_feature_matrices_from_graph(auxiliary_graph, node_to_idx, num_nodes, wavelength_list):
+    """
+    修复版：确保提取的是每一对节点间最优候选路径的特征
+    """
+    # 初始化为 -1.0，表示“不存在”
+    # 这样可以显著区分“特征值为0”和“边不存在”
+    features_tensor = np.full((10, 10, num_nodes, num_nodes), -1.0, dtype=np.float32)
+    # Mask 层初始化为 0
+    features_tensor[:, 9, :, :] = 0.0
+    
+    power_layer_min = np.full((10, num_nodes, num_nodes), 1e9, dtype=np.float32)
+    
+    wl_to_idx = {wl: i for i, wl in enumerate(wavelength_list)}
+    
+    for u, v, data in auxiliary_graph.edges(data=True):
+        u_idx, v_idx = node_to_idx[u], node_to_idx[v]
+        wls = data.get('wavelength_list', []) # 修正 key 名
+        if not wls: continue
+        
+        for wl in wls:
+            if wl not in wl_to_idx: continue
+            wl_idx = wl_to_idx[wl]
+            rf = data.get('raw_features', {})
+            if not rf: continue
+            
+            current_p = data['power']
+            if current_p < power_layer_min[wl_idx, u_idx, v_idx]:
+                power_layer_min[wl_idx, u_idx, v_idx] = current_p
+                
+                # 填入物理特征 (0-8层)
+                # 即使特征值为 0，由于背景是 -1.0，NN 也能感知到差异
+                features_tensor[wl_idx, 0, u_idx, v_idx] = np.log1p(current_p) / 10.0
+                features_tensor[wl_idx, 1, u_idx, v_idx] = rf.get('raw_unit', 0) * 10.0
+                features_tensor[wl_idx, 2, u_idx, v_idx] = 1.0 if rf['f_bypass'] > 0 else 0.0
+                features_tensor[wl_idx, 3, u_idx, v_idx] = rf['num_wls'] / 10.0
+                features_tensor[wl_idx, 4, u_idx, v_idx] = np.log1p(rf['min_free_cap']) / 15.0
+                features_tensor[wl_idx, 5, u_idx, v_idx] = rf['f_occ']
+                features_tensor[wl_idx, 6, u_idx, v_idx] = rf['f_waste']
+                features_tensor[wl_idx, 7, u_idx, v_idx] = rf['f_dist']
+                features_tensor[wl_idx, 8, u_idx, v_idx] = rf['f_bypass'] / 5.0
+                
+                # 第 9 层作为严格的 Existence Mask
+                features_tensor[wl_idx, 9, u_idx, v_idx] = 1.0
+            
+    return features_tensor.reshape(100, num_nodes, num_nodes)
+
+def build_auxiliary_graph_with_weights(topology, wavelength_list, traffic, physical_topology, shared_key_rate_list, served_request, remain_num_request, action_weights, node_to_idx):
+    """
+    RL 专用：先建立所有辅助边，最后统一使用 NN 输出的权重矩阵更新
+    action_weights: [N, N]
+    """
+    _LD_POS_CACHE.clear()
+    auxiliary_graph = nx.MultiDiGraph()
+    for node in topology.nodes():
+        auxiliary_graph.add_node(node)
+        
+    network_slice = build_network_slice(wavelength_list=wavelength_list, topology=topology, traffic=traffic)
+    config.key_rate_list = shared_key_rate_list
+    
+    # 1. 第一阶段：寻找并建立所有物理可行的辅助边
+    all_raw_entries = []
+    nodes = list(topology.nodes())
+    for src, dst in itertools.product(nodes, nodes):
+        if src == dst: continue
+        
+        path_list = get_cached_paths(physical_topology, src, dst, config.bypass, traffic)
+        for path in path_list:
+            candidates = []
+            for wavelength in wavelength_list:
+                wl_slice = network_slice[wavelength]
+                min_cap = find_min_free_capacity(wl_slice, path)
+                if min_cap <= 0: continue 
+                if not check_path_validity_for_request(path, [wavelength], served_request): continue
+                candidates.append({'wl': wavelength, 'cap': min_cap})
+            
+            if not candidates: continue
+            
+            candidates.sort(key=lambda x: x['cap'])
+            n_candidates = len(candidates)
+            suffix_max_cap = [0.0] * n_candidates
+            curr_sum = 0.0
+            for i in range(n_candidates - 1, -1, -1):
+                curr_sum += candidates[i]['cap']
+                suffix_max_cap[i] = curr_sum
+            
+            if suffix_max_cap[0] >= traffic:
+                path_found_for_pair = False
+                for found_wls, found_caps in _dfs_wavelength_combinations(0, traffic, candidates, suffix_max_cap, [], {}, 0):
+                    current_pos_dict = {}
+                    pos_valid = True
+                    for wl in found_wls:
+                        pos = find_laser_detector_position(network_slice[wl], path, wl)
+                        if not pos:
+                            pos_valid = False
+                            break
+                        current_pos_dict[wl] = pos
+                    
+                    if pos_valid:
+                        # 优化：直接传递 topology 避免构建临时图 temp_G
+                        raw_data = calculate_data_auxiliary_edge(
+                            G=topology, path=path, laser_detector_position=current_pos_dict,
+                            wavelength_combination=found_wls, wavelength_capacity=found_caps,
+                            traffic=traffic, network_slice=network_slice, remain_num_request=remain_num_request,
+                            topology=topology
+                        )
+                        if raw_data:
+                            for entry in raw_data:
+                                entry['src'] = src
+                                entry['dst'] = dst
+                                all_raw_entries.append(entry)
+                            path_found_for_pair = True
+                            break 
+                
+                if path_found_for_pair:
+                    break # 找到有效路径后跳出 path_list 循环
+
+    # 2. 第二阶段：统一应用权重矩阵
+    for entry in all_raw_entries:
+        u_idx, v_idx = node_to_idx[entry['src']], node_to_idx[entry['dst']]
+        # 物理启发式权重：NN 输出作为功耗的“虚拟附加代价”
+        # 这样 NN 可以通过给某些边增加数千的权重来引导 Dijkstra 避开它们（如避开新开冰箱）
+        nn_virtual_cost = float(action_weights[u_idx, v_idx])
+        entry['weight'] = max(1e-6, entry['power'] + nn_virtual_cost)
+        auxiliary_graph.add_edge(entry['src'], entry['dst'], key=uuid.uuid4().hex, **entry)
+
+    return auxiliary_graph
 
 def generate_traffic(mid, topology):
     # 固定随机种子

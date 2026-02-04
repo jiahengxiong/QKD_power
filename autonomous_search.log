@@ -1,0 +1,189 @@
+🌟 Starting Autonomous Search Master Loop 🌟
+Target: <= 537.0W | Map: Paris | Detector: SNSPD
+
+------------------------------
+Current Strategy: NN-CMA
+Global Best: infW
+------------------------------
+
+🧠 [NN-CMA] Starting search: sigma=0.2, pop_size=24
+Gym has been unmaintained since 2022 and does not support NumPy 2.0 amongst other critical functionality.
+Please upgrade to Gymnasium, the maintained drop-in replacement of Gym, or contact the authors of your software and request that they upgrade.
+Users of this version of Gym should be able to simply replace 'import gym' with 'import gymnasium as gym' in the vast majority of cases.
+See the migration guide at https://gymnasium.farama.org/introduction/migration_guide/ for additional information.
+Using device: cpu
+🚀 CMA-ES Optimizer Initialized. Total Parameters: 3522
+(12_w,24)-aCMA-ES (mu_w=7.0,w_1=24%) in dimension 3522 (seed=254467, Tue Feb  3 00:18:05 2026)
+Starting CMA-ES optimization for 150 iterations...
+  Iteration 1 | Sample 1/24 | Power: 627.05W
+  Iteration 1 | Sample 2/24 | Power: 893.53W
+  Iteration 1 | Sample 3/24 | Power: 793.60W
+  Iteration 1 | Sample 4/24 | Power: 769.45W
+  Iteration 1 | Sample 5/24 | Power: 643.71W
+  Iteration 1 | Sample 6/24 | Power: 660.36W
+  Iteration 1 | Sample 7/24 | Power: 610.40W
+  Iteration 1 | Sample 8/24 | Power: 655.78W
+  Iteration 1 | Sample 9/24 | Power: 731.56W
+  Iteration 1 | Sample 10/24 | Power: 627.05W
+  Iteration 1 | Sample 11/24 | Power: 639.13W
+  Iteration 1 | Sample 12/24 | Power: 605.82W
+  Iteration 1 | Sample 13/24 | Power: 622.47W
+  Iteration 1 | Sample 14/24 | Power: 914.76W
+  Iteration 1 | Sample 15/24 | Power: 639.13W
+  Iteration 1 | Sample 16/24 | Power: 589.16W
+  Iteration 1 | Sample 17/24 | Power: 873.96W
+  Iteration 1 | Sample 18/24 | Power: 677.02W
+  Iteration 1 | Sample 19/24 | Power: 677.02W
+  Iteration 1 | Sample 20/24 | Power: 639.13W
+  Iteration 1 | Sample 21/24 | Power: 605.82W
+  Iteration 1 | Sample 22/24 | Power: 819.42W
+  Iteration 1 | Sample 23/24 | Power: 693.67W
+  Iteration 1 | Sample 24/24 | Power: 748.22W
+Iteration 1/150 | Best Power: 589.16W | Curr Min: 589.16W | 19.6s
+  Iteration 2 | Sample 1/24 | Power: 589.16W
+  Iteration 2 | Sample 2/24 | Power: 748.22W
+  Iteration 2 | Sample 3/24 | Power: 677.02W
+  Iteration 2 | Sample 4/24 | Power: 660.36W
+  Iteration 2 | Sample 5/24 | Power: 605.82W
+  Iteration 2 | Sample 6/24 | Power: 622.47W
+  Iteration 2 | Sample 7/24 | Power: 555.85W
+  Iteration 2 | Sample 8/24 | Power: 605.82W
+  Iteration 2 | Sample 9/24 | Power: 589.16W
+  Iteration 2 | Sample 10/24 | Power: 705.75W
+  Iteration 2 | Sample 11/24 | Power: 981.38W
+  Iteration 2 | Sample 12/24 | Power: 610.40W
+  Iteration 2 | Sample 13/24 | Power: 660.36W
+  Iteration 2 | Sample 14/24 | Power: 810.25W
+  Iteration 2 | Sample 15/24 | Power: 722.40W
+  Iteration 2 | Sample 16/24 | Power: 605.82W
+  Iteration 2 | Sample 17/24 | Power: 710.33W
+  Iteration 2 | Sample 18/24 | Power: 627.05W
+  Iteration 2 | Sample 19/24 | Power: 752.80W
+  Iteration 2 | Sample 20/24 | Power: 743.64W
+  Iteration 2 | Sample 21/24 | Power: 769.45W
+  Iteration 2 | Sample 22/24 | Power: 726.98W
+  Iteration 2 | Sample 23/24 | Power: 781.53W
+  Iteration 2 | Sample 24/24 | Power: 769.45W
+Iteration 2/150 | Best Power: 555.85W | Curr Min: 555.85W | 19.9s
+  Iteration 3 | Sample 1/24 | Power: 776.95W
+  Iteration 3 | Sample 2/24 | Power: 860.22W
+  Iteration 3 | Sample 3/24 | Power: 605.82W
+  Iteration 3 | Sample 4/24 | Power: 605.82W
+  Iteration 3 | Sample 5/24 | Power: 710.33W
+  Iteration 3 | Sample 6/24 | Power: 677.02W
+  Iteration 3 | Sample 7/24 | Power: 605.82W
+  Iteration 3 | Sample 8/24 | Power: 605.82W
+  Iteration 3 | Sample 9/24 | Power: 643.71W
+  Iteration 3 | Sample 10/24 | Power: 572.51W
+  Iteration 3 | Sample 11/24 | Power: 610.40W
+  Iteration 3 | Sample 12/24 | Power: 572.51W
+  Iteration 3 | Sample 13/24 | Power: 610.40W
+  Iteration 3 | Sample 14/24 | Power: 748.22W
+  Iteration 3 | Sample 15/24 | Power: 589.16W
+  Iteration 3 | Sample 16/24 | Power: 672.44W
+  Iteration 3 | Sample 17/24 | Power: 664.95W
+  Iteration 3 | Sample 18/24 | Power: 610.40W
+  Iteration 3 | Sample 19/24 | Power: 643.71W
+  Iteration 3 | Sample 20/24 | Power: 589.16W
+  Iteration 3 | Sample 21/24 | Power: 639.13W
+  Iteration 3 | Sample 22/24 | Power: 693.67W
+  Iteration 3 | Sample 23/24 | Power: 605.82W
+  Iteration 3 | Sample 24/24 | Power: 589.16W
+Iteration 3/150 | Best Power: 555.85W | Curr Min: 572.51W | 19.6s
+  Iteration 4 | Sample 1/24 | Power: 677.02W
+  Iteration 4 | Sample 2/24 | Power: 572.51W
+  Iteration 4 | Sample 3/24 | Power: 693.67W
+  Iteration 4 | Sample 4/24 | Power: 572.51W
+  Iteration 4 | Sample 5/24 | Power: 714.91W
+  Iteration 4 | Sample 6/24 | Power: 622.47W
+  Iteration 4 | Sample 7/24 | Power: 572.51W
+  Iteration 4 | Sample 8/24 | Power: 710.33W
+  Iteration 4 | Sample 9/24 | Power: 789.02W
+  Iteration 4 | Sample 10/24 | Power: 693.67W
+  Iteration 4 | Sample 11/24 | Power: 677.02W
+  Iteration 4 | Sample 12/24 | Power: 764.87W
+  Iteration 4 | Sample 13/24 | Power: 655.78W
+  Iteration 4 | Sample 14/24 | Power: 739.05W
+  Iteration 4 | Sample 15/24 | Power: 726.98W
+  Iteration 4 | Sample 16/24 | Power: 710.33W
+  Iteration 4 | Sample 17/24 | Power: 660.36W
+  Iteration 4 | Sample 18/24 | Power: 710.33W
+  Iteration 4 | Sample 19/24 | Power: 743.64W
+  Iteration 4 | Sample 20/24 | Power: 627.05W
+  Iteration 4 | Sample 21/24 | Power: 710.33W
+  Iteration 4 | Sample 22/24 | Power: 781.53W
+  Iteration 4 | Sample 23/24 | Power: 731.56W
+  Iteration 4 | Sample 24/24 | Power: 693.67W
+Iteration 4/150 | Best Power: 555.85W | Curr Min: 572.51W | 19.9s
+  Iteration 5 | Sample 1/24 | Power: 639.13W
+  Iteration 5 | Sample 2/24 | Power: 726.98W
+
+------------------------------
+Current Strategy: Linear-BO
+Global Best: 555.85W
+------------------------------
+
+📊 [Linear-BO] Starting search with 100 trials...
+开始为 Paris 场景运行深度优化 (100 Trials)...
+[I 2026-02-03 00:19:28,381] A new study created in memory with name: no-name-f5b62114-d130-4c6e-b5e4-0c84c9dd1d7c
+[W 2026-02-03 00:19:28,384] Trial 0 failed with parameters: {'a0': 1.8727005942368125, 'a1': 635.1221010640695, 'a2': 945.430681953617, 'a3': 412.82053438262216, 'a4': 26.368755339723055, 'a5': 0.3775887545682685, 'a6': 0.16400214911202304, 'a7': 5399.48440978743, 'a8': 16.730402817820234, 'a9': 41.604396452566036, 'a10': 0.12087541473056956} because of the following error: NameError("name 'build_temp_graph_for_path' is not defined").
+Traceback (most recent call last):
+  File "/home/qiaolun/anaconda3/lib/python3.12/site-packages/optuna/study/_optimize.py", line 206, in _run_trial
+    value_or_values = func(trial)
+                      ^^^^^^^^^^^
+  File "/home/qiaolun/Jiaheng/QKD_Power_Journal/QKD_power/bo_optimize.py", line 107, in objective
+    val = run_simulation(case, weights)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/qiaolun/Jiaheng/QKD_Power_Journal/QKD_power/bo_optimize.py", line 65, in run_simulation
+    auxiliary_graph = utils.tools.build_auxiliary_graph(
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/qiaolun/Jiaheng/QKD_Power_Journal/QKD_power/utils/tools.py", line 743, in build_auxiliary_graph
+    temp_G = build_temp_graph_for_path(topology, path, found_wls)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^
+NameError: name 'build_temp_graph_for_path' is not defined
+[W 2026-02-03 00:19:28,393] Trial 0 failed with value None.
+Traceback (most recent call last):
+  File "/home/qiaolun/Jiaheng/QKD_Power_Journal/QKD_power/bo_optimize.py", line 149, in <module>
+    result = run_bo_for_single_case(test_case)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/qiaolun/Jiaheng/QKD_Power_Journal/QKD_power/bo_optimize.py", line 113, in run_bo_for_single_case
+    study.optimize(objective, n_trials=100) 
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/qiaolun/anaconda3/lib/python3.12/site-packages/optuna/study/study.py", line 490, in optimize
+    _optimize(
+  File "/home/qiaolun/anaconda3/lib/python3.12/site-packages/optuna/study/_optimize.py", line 68, in _optimize
+    _optimize_sequential(
+  File "/home/qiaolun/anaconda3/lib/python3.12/site-packages/optuna/study/_optimize.py", line 165, in _optimize_sequential
+    frozen_trial_id = _run_trial(study, func, catch)
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/qiaolun/anaconda3/lib/python3.12/site-packages/optuna/study/_optimize.py", line 263, in _run_trial
+    raise func_err
+  File "/home/qiaolun/anaconda3/lib/python3.12/site-packages/optuna/study/_optimize.py", line 206, in _run_trial
+    value_or_values = func(trial)
+                      ^^^^^^^^^^^
+  File "/home/qiaolun/Jiaheng/QKD_Power_Journal/QKD_power/bo_optimize.py", line 107, in objective
+    val = run_simulation(case, weights)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/qiaolun/Jiaheng/QKD_Power_Journal/QKD_power/bo_optimize.py", line 65, in run_simulation
+    auxiliary_graph = utils.tools.build_auxiliary_graph(
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/qiaolun/Jiaheng/QKD_Power_Journal/QKD_power/utils/tools.py", line 743, in build_auxiliary_graph
+    temp_G = build_temp_graph_for_path(topology, path, found_wls)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^
+NameError: name 'build_temp_graph_for_path' is not defined
+
+------------------------------
+Current Strategy: NN-CMA-Fine
+Global Best: 555.85W
+------------------------------
+
+🧠 [NN-CMA] Starting search: sigma=0.1, pop_size=32
+Gym has been unmaintained since 2022 and does not support NumPy 2.0 amongst other critical functionality.
+Please upgrade to Gymnasium, the maintained drop-in replacement of Gym, or contact the authors of your software and request that they upgrade.
+Users of this version of Gym should be able to simply replace 'import gym' with 'import gymnasium as gym' in the vast majority of cases.
+See the migration guide at https://gymnasium.farama.org/introduction/migration_guide/ for additional information.
+Using device: cpu
+🚀 CMA-ES Optimizer Initialized. Total Parameters: 3522
+(16_w,32)-aCMA-ES (mu_w=9.2,w_1=19%) in dimension 3522 (seed=161142, Tue Feb  3 00:19:29 2026)
+Starting CMA-ES optimization for 150 iterations...
+  Iteration 1 | Sample 1/32 | Power: 610.40W

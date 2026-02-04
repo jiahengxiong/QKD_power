@@ -1,0 +1,18 @@
+nohup: ignoring input
+🌟 Starting Parallel Execution for 16 Paris Cases 🌟
+🚀 Starting: BB84, APD, Low, Bypass=True
+🚀 Starting: BB84, APD, Medium, Bypass=True
+🚀 Starting: BB84, SNSPD, Low, Bypass=True
+🚀 Starting: BB84, SNSPD, Medium, Bypass=True
+🚀 Starting: BB84, SNSPD, High, Bypass=True
+🚀 Starting: BB84, APD, Low, Bypass=False
+🚀 Starting: BB84, APD, Medium, Bypass=False
+🚀 Starting: BB84, SNSPD, Low, Bypass=False
+🚀 Starting: BB84, SNSPD, Medium, Bypass=False
+🚀 Starting: BB84, SNSPD, High, Bypass=False
+🚀 Starting: CV-QKD, ThorlabsPDB, Medium, Bypass=True
+🚀 Starting: CV-QKD, ThorlabsPDB, High, Bypass=True
+🚀 Starting: CV-QKD, ThorlabsPDB, Low, Bypass=True
+🚀 Starting: CV-QKD, ThorlabsPDB, Low, Bypass=False
+🚀 Starting: CV-QKD, ThorlabsPDB, Medium, Bypass=False
+🚀 Starting: CV-QKD, ThorlabsPDB, High, Bypass=False

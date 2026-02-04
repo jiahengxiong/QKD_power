@@ -1,0 +1,46 @@
+Gym has been unmaintained since 2022 and does not support NumPy 2.0 amongst other critical functionality.
+Please upgrade to Gymnasium, the maintained drop-in replacement of Gym, or contact the authors of your software and request that they upgrade.
+Users of this version of Gym should be able to simply replace 'import gym' with 'import gymnasium as gym' in the vast majority of cases.
+See the migration guide at https://gymnasium.farama.org/introduction/migration_guide/ for additional information.
+Main script started
+
+🚀 Starting RL training for NoBypass...
+Network nodes: 11
+[NoBypass] Ep 1 | Reward: -105.45 | Power: 527.13W | Spec: 0.0500 | Loss: -0.0128 | 20.5s
+[NoBypass] Ep 2 | Reward: -130.60 | Power: 652.87W | Spec: 0.0542 | Loss: -1.2961 | 22.1s
+[NoBypass] Ep 3 | Reward: -105.45 | Power: 527.13W | Spec: 0.0500 | Loss: 0.9017 | 20.7s
+[NoBypass] Ep 4 | Reward: -105.45 | Power: 527.13W | Spec: 0.0500 | Loss: 0.7341 | 18.0s
+[NoBypass] Ep 5 | Reward: -105.45 | Power: 527.13W | Spec: 0.0500 | Loss: 0.6318 | 22.4s
+[NoBypass] Ep 6 | Reward: -105.45 | Power: 527.13W | Spec: 0.0500 | Loss: 0.5694 | 18.7s
+[NoBypass] Ep 7 | Reward: -116.36 | Power: 581.67W | Spec: 0.0500 | Loss: -0.8492 | 19.6s
+[NoBypass] Ep 8 | Reward: -105.45 | Power: 527.13W | Spec: 0.0500 | Loss: 0.6652 | 19.4s
+[NoBypass] Ep 9 | Reward: -105.45 | Power: 527.13W | Spec: 0.0500 | Loss: 0.6164 | 21.5s
+[NoBypass] Ep 10 | Reward: -105.45 | Power: 527.13W | Spec: 0.0500 | Loss: 0.5802 | 21.2s
+[NoBypass] Ep 11 | Reward: -105.45 | Power: 527.13W | Spec: 0.0500 | Loss: 0.5479 | 22.5s
+[NoBypass] Ep 12 | Reward: -105.45 | Power: 527.13W | Spec: 0.0500 | Loss: 0.5231 | 21.2s
+[NoBypass] Ep 13 | Reward: -105.45 | Power: 527.13W | Spec: 0.0500 | Loss: 0.4948 | 18.8s
+Traceback (most recent call last):
+  File "/home/qiaolun/Jiaheng/QKD_Power_Journal/QKD_power/train_rl.py", line 92, in <module>
+    p_nobypass = train(bypass=False)
+                 ^^^^^^^^^^^^^^^^^^^
+  File "/home/qiaolun/Jiaheng/QKD_Power_Journal/QKD_power/train_rl.py", line 71, in train
+    loss = agent.update(episode_reward)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/qiaolun/Jiaheng/QKD_Power_Journal/QKD_power/rl_models.py", line 121, in update
+    self.optimizer.step()
+  File "/home/qiaolun/anaconda3/lib/python3.12/site-packages/torch/optim/optimizer.py", line 487, in wrapper
+    out = func(*args, **kwargs)
+          ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/qiaolun/anaconda3/lib/python3.12/site-packages/torch/optim/optimizer.py", line 91, in _use_grad
+    ret = func(self, *args, **kwargs)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/qiaolun/anaconda3/lib/python3.12/site-packages/torch/optim/adam.py", line 223, in step
+    adam(
+  File "/home/qiaolun/anaconda3/lib/python3.12/site-packages/torch/optim/optimizer.py", line 154, in maybe_fallback
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/qiaolun/anaconda3/lib/python3.12/site-packages/torch/optim/adam.py", line 784, in adam
+    func(
+  File "/home/qiaolun/anaconda3/lib/python3.12/site-packages/torch/optim/adam.py", line 379, in _single_tensor_adam
+    exp_avg_sq.mul_(beta2).addcmul_(grad, grad.conj(), value=1 - beta2)
+KeyboardInterrupt

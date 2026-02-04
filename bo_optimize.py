@@ -110,7 +110,7 @@ def run_bo_for_single_case(case):
 
     sampler = optuna.samplers.TPESampler(seed=42)
     study = optuna.create_study(direction='minimize', sampler=sampler)
-    study.optimize(objective, n_trials=50) 
+    study.optimize(objective, n_trials=100) 
     
     # 提取纯物理功耗
     final_power = study.best_value if study.best_value < 1000000 else (study.best_value % 1000000)
@@ -139,7 +139,7 @@ if __name__ == '__main__':
         'Topology': 'Paris',
         'Traffic': 'Low',
         'Protocol': 'BB84',
-        'Detector': 'APD',
+        'Detector': 'SNSPD',
         'Bypass': True
     }
     

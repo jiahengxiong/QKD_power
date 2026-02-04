@@ -7,6 +7,12 @@ global weights
 global random_seed
 
 random_seed = 42
+ice_box_capacity = 8
+unit_cooling_power = 3000
+protocol = 'BB84'
+detector = 'SNSPD'
+bypass = True
+key_rate_list = {}
 
 weights = {
     'a0': 1.0,

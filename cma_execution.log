@@ -1,0 +1,47 @@
+nohup: ignoring input
+Gym has been unmaintained since 2022 and does not support NumPy 2.0 amongst other critical functionality.
+Please upgrade to Gymnasium, the maintained drop-in replacement of Gym, or contact the authors of your software and request that they upgrade.
+Users of this version of Gym should be able to simply replace 'import gym' with 'import gymnasium as gym' in the vast majority of cases.
+See the migration guide at https://gymnasium.farama.org/introduction/migration_guide/ for additional information.
+Using device: cpu
+✅ Generated request list (Size: 55) with seed 42. Consistent across runs.
+🚀 CMA-ES Optimizer Initialized. Total Parameters: 3522
+📂 Found existing best model. Loading for warm start...
+/home/qiaolun/Jiaheng/QKD_Power_Journal/QKD_power/train_cma.py:106: FutureWarning: You are using `torch.load` with `weights_only=False` (the current default value), which uses the default pickle module implicitly. It is possible to construct malicious pickle data which will execute arbitrary code during unpickling (See https://github.com/pytorch/pytorch/blob/main/SECURITY.md#untrusted-models for more details). In a future release, the default value for `weights_only` will be flipped to `True`. This limits the functions that could be executed during unpickling. Arbitrary objects will no longer be allowed to be loaded via this mode unless they are explicitly allowlisted by the user via `torch.serialization.add_safe_globals`. We recommend you start setting `weights_only=True` for any use case where you don't have full control of the loaded file. Please open an issue on GitHub for any issues related to this experimental feature.
+  self.model.load_state_dict(torch.load(model_path))
+🚀 Starting BIPOP-CMA-ES optimization...
+(32_w,64)-aCMA-ES (mu_w=17.6,w_1=11%) in dimension 3522 (seed=242375, Tue Feb  3 19:14:36 2026)
+  Eval 8 | Power: 710.33W
+  Eval 16 | Power: 826.91W
+  Eval 24 | Power: 693.67W
+  Eval 32 | Power: 589.16W
+  Eval 40 | Power: 755.71W
+  Eval 48 | Power: 705.75W
+  Eval 56 | Power: 798.18W
+  Eval 64 | Power: 660.36W
+✨ New Best Power Found: 555.85W | Model Saved.
+Iterat #Fevals   function value  axis ratio  sigma  min&max std  t[m:s]
+    1     64 5.558545454545455e+02 1.0e+00 2.99e-01  3e-01  3e-01 0:44.6
+  Eval 72 | Power: 760.29W
+  Eval 80 | Power: 693.67W
+  Eval 88 | Power: 605.82W
+  Eval 96 | Power: 639.13W
+  Eval 104 | Power: 693.67W
+  Eval 112 | Power: 743.64W
+  Eval 120 | Power: 677.02W
+  Eval 128 | Power: 677.02W
+    2    128 5.891636363636363e+02 1.0e+00 2.97e-01  3e-01  3e-01 1:28.7
+  Eval 136 | Power: 622.47W
+  Eval 144 | Power: 705.75W
+  Eval 152 | Power: 772.36W
+  Eval 160 | Power: 639.13W
+  Eval 168 | Power: 1114.62W
+  Eval 176 | Power: 739.05W
+  Eval 184 | Power: 605.82W
+  Eval 192 | Power: 672.44W
+    3    192 5.891636363636363e+02 1.0e+00 2.96e-01  3e-01  3e-01 2:13.0
+  Eval 200 | Power: 710.33W
+  Eval 208 | Power: 876.87W
+  Eval 216 | Power: 705.75W
+  Eval 224 | Power: 722.40W
+  Eval 232 | Power: 589.16W
