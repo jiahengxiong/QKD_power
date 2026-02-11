@@ -8,10 +8,12 @@ import torch
 sys.path.append(os.getcwd())
 
 try:
-    from train_cma import run_experiment
-except ImportError:
-    print("❌ Could not import train_cma. Make sure you are in the correct directory.")
-    sys.exit(1)
+    import train_cma
+except Exception as e:
+    import traceback
+    print("❌ Could not import train_cma. Real error is:")
+    traceback.print_exc()
+    raise
 
 # 定义测试用例
 TOPOLOGIES = ["Paris", "Tokyo", "Large"]
