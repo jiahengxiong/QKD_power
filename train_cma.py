@@ -327,6 +327,7 @@ class OpenAIESOptimizer:
             if os.path.exists(fname):
                 self.model.load_state_dict(torch.load(fname))
             else:
+                pass
         except: pass
         
         # 重置 Adam (带 Weight Decay)
