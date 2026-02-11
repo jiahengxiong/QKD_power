@@ -1,0 +1,26 @@
+{
+    "generation": 2,
+    "bypass": {
+        "best_fitness": 21673.854545454546,
+        "avg_power": 21673.454545454544,
+        "spec_occ": 0.4,
+        "components": {
+            "source": 4.290909090909091,
+            "detector": 690.8363636363637,
+            "ice_box": 0.0,
+            "other": 978.3272727272728
+        }
+    },
+    "nobypass": {
+        "best_fitness": 1418.3901515151515,
+        "avg_power": 1418.1818181818182,
+        "spec_occ": 0.20833333333333334,
+        "components": {
+            "source": 3.6363636363636362,
+            "detector": 585.4545454545455,
+            "ice_box": 0.0,
+            "other": 829.0909090909091
+        }
+    },
+    "status": "phase2_bypass"
+}

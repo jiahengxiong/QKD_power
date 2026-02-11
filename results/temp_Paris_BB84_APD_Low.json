@@ -1,14 +1,14 @@
 {
-    "generation": 13,
+    "generation": 23,
     "bypass": {
-        "best_fitness": 992.9647727272727,
-        "avg_power": 992.7272727272727,
-        "spec_occ": 0.2375,
+        "best_fitness": 765.9431818181819,
+        "avg_power": 765.8181818181819,
+        "spec_occ": 0.125,
         "components": {
-            "source": 2.5454545454545454,
-            "detector": 409.8181818181818,
+            "source": 1.9636363636363636,
+            "detector": 316.1454545454545,
             "ice_box": 0.0,
-            "other": 580.3636363636364
+            "other": 447.7090909090909
         }
     },
     "nobypass": {

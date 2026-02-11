@@ -1,0 +1,33 @@
+[
+    {
+        "config": {
+            "topology": "Paris",
+            "protocol": "BB84",
+            "detector": "APD",
+            "traffic": "Low"
+        },
+        "bypass_result": {
+            "best_fitness": 765.9431818181819,
+            "avg_power": 765.8181818181819,
+            "spec_occ": 0.125,
+            "components": {
+                "source": 1.9636363636363636,
+                "detector": 316.1454545454545,
+                "ice_box": 0.0,
+                "other": 447.7090909090909
+            }
+        },
+        "nobypass_result": {
+            "best_fitness": 794.2984848484848,
+            "avg_power": 794.1818181818181,
+            "spec_occ": 0.11666666666666667,
+            "components": {
+                "source": 2.036363636363636,
+                "detector": 327.8545454545455,
+                "ice_box": 0.0,
+                "other": 464.2909090909091
+            }
+        },
+        "status": "bypass_wins_tradeoff"
+    }
+]
