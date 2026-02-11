@@ -589,7 +589,7 @@ class CMAESOptimizer:
         if self.log_file:
             self.log_file.close()
 
-def main():
+def run_experiment(map_name, protocol, detector, traffic_mid):
     if torch.cuda.is_available():
         device = "cuda"
     elif torch.backends.mps.is_available():
@@ -597,15 +597,11 @@ def main():
     else:
         device = "cpu"
     
-    print(f"🔥 Starting Curriculum Learning (BIPOP-CMA-ES) on {device}...")
+    print(f"🔥 Starting Experiment: {map_name} | {protocol} | {detector} | {traffic_mid} on {device}")
     
-    map_name = "Tokyo"
-    traffic_mid = "Low"
-    # protocol = "CV-QKD"
-    # detector = "ThorlabsPDB"
-    protocol = "BB84"
-    detector = "APD"
-    json_filename = "comparison_result.json"
+    # 临时文件，避免冲突
+    json_filename = f"results/temp_{map_name}_{protocol}_{detector}_{traffic_mid}.json"
+    os.makedirs("results", exist_ok=True)
     
     import glob
     for f in glob.glob(f"models/gnn_best_{map_name}_{protocol}_{detector}_{traffic_mid}_*.pth"):
@@ -628,75 +624,88 @@ def main():
     hidden_dim = 8 # 全局配置改回 8
     initargs = (map_name, protocol, detector, traffic_mid, wavelength_list, global_request_list, hidden_dim)
     # 增加 max_workers 以应对可能翻倍的种群
-    shared_executor = ProcessPoolExecutor(max_workers=8, initializer=worker_initializer, initargs=initargs)
+    # 使用 Context Manager 管理 ProcessPoolExecutor
+    with ProcessPoolExecutor(max_workers=16, initializer=worker_initializer, initargs=initargs) as shared_executor:
     
-    # 使用 CMA-ES (回归经典)
-    opt_bypass = CMAESOptimizer(global_request_list, shared_executor, bypass=True, map_name=map_name, traffic_mid=traffic_mid, protocol=protocol, detector=detector, device=device)
-    opt_nobypass = CMAESOptimizer(global_request_list, shared_executor, bypass=False, map_name=map_name, traffic_mid=traffic_mid, protocol=protocol, detector=detector, device=device)
-    
-    
-    phase1_gens = 50
-    phase2_gens = 100 
-    # Phase 1
-    print(f"\n=== Phase 1: Pre-training NoBypass ({phase1_gens} gens) ===")
-    for gen in range(1, phase1_gens + 1):
-        if not opt_nobypass.step(): break
+        # 使用 CMA-ES (回归经典)
+        opt_bypass = CMAESOptimizer(global_request_list, shared_executor, bypass=True, map_name=map_name, traffic_mid=traffic_mid, protocol=protocol, detector=detector, device=device)
+        opt_nobypass = CMAESOptimizer(global_request_list, shared_executor, bypass=False, map_name=map_name, traffic_mid=traffic_mid, protocol=protocol, detector=detector, device=device)
         
-        report = {
-            "generation": gen,
-            "bypass": opt_bypass.get_best_result(),
-            "nobypass": opt_nobypass.get_best_result(),
-            "status": "phase1_nobypass"
-        }
-        with open(json_filename, "w") as f: json.dump(report, f, indent=4)
-
-    # Phase 2
-    print(f"\n=== Phase 2: Transferring Knowledge & Training Bypass ===")
-    opt_bypass.load_from_optimizer(opt_nobypass)
-    
-    max_it = 1000
-    total_gens = phase1_gens + phase2_gens
-    for gen in range(phase1_gens + 1, max_it + 1):
-        if not opt_bypass.step(): break
+        phase1_gens = 1
+        phase2_gens = 1 
         
-        report = {
-            "generation": gen,
-            "bypass": opt_bypass.get_best_result(),
-            "nobypass": opt_nobypass.get_best_result(),
-            "status": "phase2_bypass"
-        }
-        with open(json_filename, "w") as f: json.dump(report, f, indent=4)
+        # Phase 1
+        print(f"\n=== Phase 1: Pre-training NoBypass ({phase1_gens} gens) ===")
+        for gen in range(1, phase1_gens + 1):
+            if not opt_nobypass.step(): break
             
-        # 比较逻辑
-        p_bypass = opt_bypass.best_pure_power_found
-        p_nobypass = opt_nobypass.best_pure_power_found
-        s_bypass = opt_bypass.best_metrics.get('spec_occ', 0.0)
-        s_nobypass = opt_nobypass.best_metrics.get('spec_occ', 0.0)
+            report = {
+                "generation": gen,
+                "bypass": opt_bypass.get_best_result(),
+                "nobypass": opt_nobypass.get_best_result(),
+                "status": "phase1_nobypass"
+            }
+            with open(json_filename, "w") as f: json.dump(report, f, indent=4)
+        
+        # Phase 2
+        print(f"\n=== Phase 2: Transferring Knowledge & Training Bypass ===")
+        opt_bypass.load_from_optimizer(opt_nobypass)
+        
+        max_it = 1000
+        total_gens = phase1_gens + phase2_gens
+        
+        final_status = "max_gens_reached"
+        
+        for gen in range(phase1_gens + 1, max_it + 1):
+            if not opt_bypass.step(): break
+            
+            report = {
+                "generation": gen,
+                "bypass": opt_bypass.get_best_result(),
+                "nobypass": opt_nobypass.get_best_result(),
+                "status": "phase2_bypass"
+            }
+            with open(json_filename, "w") as f: json.dump(report, f, indent=4)
+            
+            # 比较逻辑
+            p_bypass = opt_bypass.best_pure_power_found
+            p_nobypass = opt_nobypass.best_pure_power_found
+            s_bypass = opt_bypass.best_metrics.get('spec_occ', 0.0)
+            s_nobypass = opt_nobypass.best_metrics.get('spec_occ', 0.0)
 
-        # print(f"🧐 [Gen {gen}] Bypass: {p_bypass:.2f}W (S:{s_bypass:.4f}) vs NoBypass Baseline: {p_nobypass:.2f}W (S:{s_nobypass:.4f})")
-
-        # 停止条件判断 (仅在 Bypass 训练阶段)
-        if p_bypass < float('inf') and p_nobypass < float('inf'):
-            power_win = p_bypass < p_nobypass
-            spec_tradeoff = s_bypass > s_nobypass
-            if gen > total_gens:
-                if power_win and spec_tradeoff:
-                    print(f"✅ Bypass Wins with Trade-off! (Power: {p_bypass:.2f} < {p_nobypass:.2f}, Spec: {s_bypass:.4f} > {s_nobypass:.4f}). Stopping.")
-                    report["status"] = "stopped_bypass_wins"
-                    with open(json_filename, "w") as f:
-                        json.dump(report, f, indent=4)
-                    break
-                elif power_win and not spec_tradeoff:
-                    print(f"⚠️ Bypass Power is lower, but Spectrum is NOT higher. Waiting for trade-off pattern...")
-                else:
-                    print(f"💪 NoBypass is still better (or equal) in Power. Continuing...")
-
-    print("\n✅ Curriculum Learning Finished.")
-
-    # 清理资源
-    opt_nobypass.close()
-    opt_bypass.close()
-    shared_executor.shutdown()
+            # 停止条件判断
+            if p_bypass < float('inf') and p_nobypass < float('inf'):
+                power_win = p_bypass < p_nobypass
+                spec_tradeoff = s_bypass > s_nobypass
+                if gen > total_gens:
+                    if power_win and spec_tradeoff:
+                        print(f"✅ Bypass Wins with Trade-off! Stopping.")
+                        final_status = "bypass_wins_tradeoff"
+                        break
+                    # 其他情况继续跑
+        
+        # 获取最终结果
+        result = {
+            "config": {
+                "topology": map_name,
+                "protocol": protocol,
+                "detector": detector,
+                "traffic": traffic_mid
+            },
+            "bypass_result": opt_bypass.get_best_result(),
+            "nobypass_result": opt_nobypass.get_best_result(),
+            "status": final_status
+        }
+        
+        opt_nobypass.close()
+        opt_bypass.close()
+        
+    # Clean up temp file
+    try: os.remove(json_filename)
+    except: pass
+        
+    return result
 
 if __name__ == "__main__":
-    main()
+    # 默认单次运行 (用于调试)
+    run_experiment("Tokyo", "BB84", "APD", "Low")
