@@ -628,7 +628,14 @@ def run_experiment(map_name, protocol, detector, traffic_mid):
     initargs = (map_name, protocol, detector, traffic_mid, wavelength_list, global_request_list, hidden_dim)
     # 增加 max_workers 以应对可能翻倍的种群
     # 使用 Context Manager 管理 ProcessPoolExecutor
-    with ProcessPoolExecutor(max_workers=16, initializer=worker_initializer, initargs=initargs) as shared_executor:
+    # [Performance] 使用所有可用核心
+    import multiprocessing
+    num_workers = multiprocessing.cpu_count()
+    # 如果核心数过多，限制一下以免内存爆炸 (e.g. 64核)
+    num_workers = min(num_workers, 32) 
+    print(f"🚀 Launching ProcessPoolExecutor with {num_workers} workers")
+    
+    with ProcessPoolExecutor(max_workers=num_workers, initializer=worker_initializer, initargs=initargs) as shared_executor:
     
         # 使用 CMA-ES (回归经典)
         opt_bypass = CMAESOptimizer(global_request_list, shared_executor, bypass=True, map_name=map_name, traffic_mid=traffic_mid, protocol=protocol, detector=detector, device=device)

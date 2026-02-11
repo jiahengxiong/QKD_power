@@ -1,26 +1,26 @@
 {
-    "generation": 2,
+    "generation": 43,
     "bypass": {
-        "best_fitness": 21673.854545454546,
-        "avg_power": 21673.454545454544,
-        "spec_occ": 0.4,
+        "best_fitness": Infinity,
+        "avg_power": Infinity,
+        "spec_occ": 0.0,
         "components": {
-            "source": 4.290909090909091,
-            "detector": 690.8363636363637,
+            "source": 0.0,
+            "detector": 0.0,
             "ice_box": 0.0,
-            "other": 978.3272727272728
+            "other": 0.0
         }
     },
     "nobypass": {
-        "best_fitness": 1418.3901515151515,
-        "avg_power": 1418.1818181818182,
-        "spec_occ": 0.20833333333333334,
+        "best_fitness": 1333.2867424242424,
+        "avg_power": 1333.090909090909,
+        "spec_occ": 0.19583333333333333,
         "components": {
-            "source": 3.6363636363636362,
-            "detector": 585.4545454545455,
+            "source": 3.418181818181818,
+            "detector": 550.3272727272728,
             "ice_box": 0.0,
-            "other": 829.0909090909091
+            "other": 779.3454545454546
         }
     },
-    "status": "phase2_bypass"
+    "status": "phase1_nobypass"
 }
