@@ -40,29 +40,41 @@ def worker_initializer(map_name, protocol, detector, traffic_mid, wavelength_lis
     """
     Worker 进程初始化函数。只在进程启动时执行一次。
     """
-    global _WORKER_ENV, _WORKER_MODEL
-    
-    # 1. 禁用警告
-    import warnings
-    warnings.filterwarnings("ignore")
-    import os
-    os.environ["PYTHONWARNINGS"] = "ignore"
-    
-    # 2. 初始化环境 (默认 is_bypass=False，会在每次 evaluate 时动态修改)
-    _WORKER_ENV = QKDEnv(
-        map_name=map_name,
-        protocol=protocol,
-        detector=detector,
-        traffic_mid=traffic_mid,
-        wavelength_list=wavelength_list,
-        request_list=request_list,
-        is_bypass=False 
-    )
-    
-    # 3. 初始化模型 (CPU)
-    _WORKER_MODEL = QKDGraphNet(actual_nodes=_WORKER_ENV.num_nodes, is_bypass=False, hidden_dim=hidden_dim).to("cpu")
-    # 设置为 eval 模式，因为我们不需要梯度
-    _WORKER_MODEL.eval()
+    try:
+        global _WORKER_ENV, _WORKER_MODEL
+        
+        # 1. 禁用警告
+        import warnings
+        warnings.filterwarnings("ignore")
+        import os
+        os.environ["PYTHONWARNINGS"] = "ignore"
+        
+        # 2. 初始化环境 (默认 is_bypass=False，会在每次 evaluate 时动态修改)
+        _WORKER_ENV = QKDEnv(
+            map_name=map_name,
+            protocol=protocol,
+            detector=detector,
+            traffic_mid=traffic_mid,
+            wavelength_list=wavelength_list,
+            request_list=request_list,
+            is_bypass=False 
+        )
+        
+        # 3. 初始化模型 (CPU)
+        _WORKER_MODEL = QKDGraphNet(actual_nodes=_WORKER_ENV.num_nodes, is_bypass=False, hidden_dim=hidden_dim).to("cpu")
+        # 设置为 eval 模式，因为我们不需要梯度
+        _WORKER_MODEL.eval()
+        
+        # [Debug] 确认 Worker 启动成功
+        # with open(f"logs/worker_{os.getpid()}_ok.txt", "w") as f: f.write("OK")
+        
+    except Exception as e:
+        import traceback
+        import os
+        os.makedirs("logs", exist_ok=True)
+        with open(f"logs/worker_{os.getpid()}_error.txt", "w") as f:
+            f.write(traceback.format_exc())
+        raise e
 
 # === 独立的 Worker 函数 ===
 def evaluate_worker(args):

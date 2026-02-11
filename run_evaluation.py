@@ -4,6 +4,13 @@ import time
 import sys
 import torch
 
+# [Performance] 限制每个 Worker 的线程数，避免多进程 CPU 争用
+os.environ["OMP_NUM_THREADS"] = "1"
+os.environ["MKL_NUM_THREADS"] = "1"
+os.environ["OPENBLAS_NUM_THREADS"] = "1"
+os.environ["VECLIB_MAXIMUM_THREADS"] = "1"
+os.environ["NUMEXPR_NUM_THREADS"] = "1"
+
 # 动态添加路径，确保能找到 train_cma
 sys.path.append(os.getcwd())
 from train_cma import run_experiment
