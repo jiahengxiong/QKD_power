@@ -319,8 +319,8 @@ class OpenAIESOptimizer:
             # 进步显著 -> 收敛
             self.sigma *= 0.98
         else:
-            # 停滞 -> 膨胀 (缓慢)
-            self.sigma += 0.001
+            # 停滞 -> 膨胀 (Exponential Growth for consistency)
+            self.sigma *= 1.02
             
         # [Sigma Clip] 限制最大噪声幅度 (0.05 - 0.25)
         self.sigma = np.clip(self.sigma, 0.05, 0.25)
