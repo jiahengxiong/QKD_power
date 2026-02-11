@@ -190,11 +190,11 @@ class OpenAIESOptimizer:
         print(f"🚀 OpenAI-ES Optimizer Initialized. Params: {self.total_params}")
         
         # 2. ES 参数
-        self.pop_size = pop_size
-        self.sigma = 0.1 # 噪声标准差
-        self.lr = 0.02   # 学习率 (Adam)
-        # [Optimization] 添加 Weight Decay 防止参数漂移
-        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr, weight_decay=0.005)
+        self.pop_size = 128 # [Tuning] 增大种群以增强探索
+        self.sigma = 0.2    # [Tuning] 增大噪声以跳出局部最优 (0.1 -> 0.2)
+        self.lr = 0.02      # 学习率 (Adam)
+        # [Optimization] 减小 Weight Decay (0.005 -> 0.001)
+        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr, weight_decay=0.001)
         
         # 状态记录
         self.best_fitness_found = float('inf')
