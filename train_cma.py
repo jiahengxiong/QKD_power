@@ -634,8 +634,8 @@ def run_experiment(map_name, protocol, detector, traffic_mid):
         opt_bypass = CMAESOptimizer(global_request_list, shared_executor, bypass=True, map_name=map_name, traffic_mid=traffic_mid, protocol=protocol, detector=detector, device=device)
         opt_nobypass = CMAESOptimizer(global_request_list, shared_executor, bypass=False, map_name=map_name, traffic_mid=traffic_mid, protocol=protocol, detector=detector, device=device)
         
-        phase1_gens = 1
-        phase2_gens = 1 
+        phase1_gens = 50
+        phase2_gens = 100 
         
         # Phase 1
         print(f"\n=== Phase 1: Pre-training NoBypass ({phase1_gens} gens) ===")

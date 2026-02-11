@@ -10,3 +10,4 @@ Gen 7 (R0-L) | Pop: 64 | Time: 36.18s | Cur: 1077.82W (Spec:35.83%) | HistBest: 
 Gen 8 (R0-L) | Pop: 64 | Time: 41.59s | Cur: 1021.09W (Spec:22.50%) | HistBest: 1021.09W
 Gen 9 (R0-L) | Pop: 64 | Time: 40.00s | Cur: 992.73W (Spec:23.75%) | HistBest: 992.73W
 Gen 10 (R0-L) | Pop: 64 | Time: 39.49s | Cur: 992.73W (Spec:23.75%) | HistBest: 992.73W
+Gen 11 (R0-L) | Pop: 64 | Time: 43.82s | Cur: 1049.45W (Spec:27.08%) | HistBest: 992.73W
