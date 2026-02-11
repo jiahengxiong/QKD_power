@@ -191,7 +191,7 @@ class OpenAIESOptimizer:
         
         # 2. ES 参数
         self.pop_size = 128 # [Tuning] 增大种群以增强探索
-        self.sigma = 0.2    # [Tuning] 增大噪声以跳出局部最优 (0.1 -> 0.2)
+        self.sigma = 0.15   # [Tuning] 增大初始噪声 (0.1 -> 0.15)
         self.lr = 0.02      # 学习率 (Adam)
         # [Optimization] 减小 Weight Decay (0.005 -> 0.001)
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr, weight_decay=0.001)
@@ -322,8 +322,8 @@ class OpenAIESOptimizer:
             # 停滞 -> 膨胀 (缓慢)
             self.sigma += 0.001
             
-        # [Sigma Clip] 限制最大噪声幅度，防止变成随机游走 (0.4 -> 0.2)
-        self.sigma = np.clip(self.sigma, 0.05, 0.2)
+        # [Sigma Clip] 限制最大噪声幅度 (0.05 - 0.25)
+        self.sigma = np.clip(self.sigma, 0.05, 0.25)
         self.prev_best_fitness = self.best_fitness_found # 更新历史最佳基准
             
         self.generation += 1
