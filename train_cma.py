@@ -41,12 +41,21 @@ def worker_initializer(map_name, protocol, detector, traffic_mid, wavelength_lis
     Worker 进程初始化函数。只在进程启动时执行一次。
     """
     try:
+        # [Performance] 强制限制每个 Worker 的线程数，防止 CPU 过载
+        import os
+        os.environ["OMP_NUM_THREADS"] = "1"
+        os.environ["MKL_NUM_THREADS"] = "1"
+        os.environ["OPENBLAS_NUM_THREADS"] = "1"
+        
+        import torch
+        torch.set_num_threads(1)
+        torch.set_num_interop_threads(1)
+
         global _WORKER_ENV, _WORKER_MODEL
         
         # 1. 禁用警告
         import warnings
         warnings.filterwarnings("ignore")
-        import os
         os.environ["PYTHONWARNINGS"] = "ignore"
         
         # 2. 初始化环境 (默认 is_bypass=False，会在每次 evaluate 时动态修改)
@@ -656,7 +665,8 @@ def run_experiment(map_name, protocol, detector, traffic_mid):
         
     num_workers = multiprocessing.cpu_count()
     # 限制最大 Worker 数
-    num_workers = min(num_workers, 32)
+    # [Performance Tuning] 线程数已限制为 1，现在可以全核跑了
+    num_workers = min(num_workers, 32) 
     print(f"🚀 Launching ProcessPoolExecutor with {num_workers} workers (Context: {mp_context})")
     
     # 这里的 if-else 是为了保留 SyncExecutor 作为一个 fallback 选项，但我们现在要切回并行
