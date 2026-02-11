@@ -160,8 +160,7 @@ def evaluate_worker(args):
 class OpenAIESOptimizer:
     """
     OpenAI Evolution Strategies (ES) Optimizer
-    使用 Adam 优化器 + 伪梯度估计 (Search Gradients)。
-    通常比 CMA-ES 收敛更快，特别是对于高维参数。
+    使用 Adam 优化器 + 伪梯度估计 (Search Gradients) + Rank Shaping。
     """
     def __init__(self, request_list, executor, bypass=True, map_name="Paris", traffic_mid="Low", protocol="BB84", detector="SNSPD", device="cuda", pop_size=64):
         self.bypass = bypass
@@ -171,7 +170,7 @@ class OpenAIESOptimizer:
         self.traffic_mid = traffic_mid
         self.device = device
         self.wavelength_list = np.linspace(1530, 1565, 10).tolist()
-        self.hidden_dim = 8 # 改回 8
+        self.hidden_dim = 8
         self.executor = executor
         self.request_list = request_list
         
@@ -180,16 +179,20 @@ class OpenAIESOptimizer:
             map_name=map_name, protocol=protocol, detector=detector, traffic_mid=traffic_mid,
             wavelength_list=self.wavelength_list, request_list=self.request_list, is_bypass=bypass
         )
-        self.model = QKDGraphNet(actual_nodes=self.env.num_nodes, is_bypass=bypass, hidden_dim=self.hidden_dim).to(device)
+        self.model = QKDGraphNet(
+            num_global_features=7, num_wl_features=5, num_wavelengths=len(self.wavelength_list),
+            actual_nodes=self.env.num_nodes, is_bypass=bypass, hidden_dim=self.hidden_dim
+        ).to(device)
+        
         self.total_params = sum(p.numel() for p in self.model.parameters())
-        self.model_filename = f"gnn_best_{map_name}_{protocol}_{detector}_{traffic_mid}_bypass_{bypass}_es.pth"
+        self.model_filename = f"gnn_best_{map_name}_{protocol}_{detector}_{traffic_mid}_bypass_{bypass}.pth"
         
         print(f"🚀 OpenAI-ES Optimizer Initialized. Params: {self.total_params}")
         
         # 2. ES 参数
         self.pop_size = pop_size
-        self.sigma = 0.1 # 噪声标准差 (扰动幅度)
-        self.lr = 0.05   # 学习率 (稳健策略：0.02)
+        self.sigma = 0.1 # 噪声标准差
+        self.lr = 0.02   # 学习率 (Adam)
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
         
         # 状态记录
@@ -197,7 +200,7 @@ class OpenAIESOptimizer:
         self.best_pure_power_found = float('inf')
         self.best_metrics = {}
         self.generation = 0
-        self.current_center_params = None # 这一代的中心参数
+        self.current_center_params = None
         
         # 尝试热启动
         model_path = os.path.join("models", self.model_filename)
@@ -208,17 +211,15 @@ class OpenAIESOptimizer:
             except: pass
             
         # 日志
-        self.log_filename = f"log_{map_name}_{protocol}_{detector}_{traffic_mid}_Bypass_{bypass}_ES.txt"
+        self.log_filename = f"log_{map_name}_{protocol}_{detector}_{traffic_mid}_Bypass_{bypass}.txt"
         with open(self.log_filename, "w") as f:
             f.write(f"--- OpenAI-ES Training Log for Bypass={bypass} ---\n")
         self.log_file = open(self.log_filename, "a")
 
     def get_flat_params(self):
-        """获取当前模型参数的扁平化向量 (numpy)"""
         return np.concatenate([p.data.cpu().numpy().flatten() for p in self.model.parameters()])
 
     def set_flat_params(self, flat_params):
-        """将扁平化向量加载回模型"""
         curr_idx = 0
         for param in self.model.parameters():
             size = param.numel()
@@ -231,14 +232,11 @@ class OpenAIESOptimizer:
         center_params = self.get_flat_params()
         self.current_center_params = center_params
         
-        # 1. 生成噪声 (Antithetic Sampling: w+noise, w-noise)
-        # 只需要生成 pop_size / 2 个噪声向量
+        # 1. 生成噪声 (Antithetic Sampling)
         half_pop = self.pop_size // 2
         noise = np.random.randn(half_pop, self.total_params)
         
         # 2. 准备评估参数
-        # param_i = center + sigma * noise_i
-        # param_j = center - sigma * noise_i
         eval_params = []
         for i in range(half_pop):
             eval_params.append(center_params + self.sigma * noise[i])
@@ -271,25 +269,11 @@ class OpenAIESOptimizer:
             self.save_model(eval_params[min_idx])
             
         # 5. 梯度估计 (Rank Transformation)
-        # 将 fitness 转换为排名 (0 ~ N-1)
         ranks = np.zeros_like(fitnesses)
         ranks[fitnesses.argsort()] = np.arange(len(fitnesses))
-        # 归一化到 (-0.5, 0.5)，排名越小(越好)值越小，为了梯度下降，我们需要 (bad - good) 或者 -reward
-        # 我们希望最小化 fitness。
-        # 标准 ES 公式: grad = sum(noise * reward). 这里 reward = -fitness.
-        # 使用 Rank Shaping: 好的(rank小)对应正权重，坏的对应负权重
-        # 让我们定义 utility = (len - rank - 1) / (len - 1) - 0.5
-        # rank=0 (best) -> utility=0.5
-        # rank=N-1 (worst) -> utility=-0.5
+        # Utility: Rank 0 (Best) -> 0.5, Rank N-1 (Worst) -> -0.5
         utilities = (len(fitnesses) - 1 - ranks) / (len(fitnesses) - 1) - 0.5
-        # 额外标准化，防止偶发爆炸 (Standard OpenAI ES trick)
         utilities = (utilities - utilities.mean()) / (utilities.std() + 1e-8)
-        
-        # 聚合梯度
-        # 对于 antithetic sampling:
-        # noise[i] 对应的 utility 是 utilities[2*i]
-        # -noise[i] 对应的 utility 是 utilities[2*i+1]
-        # grad_i = noise[i] * (utility_pos - utility_neg)
         
         grad = np.zeros(self.total_params)
         for i in range(half_pop):
@@ -300,7 +284,6 @@ class OpenAIESOptimizer:
         grad /= (half_pop * self.sigma)
         
         # 6. Adam 更新
-        # [CRITICAL FIX]: 确保模型处于 Center 状态并清空梯度 (防止累积梯度和状态漂移)
         self.set_flat_params(self.current_center_params)
         self.optimizer.zero_grad(set_to_none=True)
         
@@ -308,7 +291,7 @@ class OpenAIESOptimizer:
         for param in self.model.parameters():
             size = param.numel()
             g = torch.from_numpy(grad[curr_idx:curr_idx+size]).view(param.shape).float().to(self.device)
-            param.grad = -g # 负号！因为 Adam 是 Gradient Descent
+            param.grad = -g # Adam Descent towards better utility
             curr_idx += size
             
         self.optimizer.step()
@@ -317,7 +300,7 @@ class OpenAIESOptimizer:
         if self.generation % 1 == 0:
             avg_power = infos[min_idx].get('avg_power', 0.0)
             spec_occ = infos[min_idx].get('spec_occ', 0.0)
-            fit_std = np.std(fitnesses) # 替换 Unique Count 为 Fitness Std
+            fit_std = np.std(fitnesses)
             
             log_str = (f"Gen {self.generation} (ES) | Pop: {self.pop_size} | Time: {duration:.2f}s | "
                        f"Cur: {avg_power:.2f}W (S:{spec_occ:.2%}) | Std: {fit_std:.2f} | Best: {self.best_pure_power_found:.2f}W")
@@ -329,36 +312,22 @@ class OpenAIESOptimizer:
         return True
 
     def save_model(self, best_params):
-        # 临时保存
         self.set_flat_params(best_params)
         torch.save(self.model.state_dict(), f"models/{self.model_filename}")
-        # 恢复中心参数 (虽然其实不用，因为下一步就会被 Adam 更新覆盖)
         self.set_flat_params(self.current_center_params) 
         
     def get_best_result(self):
-        return {
-            "best_fitness": self.best_fitness_found,
-            "avg_power": self.best_pure_power_found,
-            "spec_occ": self.best_metrics.get('spec_occ', 0.0),
-            "components": {}
-        }
+        return self.best_metrics
     
     def load_from_optimizer(self, other_opt):
-        # 从另一个 Optimizer (可能是 CMA 或 ES) 加载权重
         print(f"🔄 [{self.bypass}] Transferring weights...")
         try:
-            # 尝试加载文件
             fname = os.path.join("models", other_opt.model_filename)
             if os.path.exists(fname):
                 self.model.load_state_dict(torch.load(fname))
             else:
-                # 直接从内存加载
-                # 注意：如果 other_opt 是 CMA，它可能还没把最新 best 写入 model
-                # 这里假设 best 已经同步
                 pass
         except: pass
-        
-        # 重置 Adam
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
         print(f"✅ Transfer complete. Adam reset.")
 
@@ -696,9 +665,9 @@ def run_experiment(map_name, protocol, detector, traffic_mid):
 
     with executor_cm as shared_executor:
     
-        # 使用 CMA-ES (回归经典)
-        opt_bypass = CMAESOptimizer(global_request_list, shared_executor, bypass=True, map_name=map_name, traffic_mid=traffic_mid, protocol=protocol, detector=detector, device=device)
-        opt_nobypass = CMAESOptimizer(global_request_list, shared_executor, bypass=False, map_name=map_name, traffic_mid=traffic_mid, protocol=protocol, detector=detector, device=device)
+        # 使用 OpenAI-ES (防止局部最优)
+        opt_bypass = OpenAIESOptimizer(global_request_list, shared_executor, bypass=True, map_name=map_name, traffic_mid=traffic_mid, protocol=protocol, detector=detector, device=device)
+        opt_nobypass = OpenAIESOptimizer(global_request_list, shared_executor, bypass=False, map_name=map_name, traffic_mid=traffic_mid, protocol=protocol, detector=detector, device=device)
         
         phase1_gens = 50
         phase2_gens = 100 
