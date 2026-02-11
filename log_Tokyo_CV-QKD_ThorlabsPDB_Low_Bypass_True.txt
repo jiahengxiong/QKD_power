@@ -1,0 +1,25 @@
+--- BIPOP-CMA-ES Training Log for Bypass=True ---
+Gen 0 (R0-L) | Pop: 64 | Time: 52.05s | Cur: 397.45W (Spec:2.38%) | HistBest: 397.45W
+Gen 1 (R0-L) | Pop: 64 | Time: 51.65s | Cur: 463.69W (Spec:2.14%) | HistBest: 397.45W
+Gen 2 (R0-L) | Pop: 64 | Time: 51.24s | Cur: 397.45W (Spec:2.38%) | HistBest: 397.45W
+Gen 3 (R0-L) | Pop: 64 | Time: 51.81s | Cur: 397.45W (Spec:2.38%) | HistBest: 397.45W
+Gen 4 (R0-L) | Pop: 64 | Time: 51.57s | Cur: 397.45W (Spec:2.38%) | HistBest: 397.45W
+Gen 5 (R0-L) | Pop: 64 | Time: 51.60s | Cur: 397.45W (Spec:2.38%) | HistBest: 397.45W
+Gen 6 (R0-L) | Pop: 64 | Time: 51.39s | Cur: 397.45W (Spec:2.38%) | HistBest: 397.45W
+Gen 7 (R0-L) | Pop: 64 | Time: 51.17s | Cur: 397.45W (Spec:2.38%) | HistBest: 397.45W
+Gen 8 (R0-L) | Pop: 64 | Time: 51.21s | Cur: 397.45W (Spec:2.38%) | HistBest: 397.45W
+Gen 9 (R0-L) | Pop: 64 | Time: 51.70s | Cur: 397.45W (Spec:2.38%) | HistBest: 397.45W
+Gen 10 (R1-S) | Pop: 64 | Time: 51.14s | Cur: 397.45W (Spec:2.38%) | HistBest: 397.45W
+Gen 11 (R1-S) | Pop: 64 | Time: 51.65s | Cur: 397.45W (Spec:2.38%) | HistBest: 397.45W
+Gen 12 (R1-S) | Pop: 64 | Time: 51.43s | Cur: 397.45W (Spec:2.38%) | HistBest: 397.45W
+Gen 13 (R2-L) | Pop: 128 | Time: 102.77s | Cur: 397.45W (Spec:2.38%) | HistBest: 397.45W
+Gen 14 (R2-L) | Pop: 128 | Time: 102.26s | Cur: 397.45W (Spec:2.38%) | HistBest: 397.45W
+Gen 15 (R2-L) | Pop: 128 | Time: 102.32s | Cur: 397.45W (Spec:2.38%) | HistBest: 397.45W
+Gen 16 (R2-L) | Pop: 128 | Time: 102.62s | Cur: 397.45W (Spec:2.38%) | HistBest: 397.45W
+Gen 17 (R2-L) | Pop: 128 | Time: 102.40s | Cur: 397.45W (Spec:2.38%) | HistBest: 397.45W
+Gen 18 (R2-L) | Pop: 128 | Time: 102.64s | Cur: 397.45W (Spec:2.38%) | HistBest: 397.45W
+Gen 19 (R3-S) | Pop: 64 | Time: 51.07s | Cur: 397.45W (Spec:2.38%) | HistBest: 397.45W
+Gen 20 (R3-S) | Pop: 64 | Time: 51.36s | Cur: 397.45W (Spec:2.38%) | HistBest: 397.45W
+Gen 21 (R3-S) | Pop: 64 | Time: 51.55s | Cur: 397.45W (Spec:2.38%) | HistBest: 397.45W
+Gen 22 (R4-L) | Pop: 256 | Time: 205.15s | Cur: 397.45W (Spec:2.38%) | HistBest: 397.45W
+Gen 23 (R4-L) | Pop: 256 | Time: 1322.33s | Cur: 397.45W (Spec:2.38%) | HistBest: 397.45W

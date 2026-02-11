@@ -1,0 +1,2 @@
+--- BIPOP-CMA-ES Training Log for Bypass=False ---
+Gen 0 (R0-L) | Pop: 64 | Time: 39.54s | Cur: 505.85W (Spec:20.00%) | HistBest: 505.85W

@@ -1,3 +1,15 @@
+import os
+# 在导入任何其他库之前设置环境变量
+os.environ["PYTHONWARNINGS"] = "ignore"
+
+import warnings
+import time
+# 忽略 Gym 废弃警告和 Matplotlib 缺失警告
+warnings.filterwarnings("ignore", category=UserWarning, module="cma")
+warnings.filterwarnings("ignore", category=DeprecationWarning, module="gym")
+# 对于 gym 的特定废弃消息，可能需要更通用的过滤
+warnings.filterwarnings("ignore", message=".*Gym has been unmaintained.*")
+
 import torch
 import torch.nn as nn
 import numpy as np
@@ -6,8 +18,11 @@ import time
 import os
 import json
 import gc
+import random
+import multiprocessing
+import traceback
 
-# 环境变量设置必须在导入 numpy/torch 之后尽快执行，或在最前面
+# 环境变量设置
 os.environ["MKL_THREADING_LAYER"] = "GNU"
 os.environ["OMP_NUM_THREADS"] = "1"
 os.environ["OPENBLAS_NUM_THREADS"] = "1"
@@ -15,49 +30,395 @@ os.environ["OPENBLAS_NUM_THREADS"] = "1"
 from qkd_env import QKDEnv
 from rl_models import QKDGraphNet
 from utils.traffic_generater import gen_traffic_matrix
+from concurrent.futures import ProcessPoolExecutor
 
-class CMAESOptimizer:
-    def __init__(self, bypass=True, map_name="Paris", traffic_mid="Low", protocol="BB84", detector="SNSPD", device="cuda"):
+# === Worker 进程内的全局变量 (进程隔离) ===
+_WORKER_ENV = None
+_WORKER_MODEL = None
+
+def worker_initializer(map_name, protocol, detector, traffic_mid, wavelength_list, request_list, hidden_dim):
+    """
+    Worker 进程初始化函数。只在进程启动时执行一次。
+    """
+    global _WORKER_ENV, _WORKER_MODEL
+    
+    # 1. 禁用警告
+    import warnings
+    warnings.filterwarnings("ignore")
+    import os
+    os.environ["PYTHONWARNINGS"] = "ignore"
+    
+    # 2. 初始化环境 (默认 is_bypass=False，会在每次 evaluate 时动态修改)
+    _WORKER_ENV = QKDEnv(
+        map_name=map_name,
+        protocol=protocol,
+        detector=detector,
+        traffic_mid=traffic_mid,
+        wavelength_list=wavelength_list,
+        request_list=request_list,
+        is_bypass=False 
+    )
+    
+    # 3. 初始化模型 (CPU)
+    _WORKER_MODEL = QKDGraphNet(actual_nodes=_WORKER_ENV.num_nodes, is_bypass=False, hidden_dim=hidden_dim).to("cpu")
+    # 设置为 eval 模式，因为我们不需要梯度
+    _WORKER_MODEL.eval()
+
+# === 独立的 Worker 函数 ===
+def evaluate_worker(args):
+    """
+    并行评估 Worker。直接复用全局变量。
+    Args:
+        args: tuple (vector, is_bypass)
+    """
+    global _WORKER_ENV, _WORKER_MODEL
+    
+    vector, is_bypass = args
+    
+    try:
+        # 1. 动态更新配置 (防止状态污染)
+        _WORKER_ENV.is_bypass = is_bypass
+        _WORKER_MODEL.is_bypass = is_bypass # 如果模型内部用到了这个标志
+        
+        # 2. 加载参数
+        # vector 是 numpy array，转为 tensor
+        curr_idx = 0
+        for param in _WORKER_MODEL.parameters():
+            size = param.numel()
+            # 这种写法比 named_parameters 更快，且无需 name 匹配
+            new_param = torch.from_numpy(vector[curr_idx:curr_idx+size]).view(param.shape).float()
+            param.data.copy_(new_param)
+            curr_idx += size
+            
+        # 3. 运行评估循环
+        # reset 会根据 _WORKER_ENV.is_bypass 强制更新 config.bypass
+        state_matrices, context = _WORKER_ENV.reset()
+        
+        # 这里的 hidden_dim 可以从模型里取
+        hidden_dim = _WORKER_MODEL.hidden_dim if hasattr(_WORKER_MODEL, 'hidden_dim') else 8
+        h_state = torch.zeros(1, hidden_dim)
+        last_action_t = None
+        done = False
+        
+        while not done:
+            with torch.no_grad():
+                x_global_np, x_wl_np = state_matrices
+                # 使用 from_numpy 避免内存拷贝 (Zero-copy)
+                x_global_t = torch.from_numpy(x_global_np).float().unsqueeze(0)
+                x_wl_t = torch.from_numpy(x_wl_np).float().unsqueeze(0)
+                context_t = torch.from_numpy(context).float().unsqueeze(0)
+                
+                mu, _, h_next = _WORKER_MODEL(x_global_t, x_wl_t, context_t, last_action_t, h_state)
+                h_state = h_next
+                action_weights = mu.squeeze().numpy()
+                last_action_t = mu.view(1, -1)
+                
+            next_state, reward, done, info = _WORKER_ENV.step(action_weights)
+            state_matrices, context = next_state
+            
+        avg_power = info.get('avg_power', 10000.0)
+        spec_occ = info.get('spec_occ', 1.0)
+        
+        # 综合适应度：平均功耗 + 频谱占用 + 热能风险 + 微观路径权重惩罚
+        path_cost_sum = info.get('path_cost', 0.0)
+        fitness = avg_power + spec_occ
+        # fitness = avg_power + spec_occ + 0.00001 * path_cost_sum
+        
+        # 显式清理 (防止计算图残留)
+        del h_state, last_action_t
+        
+        return fitness, info
+    except Exception as e:
+        traceback.print_exc()
+        print(f"❌ Worker Error: {e}", flush=True)
+        return 10000.0, {}
+
+class OpenAIESOptimizer:
+    """
+    OpenAI Evolution Strategies (ES) Optimizer
+    使用 Adam 优化器 + 伪梯度估计 (Search Gradients)。
+    通常比 CMA-ES 收敛更快，特别是对于高维参数。
+    """
+    def __init__(self, request_list, executor, bypass=True, map_name="Paris", traffic_mid="Low", protocol="BB84", detector="SNSPD", device="cuda", pop_size=64):
         self.bypass = bypass
+        self.map_name = map_name
         self.protocol = protocol
         self.detector = detector
         self.traffic_mid = traffic_mid
         self.device = device
         self.wavelength_list = np.linspace(1530, 1565, 10).tolist()
+        self.hidden_dim = 8 # 改回 8
+        self.executor = executor
+        self.request_list = request_list
         
-        # 核心修复：设置固定随机种子，确保每次生成的 request_list 完全一致
-        # 这对于跨运行的 Warm Start 和公平比较至关重要
-        import random
+        # 1. 初始化模型
+        self.env = QKDEnv(
+            map_name=map_name, protocol=protocol, detector=detector, traffic_mid=traffic_mid,
+            wavelength_list=self.wavelength_list, request_list=self.request_list, is_bypass=bypass
+        )
+        self.model = QKDGraphNet(actual_nodes=self.env.num_nodes, is_bypass=bypass, hidden_dim=self.hidden_dim).to(device)
+        self.total_params = sum(p.numel() for p in self.model.parameters())
+        self.model_filename = f"gnn_best_{map_name}_{protocol}_{detector}_{traffic_mid}_bypass_{bypass}_es.pth"
+        
+        print(f"🚀 OpenAI-ES Optimizer Initialized. Params: {self.total_params}")
+        
+        # 2. ES 参数
+        self.pop_size = pop_size
+        self.sigma = 0.1 # 噪声标准差 (扰动幅度)
+        self.lr = 0.05   # 学习率 (稳健策略：0.02)
+        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
+        
+        # 状态记录
+        self.best_fitness_found = float('inf')
+        self.best_pure_power_found = float('inf')
+        self.best_metrics = {}
+        self.generation = 0
+        self.current_center_params = None # 这一代的中心参数
+        
+        # 尝试热启动
+        model_path = os.path.join("models", self.model_filename)
+        if os.path.exists(model_path):
+            try:
+                self.model.load_state_dict(torch.load(model_path))
+                print(f"📂 [{bypass}] Loaded warm start model: {self.model_filename}")
+            except: pass
+            
+        # 日志
+        self.log_filename = f"log_{map_name}_{protocol}_{detector}_{traffic_mid}_Bypass_{bypass}_ES.txt"
+        with open(self.log_filename, "w") as f:
+            f.write(f"--- OpenAI-ES Training Log for Bypass={bypass} ---\n")
+        self.log_file = open(self.log_filename, "a")
+
+    def get_flat_params(self):
+        """获取当前模型参数的扁平化向量 (numpy)"""
+        return np.concatenate([p.data.cpu().numpy().flatten() for p in self.model.parameters()])
+
+    def set_flat_params(self, flat_params):
+        """将扁平化向量加载回模型"""
+        curr_idx = 0
+        for param in self.model.parameters():
+            size = param.numel()
+            new_param = torch.from_numpy(flat_params[curr_idx:curr_idx+size]).view(param.shape).float().to(self.device)
+            param.data.copy_(new_param)
+            curr_idx += size
+
+    def step(self):
+        """执行一代 OpenAI-ES 训练"""
+        center_params = self.get_flat_params()
+        self.current_center_params = center_params
+        
+        # 1. 生成噪声 (Antithetic Sampling: w+noise, w-noise)
+        # 只需要生成 pop_size / 2 个噪声向量
+        half_pop = self.pop_size // 2
+        noise = np.random.randn(half_pop, self.total_params)
+        
+        # 2. 准备评估参数
+        # param_i = center + sigma * noise_i
+        # param_j = center - sigma * noise_i
+        eval_params = []
+        for i in range(half_pop):
+            eval_params.append(center_params + self.sigma * noise[i])
+            eval_params.append(center_params - self.sigma * noise[i])
+            
+        # 3. 并行评估
+        args_list = [(x, self.bypass) for x in eval_params]
+        start_time = time.time()
+        
+        fitnesses = []
+        infos = []
+        try:
+            results = list(self.executor.map(evaluate_worker, args_list))
+            for fit, info in results:
+                fitnesses.append(fit)
+                infos.append(info)
+        except Exception as e:
+            print(f"❌ Parallel Error: {e}")
+            return False
+            
+        duration = time.time() - start_time
+        fitnesses = np.array(fitnesses)
+        
+        # 4. 记录最佳结果
+        min_idx = np.argmin(fitnesses)
+        if fitnesses[min_idx] < self.best_fitness_found:
+            self.best_fitness_found = fitnesses[min_idx]
+            self.best_pure_power_found = infos[min_idx].get('avg_power', float('inf'))
+            self.best_metrics = infos[min_idx]
+            self.save_model(eval_params[min_idx])
+            
+        # 5. 梯度估计 (Rank Transformation)
+        # 将 fitness 转换为排名 (0 ~ N-1)
+        ranks = np.zeros_like(fitnesses)
+        ranks[fitnesses.argsort()] = np.arange(len(fitnesses))
+        # 归一化到 (-0.5, 0.5)，排名越小(越好)值越小，为了梯度下降，我们需要 (bad - good) 或者 -reward
+        # 我们希望最小化 fitness。
+        # 标准 ES 公式: grad = sum(noise * reward). 这里 reward = -fitness.
+        # 使用 Rank Shaping: 好的(rank小)对应正权重，坏的对应负权重
+        # 让我们定义 utility = (len - rank - 1) / (len - 1) - 0.5
+        # rank=0 (best) -> utility=0.5
+        # rank=N-1 (worst) -> utility=-0.5
+        utilities = (len(fitnesses) - 1 - ranks) / (len(fitnesses) - 1) - 0.5
+        # 额外标准化，防止偶发爆炸 (Standard OpenAI ES trick)
+        utilities = (utilities - utilities.mean()) / (utilities.std() + 1e-8)
+        
+        # 聚合梯度
+        # 对于 antithetic sampling:
+        # noise[i] 对应的 utility 是 utilities[2*i]
+        # -noise[i] 对应的 utility 是 utilities[2*i+1]
+        # grad_i = noise[i] * (utility_pos - utility_neg)
+        
+        grad = np.zeros(self.total_params)
+        for i in range(half_pop):
+            u_pos = utilities[2*i]
+            u_neg = utilities[2*i+1]
+            grad += noise[i] * (u_pos - u_neg)
+            
+        grad /= (half_pop * self.sigma)
+        
+        # 6. Adam 更新
+        # [CRITICAL FIX]: 确保模型处于 Center 状态并清空梯度 (防止累积梯度和状态漂移)
+        self.set_flat_params(self.current_center_params)
+        self.optimizer.zero_grad(set_to_none=True)
+        
+        curr_idx = 0
+        for param in self.model.parameters():
+            size = param.numel()
+            g = torch.from_numpy(grad[curr_idx:curr_idx+size]).view(param.shape).float().to(self.device)
+            param.grad = -g # 负号！因为 Adam 是 Gradient Descent
+            curr_idx += size
+            
+        self.optimizer.step()
+        
+        # 7. 日志
+        if self.generation % 1 == 0:
+            avg_power = infos[min_idx].get('avg_power', 0.0)
+            spec_occ = infos[min_idx].get('spec_occ', 0.0)
+            fit_std = np.std(fitnesses) # 替换 Unique Count 为 Fitness Std
+            
+            log_str = (f"Gen {self.generation} (ES) | Pop: {self.pop_size} | Time: {duration:.2f}s | "
+                       f"Cur: {avg_power:.2f}W (S:{spec_occ:.2%}) | Std: {fit_std:.2f} | Best: {self.best_pure_power_found:.2f}W")
+            print(f"[{'Bypass' if self.bypass else 'NoBypass'}] {log_str}")
+            self.log_file.write(log_str + "\n")
+            self.log_file.flush()
+            
+        self.generation += 1
+        return True
+
+    def save_model(self, best_params):
+        # 临时保存
+        self.set_flat_params(best_params)
+        torch.save(self.model.state_dict(), f"models/{self.model_filename}")
+        # 恢复中心参数 (虽然其实不用，因为下一步就会被 Adam 更新覆盖)
+        self.set_flat_params(self.current_center_params) 
+        
+    def get_best_result(self):
+        return {
+            "best_fitness": self.best_fitness_found,
+            "avg_power": self.best_pure_power_found,
+            "spec_occ": self.best_metrics.get('spec_occ', 0.0),
+            "components": {}
+        }
+    
+    def load_from_optimizer(self, other_opt):
+        # 从另一个 Optimizer (可能是 CMA 或 ES) 加载权重
+        print(f"🔄 [{self.bypass}] Transferring weights...")
+        try:
+            # 尝试加载文件
+            fname = os.path.join("models", other_opt.model_filename)
+            if os.path.exists(fname):
+                self.model.load_state_dict(torch.load(fname))
+            else:
+                # 直接从内存加载
+                # 注意：如果 other_opt 是 CMA，它可能还没把最新 best 写入 model
+                # 这里假设 best 已经同步
+                pass
+        except: pass
+        
+        # 重置 Adam
+        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
+        print(f"✅ Transfer complete. Adam reset.")
+
+    def close(self):
+        if self.log_file: self.log_file.close()
+
+class CMAESOptimizer:
+    def __init__(self, request_list, executor, bypass=True, map_name="Paris", traffic_mid="Low", protocol="BB84", detector="SNSPD", device="cuda", pop_size=64):
+        self.bypass = bypass
+        self.map_name = map_name
+        self.protocol = protocol
+        self.detector = detector
+        self.traffic_mid = traffic_mid
+        self.device = device
+        self.wavelength_list = np.linspace(1530, 1565, 10).tolist()
+        self.base_pop_size = pop_size # 记录基础种群大小
+        self.hidden_dim = 8
+        self.executor = executor
+        
         random.seed(42)
         np.random.seed(42)
         torch.manual_seed(42)
         
-        self.request_list = gen_traffic_matrix(traffic_mid, map_name, self.wavelength_list, protocol, detector)
-        print(f"✅ Generated request list (Size: {len(self.request_list)}) with seed 42. Consistent across runs.")
+        self.request_list = request_list
+        print(f"✅ [{bypass}] Initialized with external request list (Size: {len(self.request_list)})")
         
-        # 初始化环境
         self.env = QKDEnv(
             map_name=map_name,
             protocol=protocol,
             detector=detector,
             traffic_mid=traffic_mid,
             wavelength_list=self.wavelength_list,
-            request_list=self.request_list
+            request_list=self.request_list,
+            is_bypass=bypass
         )
         
-        # 初始化 GNN 模型
-        self.model = QKDGraphNet(actual_nodes=self.env.num_nodes, is_bypass=bypass, hidden_dim=8).to(device)
-        self.param_shapes = [p.shape for p in self.model.parameters()]
-        self.param_sizes = [p.numel() for p in self.model.parameters()]
-        self.total_params = sum(self.param_sizes)
-        
-        # 独立模型保存路径 (增加 _GNN 后缀区分)
-        self.model_filename = f"gnn_best_Paris_{protocol}_{detector}_{traffic_mid}_bypass_{bypass}.pth"
+        self.model = QKDGraphNet(actual_nodes=self.env.num_nodes, is_bypass=bypass, hidden_dim=self.hidden_dim).to(device)
+        self.total_params = sum(p.numel() for p in self.model.parameters())
+        self.model_filename = f"gnn_best_{map_name}_{protocol}_{detector}_{traffic_mid}_bypass_{bypass}.pth"
         
         print(f"🚀 GNN-CMA-ES Optimizer Initialized. Total Parameters: {self.total_params}")
+        print(f"   Hidden Dim: {self.hidden_dim} | GRU: Enabled | Structure: Spatial-Preserved GNN")
+        
+        # === BIPOP 状态追踪 ===
+        self.restart_count = 0
+        self.last_large_pop = pop_size
+        self.bipop_mode = "large" # 当前模式: 'large' (IPOP) 或 'small' (Local)
+        
+        # 初始化 CMA-ES 参数
+        initial_params = np.concatenate([p.data.cpu().numpy().flatten() for p in self.model.parameters()])
+        self.opts = {
+            'popsize': pop_size, 
+            'verb_disp': 0,
+            'verb_log': 0,
+            'tolfun': 1e-12
+        }
+        self.es = cma.CMAEvolutionStrategy(initial_params, 0.5, self.opts)
+        
+        # 状态记录
+        self.best_fitness_found = float('inf')
+        self.best_pure_power_found = float('inf')
+        self.best_metrics = {}
+        self.eval_count = 0
+        self.generation = 0
+        self.best_solution_vector = initial_params # 记录全局最佳参数用于重启
+        
+        self.log_filename = f"log_{map_name}_{protocol}_{detector}_{traffic_mid}_Bypass_{bypass}.txt"
+        with open(self.log_filename, "w") as f:
+            f.write(f"--- BIPOP-CMA-ES Training Log for Bypass={bypass} ---\n")
+        self.log_file = open(self.log_filename, "a")
+        
+        # 尝试热启动
+        model_path = os.path.join("models", self.model_filename)
+        if os.path.exists(model_path):
+            try:
+                self.model.load_state_dict(torch.load(model_path))
+                print(f"📂 [{bypass}] Loaded warm start model: {self.model_filename}")
+                new_params = np.concatenate([p.data.cpu().numpy().flatten() for p in self.model.parameters()])
+                self.es = cma.CMAEvolutionStrategy(new_params, 0.5, self.opts)
+                self.best_solution_vector = new_params
+            except:
+                pass
 
     def vector_to_model(self, vector):
-        """将一维向量还原回模型参数"""
         state_dict = self.model.state_dict()
         curr_idx = 0
         for name, param in self.model.named_parameters():
@@ -65,9 +426,9 @@ class CMAESOptimizer:
             new_param = torch.from_numpy(vector[curr_idx:curr_idx+size]).view(param.shape).float().to(self.device)
             param.data.copy_(new_param)
             curr_idx += size
-
+            
+    # evaluate 函数保持不变 ...
     def evaluate(self, vector):
-        """评估一个参数向量的 Fitness (Total Avg Power + Occupied Spectrum)"""
         self.vector_to_model(vector)
         self.model.eval()
         
@@ -78,9 +439,12 @@ class CMAESOptimizer:
         
         while not done:
             with torch.no_grad():
-                state_t = torch.FloatTensor(state_matrices).unsqueeze(0).to(self.device)
+                x_global_np, x_wl_np = state_matrices
+                x_global_t = torch.FloatTensor(x_global_np).unsqueeze(0).to(self.device)
+                x_wl_t = torch.FloatTensor(x_wl_np).unsqueeze(0).to(self.device)
                 context_t = torch.FloatTensor(context).unsqueeze(0).to(self.device)
-                mu, _, h_next = self.model(state_t, context_t, last_action_t, h_state)
+                
+                mu, _, h_next = self.model(x_global_t, x_wl_t, context_t, last_action_t, h_state)
                 h_state = h_next
                 action_weights = mu.squeeze().cpu().numpy()
                 last_action_t = mu.view(1, -1)
@@ -88,151 +452,251 @@ class CMAESOptimizer:
             next_state, reward, done, info = self.env.step(action_weights)
             state_matrices, context = next_state
             
-        # 优化目标：Total Avg Power + Occupied Spectrum
-        # 注意：Occupied Spectrum < 1，作为平滑项
         avg_power = info.get('avg_power', 10000.0)
         spec_occ = info.get('spec_occ', 1.0)
         fitness = avg_power + spec_occ
-        
-        # 记录详细信息，供保存时使用
         self.last_info = info
-        
         return fitness
 
-    def save_callback(self, es):
-        """CMA-ES 每一代结束后的回调，用于保存模型和当前最优详细数据"""
-        if es.result.fbest < self.best_power_found:
-            self.best_power_found = es.result.fbest
-            # 将最优向量还原到模型并保存
-            self.vector_to_model(es.result.xbest)
-            model_path = os.path.join("models", self.model_filename)
-            tmp_path = model_path + ".tmp"
-            torch.save(self.model.state_dict(), tmp_path)
-            os.replace(tmp_path, model_path)
+    def step(self):
+        """执行一代训练 (支持 BIPOP 重启)"""
+        
+        # === BIPOP 重启逻辑 ===
+        if self.es.stop():
+            self.restart_count += 1
+            stop_reason = self.es.stop()
+            print(f"🛑 [{self.bypass}] Convergence detected: {stop_reason}. Triggering BIPOP Restart #{self.restart_count}")
             
-            # 保存当前最优的物理指标
-            self.best_metrics = self.last_info
+            # 切换策略：如果上次是小种群(Local)，这次就大种群(Global)，反之亦然
+            # 注意：初始是 large，第一次重启通常尝试 small 
+            if self.bipop_mode == "large":
+                # 切换到小种群模式 (Local Search)
+                self.bipop_mode = "small"
+                new_popsize = self.base_pop_size
+                new_sigma = 0.2 # 小步长精细搜索
+                print(f"🔄 Restart Mode: SMALL (Local Search) | Pop: {new_popsize} | Sigma: {new_sigma}")
+            else:
+                # 切换到大种群模式 (Global Search IPOP)
+                self.bipop_mode = "large"
+                self.last_large_pop *= 2 # 种群翻倍
+                new_popsize = self.last_large_pop
+                new_sigma = 0.5 # 大步长
+                print(f"🔄 Restart Mode: LARGE (Global Search) | Pop: {new_popsize} | Sigma: {new_sigma}")
             
-            print(f"✨ New Best Fitness: {self.best_power_found:.4f} (Power: {self.best_metrics['avg_power']:.2f}W) | Model Saved: {self.model_filename}", flush=True)
+            # 使用历史最佳解作为新起点
+            best_param_mean = self.best_solution_vector
+            
+            # 更新配置
+            new_opts = self.opts.copy()
+            new_opts['popsize'] = new_popsize
+            new_opts['seed'] = np.random.randint(100000)
+            
+            # 重启 ES 实例
+            self.es = cma.CMAEvolutionStrategy(best_param_mean, new_sigma, new_opts)
+        
+        # === 正常的 ask/tell 流程 ===
+        solutions = self.es.ask()
+        
+        args_list = [(x, self.bypass) for x in solutions]
+        
+        fitnesses = []
+        infos = []
+        
+        start_time = time.time()
+        
+        try:
+            results = list(self.executor.map(evaluate_worker, args_list))
+            for fit, info in results:
+                fitnesses.append(fit)
+                infos.append(info)
+            duration = time.time() - start_time
+                
+            best_idx = np.argmin(fitnesses)
+            self.last_info = infos[best_idx]
+            
+            # 更新全局最佳解 (用于重启)
+            current_best_fit = fitnesses[best_idx]
+            if current_best_fit < self.best_fitness_found:
+                self.best_fitness_found = current_best_fit
+                self.best_solution_vector = solutions[best_idx] # 保存最佳参数向量
+                self.save_model_parallel(solutions[best_idx], self.last_info)
+            
+            # 日志
+            if self.generation % 1 == 0:
+                info = self.last_info
+                avg_power = info.get('avg_power', 0.0)
+                spec_occ = info.get('spec_occ', 0.0)
+                hist_best_p = self.best_pure_power_found if self.best_pure_power_found != float('inf') else 0.0
+                
+                log_str = (f"Gen {self.generation} (R{self.restart_count}-{self.bipop_mode[0].upper()}) | "
+                           f"Pop: {self.es.popsize} | Time: {duration:.2f}s | "
+                           f"Cur: {avg_power:.2f}W (Spec:{spec_occ:.2%}) | HistBest: {hist_best_p:.2f}W")
+                print(f"[{'Bypass' if self.bypass else 'NoBypass'}] {log_str}")
+                self.log_file.write(log_str + "\n")
+                self.log_file.flush()
+                
+        except Exception as e:
+            print(f"❌ Parallel Execution Error: {e}")
+            return False
+        
+        self.es.tell(solutions, fitnesses)
+        self.generation += 1
+        
+        return True
 
-    def train(self, max_iter=100, pop_size=64):
-        # 尝试从现有最优模型加载，进行“热启动”
+    def save_model_parallel(self, xbest, info):
+        self.best_metrics = info
+        self.best_pure_power_found = self.best_metrics.get('avg_power', float('inf'))
+        self.vector_to_model(xbest)
         model_path = os.path.join("models", self.model_filename)
-        self.best_metrics = {}
-        
-        if os.path.exists(model_path):
-            print(f"📂 Found existing best model: {self.model_filename}. Loading for warm start...", flush=True)
-            try:
-                self.model.load_state_dict(torch.load(model_path))
-            except:
-                print(f"⚠️ Failed to load {self.model_filename}, starting from scratch.")
-        
-        # 初始均值为当前模型参数
-        initial_params = np.concatenate([p.data.cpu().numpy().flatten() for p in self.model.parameters()])
-        
-        self.best_power_found = float('inf')
-        
-        print(f"🚀 Starting BIPOP-CMA-ES optimization...", flush=True)
-        
-        # 使用 cma.fmin2 直接调用 BIPOP-CMA-ES
-        # bipop=True: 开启 BIPOP 重启策略
-        # restarts=9: 允许最多 9 次重启（包含 IPOP 增加种群和小种群探索）
-        opts = {
-            'popsize': pop_size, 
-            'maxiter': max_iter, 
-            'verb_disp': 1,
-            'tolfunhist': 0, 
-            'tolfun': 1e-12
+        tmp_path = model_path + ".tmp"
+        torch.save(self.model.state_dict(), tmp_path)
+        os.replace(tmp_path, model_path)
+        print(f"✨ [{self.bypass}] New Best: {self.best_pure_power_found:.2f}W")
+
+    def get_best_result(self):
+        return {
+            "best_fitness": self.best_fitness_found,
+            "avg_power": self.best_pure_power_found,
+            "spec_occ": self.best_metrics.get('spec_occ', 0.0),
+            "components": {
+                "source": self.best_metrics.get('source_p', 0.0),
+                "detector": self.best_metrics.get('detector_p', 0.0),
+                "ice_box": self.best_metrics.get('ice_box_p', 0.0),
+                "other": self.best_metrics.get('other_p', 0.0)
+            }
         }
         
-        # 包装 evaluate 函数，确保健壮性
-        self.eval_count = 0
-        def objective(x):
-            try:
-                self.eval_count += 1
-                fit = self.evaluate(x)
-                
-                # 显式触发垃圾回收，防止内存累积导致的潜在段错误
-                if self.eval_count % 32 == 0:
-                    gc.collect()
-                
-                if self.eval_count % 8 == 0:
-                    print(f"  Eval {self.eval_count} | Power: {fit:.2f}W", flush=True)
-                return float(fit) if np.isfinite(fit) else 10000.0
-            except Exception as e:
-                print(f"❌ Error in objective: {e}", flush=True)
-                return 10000.0
-
-        res = cma.fmin2(
-            objective, 
-            initial_params, 
-            0.3, 
-            opts,
-            callback=self.save_callback,
-            bipop=True,
-            restarts=9
-        )
+    def load_from_optimizer(self, other_opt):
+        print(f"🔄 [{self.bypass}] Transferring weights from {other_opt.bypass}...")
+        best_model_path = os.path.join("models", other_opt.model_filename)
+        if os.path.exists(best_model_path):
+            self.model.load_state_dict(torch.load(best_model_path))
+        else:
+            self.model.load_state_dict(other_opt.model.state_dict())
         
-        print(f"\n✅ Optimization Finished. Best Power: {res[1]:.2f}W")
-        return res[1]
+        new_params = np.concatenate([p.data.cpu().numpy().flatten() for p in self.model.parameters()])
+        # 重置重启状态
+        self.restart_count = 0
+        self.last_large_pop = self.base_pop_size
+        self.bipop_mode = "large"
+        self.best_solution_vector = new_params
+        
+        self.es = cma.CMAEvolutionStrategy(new_params, 0.5, self.opts)
+        print(f"✅ Transfer complete. CMA-ES reset.")
+
+    def close(self):
+        if self.log_file:
+            self.log_file.close()
+
+def main():
+    if torch.cuda.is_available():
+        device = "cuda"
+    elif torch.backends.mps.is_available():
+        device = "mps"
+    else:
+        device = "cpu"
+    
+    print(f"🔥 Starting Curriculum Learning (BIPOP-CMA-ES) on {device}...")
+    
+    map_name = "Tokyo"
+    traffic_mid = "Low"
+    # protocol = "CV-QKD"
+    # detector = "ThorlabsPDB"
+    protocol = "BB84"
+    detector = "APD"
+    json_filename = "comparison_result.json"
+    
+    import glob
+    for f in glob.glob(f"models/gnn_best_{map_name}_{protocol}_{detector}_{traffic_mid}_*.pth"):
+        try: os.remove(f) 
+        except: pass
+            
+    random.seed(42)
+    np.random.seed(42)
+    wavelength_list = np.linspace(1530, 1565, 10).tolist()
+    global_request_list = gen_traffic_matrix(traffic_mid, map_name, wavelength_list, protocol, detector)
+
+    # increase_traffic_value = 20000000
+    # for request_id in range(len(global_request_list)):
+    #     old_tuple = global_request_list[request_id]
+    #     new_tuple = old_tuple[:-1] + (old_tuple[-1] + increase_traffic_value,)
+    #     global_request_list[request_id] = new_tuple
+
+    print(f"🌍 Generated Global Request List (Size: {len(global_request_list)})")
+    
+    hidden_dim = 8 # 全局配置改回 8
+    initargs = (map_name, protocol, detector, traffic_mid, wavelength_list, global_request_list, hidden_dim)
+    # 增加 max_workers 以应对可能翻倍的种群
+    shared_executor = ProcessPoolExecutor(max_workers=8, initializer=worker_initializer, initargs=initargs)
+    
+    # 使用 CMA-ES (回归经典)
+    opt_bypass = CMAESOptimizer(global_request_list, shared_executor, bypass=True, map_name=map_name, traffic_mid=traffic_mid, protocol=protocol, detector=detector, device=device)
+    opt_nobypass = CMAESOptimizer(global_request_list, shared_executor, bypass=False, map_name=map_name, traffic_mid=traffic_mid, protocol=protocol, detector=detector, device=device)
+    
+    
+    phase1_gens = 50
+    phase2_gens = 100 
+    # Phase 1
+    print(f"\n=== Phase 1: Pre-training NoBypass ({phase1_gens} gens) ===")
+    for gen in range(1, phase1_gens + 1):
+        if not opt_nobypass.step(): break
+        
+        report = {
+            "generation": gen,
+            "bypass": opt_bypass.get_best_result(),
+            "nobypass": opt_nobypass.get_best_result(),
+            "status": "phase1_nobypass"
+        }
+        with open(json_filename, "w") as f: json.dump(report, f, indent=4)
+
+    # Phase 2
+    print(f"\n=== Phase 2: Transferring Knowledge & Training Bypass ===")
+    opt_bypass.load_from_optimizer(opt_nobypass)
+    
+    max_it = 1000
+    total_gens = phase1_gens + phase2_gens
+    for gen in range(phase1_gens + 1, max_it + 1):
+        if not opt_bypass.step(): break
+        
+        report = {
+            "generation": gen,
+            "bypass": opt_bypass.get_best_result(),
+            "nobypass": opt_nobypass.get_best_result(),
+            "status": "phase2_bypass"
+        }
+        with open(json_filename, "w") as f: json.dump(report, f, indent=4)
+            
+        # 比较逻辑
+        p_bypass = opt_bypass.best_pure_power_found
+        p_nobypass = opt_nobypass.best_pure_power_found
+        s_bypass = opt_bypass.best_metrics.get('spec_occ', 0.0)
+        s_nobypass = opt_nobypass.best_metrics.get('spec_occ', 0.0)
+
+        # print(f"🧐 [Gen {gen}] Bypass: {p_bypass:.2f}W (S:{s_bypass:.4f}) vs NoBypass Baseline: {p_nobypass:.2f}W (S:{s_nobypass:.4f})")
+
+        # 停止条件判断 (仅在 Bypass 训练阶段)
+        if p_bypass < float('inf') and p_nobypass < float('inf'):
+            power_win = p_bypass < p_nobypass
+            spec_tradeoff = s_bypass > s_nobypass
+            if gen > total_gens:
+                if power_win and spec_tradeoff:
+                    print(f"✅ Bypass Wins with Trade-off! (Power: {p_bypass:.2f} < {p_nobypass:.2f}, Spec: {s_bypass:.4f} > {s_nobypass:.4f}). Stopping.")
+                    report["status"] = "stopped_bypass_wins"
+                    with open(json_filename, "w") as f:
+                        json.dump(report, f, indent=4)
+                    break
+                elif power_win and not spec_tradeoff:
+                    print(f"⚠️ Bypass Power is lower, but Spectrum is NOT higher. Waiting for trade-off pattern...")
+                else:
+                    print(f"💪 NoBypass is still better (or equal) in Power. Continuing...")
+
+    print("\n✅ Curriculum Learning Finished.")
+
+    # 清理资源
+    opt_nobypass.close()
+    opt_bypass.close()
+    shared_executor.shutdown()
 
 if __name__ == "__main__":
-    import argparse
-    import config
-    os.makedirs("models", exist_ok=True)
-    
-    parser = argparse.ArgumentParser(description="Run CMA-ES Optimization for a specific configuration")
-    parser.add_argument("--bypass", type=str, default="True", help="Bypass mode (True/False)")
-    parser.add_argument("--detector", type=str, default="SNSPD", help="Detector type (SNSPD/APD/ThorlabsPDB)")
-    parser.add_argument("--traffic", type=str, default="Low", help="Traffic level (Low/Medium/High)")
-    parser.add_argument("--protocol", type=str, default="BB84", help="Protocol (BB84/CV-QKD)")
-    parser.add_argument("--max_iter", type=int, default=300, help="Max iterations")
-    parser.add_argument("--pop_size", type=int, default=64, help="Population size")
-    
-    args = parser.parse_args()
-    
-    # 将参数转换为 bool
-    is_bypass = args.bypass.lower() == "true"
-    
-    # 检测 CUDA 状态
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-    print(f"Using device: {device} | Config: {args.protocol}, {args.detector}, {args.traffic}, Bypass={is_bypass}")
-    
-    # 强制开启指定模式进行攻坚
-    optimizer = CMAESOptimizer(
-        bypass=is_bypass, 
-        map_name="Paris", 
-        traffic_mid=args.traffic, 
-        protocol=args.protocol,
-        detector=args.detector,
-        device=device
-    )
-
-    optimizer.env.provided_request_list = optimizer.request_list
-    
-    best_p = optimizer.train(max_iter=args.max_iter, pop_size=args.pop_size)
-    
-    # 返回包含所有物理指标的字典
-    result_data = {
-        "protocol": args.protocol,
-        "detector": args.detector,
-        "traffic": args.traffic,
-        "bypass": is_bypass,
-        "best_fitness": best_p,
-        "avg_power": optimizer.best_metrics.get('avg_power', 10000.0),
-        "spec_occ": optimizer.best_metrics.get('spec_occ', 1.0),
-        "source_p": optimizer.best_metrics.get('source_p', 0.0),
-        "detector_p": optimizer.best_metrics.get('detector_p', 0.0),
-        "other_p": optimizer.best_metrics.get('other_p', 0.0),
-        "ice_box_p": optimizer.best_metrics.get('ice_box_p', 0.0)
-    }
-    
-    # 保存结果到独立文件，供汇总脚本读取
-    result_filename = f"results_Paris_{args.protocol}_{args.detector}_{args.traffic}_Bypass_{is_bypass}.json"
-    with open(result_filename, "w") as f:
-        json.dump(result_data, f)
-    
-    print("\n" + "="*40)
-    print(f"Optimization Done! Results saved to {result_filename}")
-    print(f"Final Power: {result_data['avg_power']:.2f}W | Spectrum: {result_data['spec_occ']:.4f}")
-    print("="*40)
+    main()

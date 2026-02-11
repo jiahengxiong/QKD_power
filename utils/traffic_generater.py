@@ -6,7 +6,7 @@ import config
 import random
 
 import random
-
+import math
 import random
 import numpy as np
 
@@ -52,23 +52,23 @@ def sort_traffic_matrix(topology, traffic_matrix, perturbation=0.0):
     # 排序规则：接收方增强度降序 > 发送方增强度降序 > 最短跳数升序 > 物理距离升序 > traffic_value降序
     processed_matrix.sort(
         key=lambda x: (
-            -enhanced_degrees.get(x[2], 0),  # 接收方(dst)增强度降序 (x[2] is dst)
-            -enhanced_degrees.get(x[1], 0),  # 发送方(src)增强度降序 (x[1] is src)
-            shortest_paths.get((x[1], x[2]), float('inf')),  # 最短跳数升序 (Shortest Path First)
+            # shortest_paths.get((x[1], x[2]), float('inf')),  # 最短跳数升序 (Shortest Path First)
             physical_distances.get((x[1], x[2]), float('inf')),  # 物理距离升序
-            -x[3]  # traffic_value降序 (High Traffic First)
+            # -enhanced_degrees.get(x[2], 0),  # 接收方(dst)增强度降序 (x[2] is dst)
+            # -enhanced_degrees.get(x[1], 0),  # 发送方(src)增强度降序 (x[1] is src)
+            # -x[3]  # traffic_value降序 (High Traffic First)
         )
     )
 
-    # 引入随机扰动，跳出局部最优
-    if perturbation > 0:
-        n = len(processed_matrix)
-        # 交换次数与 perturbation 成正比
-        num_swaps = int(n * perturbation)
-        for _ in range(num_swaps):
-            i = random.randint(0, n - 1)
-            j = random.randint(0, n - 1)
-            processed_matrix[i], processed_matrix[j] = processed_matrix[j], processed_matrix[i]
+    # # 引入随机扰动，跳出局部最优
+    # if perturbation > 0:
+    #     n = len(processed_matrix)
+    #     # 交换次数与 perturbation 成正比
+    #     num_swaps = int(n * perturbation)
+    #     for _ in range(num_swaps):
+    #         i = random.randint(0, n - 1)
+    #         j = random.randint(0, n - 1)
+    #         processed_matrix[i], processed_matrix[j] = processed_matrix[j], processed_matrix[i]
 
     return processed_matrix
 
@@ -90,7 +90,7 @@ def gen_traffic_matrix(mid, map_name, wavelength_list=None, protocol='BB84', det
                       receiver=detector)
     G = network.physical_topology
     node_list = list(G.nodes())
-    random.shuffle(node_list)
+    # random.shuffle(node_list)
 
     if map_name == 'Test':
         traffic_matrix = []
@@ -104,7 +104,10 @@ def gen_traffic_matrix(mid, map_name, wavelength_list=None, protocol='BB84', det
     traffic_matrix = []
     id = 0
     pair_list = [(node_list[i], node_list[j]) for i in range(len(node_list)) for j in range(i + 1, len(node_list))]
-    random.shuffle(pair_list)
+
+    select_factor = 1.0
+    pair_list = random.sample(pair_list, k=math.floor(len(pair_list)*select_factor))
+    # random.shuffle(pair_list)
     total_pairs = len(pair_list)
 
     # 初始比例设置
@@ -131,13 +134,16 @@ def gen_traffic_matrix(mid, map_name, wavelength_list=None, protocol='BB84', det
     # random.shuffle(traffic_values)
 
     for (src, dst), traffic in zip(pair_list, traffic_values):
-        traffic_matrix.append((id, src, dst, traffic))
+        traffic_matrix.append((id, src, dst, traffic/select_factor))
         id += 1
 
     # random.shuffle(traffic_matrix)
     # ✅ 根据 src-dst 最短路径长度排序（距离短的排在前面）
-    traffic_matrix.sort(key=lambda x: nx.shortest_path_length(G, x[1], x[2]))
+    # traffic_matrix.sort(key=lambda x: nx.shortest_path_length(G, x[1], x[2], weight='distance'))
     traffic_matrix = sort_traffic_matrix(G, traffic_matrix)
+
+    # debug=[(0, 'Adachi', 'Ota', 1000)]
+    # return debug
 
     return traffic_matrix
 

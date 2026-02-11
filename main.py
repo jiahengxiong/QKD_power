@@ -40,7 +40,7 @@ def average_component_power(component_power_run):
     return average
 
 
-def find_min_weight_path_with_relay(auxiliary_graph, src, dst):
+def find_min_weight_path_with_relay(auxiliary_graph, src, dst, probabilistic=False):
     # 辅助函数：计算路径总功率
     def calculate_path_power(path_edges):
         total_power = 0
@@ -85,7 +85,8 @@ def find_min_weight_path_with_relay(auxiliary_graph, src, dst):
         
         # 按预估权重排序，只选前 K 个最有潜力的枢纽进行严格物理冲突检查
         candidates.sort(key=lambda x: x[1])
-        K = 10 # 在 Large Map 下，10 个候选通常足以覆盖最优解
+        # 在小规模拓扑下，建议全量搜索以避免漏掉因物理冲突而被误判的解
+        K = len(candidates) 
         
         for delay, _ in candidates[:K]:
             # 情形1：src -> delay 和 dst -> delay (Alice 和 Bob 均发送至中继)
@@ -108,7 +109,24 @@ def find_min_weight_path_with_relay(auxiliary_graph, src, dst):
 
     # 按最终严格计算出的权重排序
     sorted_paths = sorted(paths, key=lambda x: x[4])
-    best_path = sorted_paths[0]
+    
+    if probabilistic and len(sorted_paths) > 1:
+        # Soft Sampling (Top-5)
+        K = len(sorted_paths)
+        top_k = sorted_paths[:K]
+        
+        # Rank-based Softmax (更稳健)
+        # 已经按权重排序，所以 ranks 就是 0, 1, 2...
+        ranks = np.arange(K)
+        tau = 0.5 # 温度系数，控制探索程度
+        scores = -ranks / tau
+        exp_scores = np.exp(scores)
+        probs = exp_scores / np.sum(exp_scores)
+        
+        chosen_idx = np.random.choice(K, p=probs)
+        best_path = top_k[chosen_idx]
+    else:
+        best_path = sorted_paths[0]
 
     return best_path
 
@@ -347,7 +365,7 @@ def process_mid(traffic_type, map_name, protocol, detector, bypass, key_rate_lis
                     pbar.update(1)
                     flag = False
                     del auxiliary_graph
-                    gc.collect()
+                    # gc.collect()
                     with open(f'result.txt', 'a') as file:
                         file.write(f'\n--- 最终结果 --- \n')
                         output_str = (
@@ -360,7 +378,7 @@ def process_mid(traffic_type, map_name, protocol, detector, bypass, key_rate_lis
                         file.write(f'无可用路径\n')
                     return
                 del auxiliary_graph
-                gc.collect()
+                # gc.collect()
                 remain_num_request = remain_num_request - 1
 
         if flag:

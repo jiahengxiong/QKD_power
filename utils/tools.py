@@ -49,6 +49,7 @@ def get_cached_paths(G, src, dst, is_bypass, traffic):
     
     paths = []
     if is_bypass:
+        # print("Find bypass pair")
         try:
             # 获取物理拓扑上的前 K 条路径
             gen = nx.shortest_simple_paths(G, src, dst, weight='distance')
@@ -63,6 +64,7 @@ def get_cached_paths(G, src, dst, is_bypass, traffic):
             pass
     else:
         # 非 bypass 模式：仅尝试 1-hop 物理边
+        # print("Find nobypass pair")
         if G.has_edge(src, dst):
             paths = [[src, dst]]
             
@@ -431,6 +433,8 @@ def calculate_data_auxiliary_edge(G, path, wavelength_combination, wavelength_ca
             delta_spectrum = 0 
             node_new_detectors_count = {} 
             wavelength_power_info = {}
+            wavelength_bypass_info = {} # 新增：记录每个波长的 LD Bypass 数量
+            wavelength_dist_info = {}   # 新增：记录每个波长的物理距离
 
             # 遍历实际需要的波长
             for idx, wavelength in enumerate(actual_needed_wls): 
@@ -439,6 +443,22 @@ def calculate_data_auxiliary_edge(G, path, wavelength_combination, wavelength_ca
                 # [核心修正]：计算边际功耗。如果该波长下的硬件已存在，则边际功耗为 0。
                 laser_pos, det_pos = laser_detector[0], laser_detector[1]
                 is_new_hardware = True
+                
+                # 计算 Bypass 数量
+                bypass_cnt = 0
+                wl_dist = 0.0 # 新增：波长距离
+                
+                if laser_pos is not None and det_pos is not None:
+                    bypass_cnt = max(0, path.index(det_pos) - path.index(laser_pos) - 1)
+                    # 计算该波长覆盖的物理距离
+                    wl_dist = calculate_distance(G=topology, path=path, start=laser_pos, end=det_pos)
+                
+                wavelength_dist_info[wavelength] = wl_dist
+                
+                if is_new_hardware: 
+                    # 物理特征应该反映硬件能力，无论新旧。
+                    # 如果复用了旧硬件，它的 Bypass 能力依然存在。
+                    wavelength_bypass_info[wavelength] = bypass_cnt
                 if laser_pos is not None and det_pos is not None:
                     cover_links_tuple = tuple(path[path.index(laser_pos):path.index(det_pos)+1])
                     if cover_links_tuple in G.nodes[laser_pos]['laser_capacity'][wavelength]:
@@ -535,6 +555,7 @@ def calculate_data_auxiliary_edge(G, path, wavelength_combination, wavelength_ca
             }
 
             data.append({ 
+                'distance': total_dist, # 新增：保存物理距离供特征提取使用
                 'power': total_power_base + ice_box_power, 
                 'source_power': source_power, 
                 'detector_power': detector_power, 
@@ -546,6 +567,8 @@ def calculate_data_auxiliary_edge(G, path, wavelength_combination, wavelength_ca
                 'raw_features': raw_features,
                 'wavelength_list': actual_needed_wls, 
                 'wavelength_power_info': wavelength_power_info,
+                'wavelength_bypass_info': wavelength_bypass_info,
+                'wavelength_dist_info': wavelength_dist_info, # 新增
                 'transverse_laser_detector': actual_wavelength_used_laser_detector, 
                 'is_bypass_edge': len(path) > 2 
             }) 
@@ -832,8 +855,7 @@ def build_auxiliary_graph(topology, wavelength_list, traffic, physical_topology,
             auxiliary_graph.add_edge(e['src'], e['dst'], key=uuid.uuid4().hex, **e)
 
     del network_slice
-    gc.collect()
-
+    # gc.collect() 
     return auxiliary_graph
 
 # ==========================================
@@ -860,51 +882,125 @@ def _dfs_wavelength_combinations(idx, traffic, candidates, suffix_max_cap, curre
     del current_cap_dict[candidates[idx]['wl']]
     yield from _dfs_wavelength_combinations(idx + 1, traffic, candidates, suffix_max_cap, current_wls, current_cap_dict, current_theoretical_sum)
 
-def extract_feature_matrices_from_graph(auxiliary_graph, node_to_idx, num_nodes, wavelength_list):
+def extract_feature_matrices_from_graph(auxiliary_graph, node_to_idx, num_nodes, wavelength_list, remain_request_matrix=None, max_stats=None, topology=None):
     """
-    修复版：确保提取的是每一对节点间最优候选路径的特征
+    修复版 V5：完全自适应图内归一化 (Instance Normalization)
+    不再依赖硬编码的 max_stats。对每个 Feature Channel 进行 Z-Score 归一化。
+    [新增] topology: 物理拓扑，用于填入 Channel 5 的物理距离
     """
-    # 初始化为 -1.0，表示“不存在”
-    # 这样可以显著区分“特征值为0”和“边不存在”
-    features_tensor = np.full((10, 10, num_nodes, num_nodes), -1.0, dtype=np.float32)
-    # Mask 层初始化为 0
-    features_tensor[:, 9, :, :] = 0.0
+    num_global_feats = 7 # 移除 Bypass Count (冗余)，保留 Path Hops
+    num_wl_feats = 5     # 新增 LD Bypass Count, WL Distance
+    num_wavelengths = len(wavelength_list)
     
-    power_layer_min = np.full((10, num_nodes, num_nodes), 1e9, dtype=np.float32)
+    # 1. 初始化 Tensor (使用 NaN 或 0，这里用 0 方便稀疏处理，但在归一化时需注意掩码)
+    # 我们先填原始值，稍后统一归一化
+    # 为了区分“无边”和“值为0”，建议初始化为 NaN，或者使用单独的 Adjacency Matrix
+    # 但由于 GNN 通常只处理存在的边，这里我们直接填入值。
+    # 这里的 Tensor 是 Dense 的 [C, N, N]。
     
+    global_tensor = np.zeros((num_global_feats, num_nodes, num_nodes), dtype=np.float32)
+    wl_tensor = np.zeros((num_wavelengths * num_wl_feats, num_nodes, num_nodes), dtype=np.float32)
+    
+    # 记录哪些位置有边 (Mask)
+    edge_mask = np.zeros((num_nodes, num_nodes), dtype=bool)
+    
+    # [新增] 填入 Channel 4: 物理拓扑距离 (原 Ch 5)
+    if topology is not None:
+        for u, v, data in topology.edges(data=True):
+            if u in node_to_idx and v in node_to_idx:
+                u_i, v_i = node_to_idx[u], node_to_idx[v]
+                dist = data.get('distance', 0)
+                global_tensor[4, u_i, v_i] = dist
+                global_tensor[4, v_i, u_i] = dist 
+    
+    # 辅助：去重
+    min_power_map = np.full((num_nodes, num_nodes), 1e9, dtype=np.float32)
     wl_to_idx = {wl: i for i, wl in enumerate(wavelength_list)}
     
+    # --- 第一步：填入原始物理值 (Raw Values) ---
     for u, v, data in auxiliary_graph.edges(data=True):
+        if u not in node_to_idx or v not in node_to_idx: continue
         u_idx, v_idx = node_to_idx[u], node_to_idx[v]
-        wls = data.get('wavelength_list', []) # 修正 key 名
-        if not wls: continue
+        edge_mask[u_idx, v_idx] = True
         
+        # [Strict Mode] 严格校验数据完整性
+        rf = data.get('raw_features')
+        if rf is None:
+            raise KeyError(f"Edge {u}->{v} missing 'raw_features'")
+            
+        current_p = data.get('power', 0)
+        
+        if current_p < min_power_map[u_idx, v_idx]:
+            min_power_map[u_idx, v_idx] = current_p
+            
+            # Global Features (Strict Extraction)
+            # 0: Distance (Logic)
+            if 'distance' not in data: raise KeyError(f"Edge {u}->{v} missing 'distance'")
+            global_tensor[0, u_idx, v_idx] = data['distance']
+            
+            # 1: Occupancy (0-1)
+            if 'f_occ' not in rf: raise KeyError(f"Edge {u}->{v} missing 'f_occ'")
+            global_tensor[1, u_idx, v_idx] = rf['f_occ']
+            
+            # 2: Num Wavelengths (Integer) (原 Ch 3)
+            if 'num_wls' not in rf: raise KeyError(f"Edge {u}->{v} missing 'num_wls'")
+            global_tensor[2, u_idx, v_idx] = rf['num_wls']
+            
+            # 3: Fridge Power (Watt) (原 Ch 4)
+            if 'num_new_fridges' not in rf: raise KeyError(f"Edge {u}->{v} missing 'num_new_fridges'")
+            global_tensor[3, u_idx, v_idx] = rf['num_new_fridges'] * 3000.0
+            
+            # 4: Physical Distance (已在前面填入)
+             
+            # 5: Path Hops (原 Ch 7)
+            if 'path' not in data: raise KeyError(f"Edge {u}->{v} missing 'path'")
+            path_hops = len(data['path']) - 1
+            global_tensor[5, u_idx, v_idx] = float(max(0, path_hops))
+            
+        # Wavelength Features (Strict Extraction)
+        wls = data.get('wavelength_list', [])
+        wl_power_info = data.get('wavelength_power_info', {})
+        wl_bypass_info = data.get('wavelength_bypass_info', {})
+        wl_dist_info = data.get('wavelength_dist_info', {}) # New
+        wl_caps = data.get('wavelength_traffic', {})
+        
+        if not wls:
+            # 兼容旧逻辑？不，现在必须有 wls
+            # wl = data.get('wavelength', -1)
+            # if wl != -1: wls = [wl]
+            raise KeyError(f"Edge {u}->{v} missing 'wavelength_list'")
+            
         for wl in wls:
             if wl not in wl_to_idx: continue
-            wl_idx = wl_to_idx[wl]
-            rf = data.get('raw_features', {})
-            if not rf: continue
+            w_idx = wl_to_idx[wl]
+            base_idx = w_idx * num_wl_feats
             
-            current_p = data['power']
-            if current_p < power_layer_min[wl_idx, u_idx, v_idx]:
-                power_layer_min[wl_idx, u_idx, v_idx] = current_p
-                
-                # 填入物理特征 (0-8层)
-                # 即使特征值为 0，由于背景是 -1.0，NN 也能感知到差异
-                features_tensor[wl_idx, 0, u_idx, v_idx] = np.log1p(current_p) / 10.0
-                features_tensor[wl_idx, 1, u_idx, v_idx] = rf.get('raw_unit', 0) * 10.0
-                features_tensor[wl_idx, 2, u_idx, v_idx] = 1.0 if rf['f_bypass'] > 0 else 0.0
-                features_tensor[wl_idx, 3, u_idx, v_idx] = rf['num_wls'] / 10.0
-                features_tensor[wl_idx, 4, u_idx, v_idx] = np.log1p(rf['min_free_cap']) / 15.0
-                features_tensor[wl_idx, 5, u_idx, v_idx] = rf['f_occ']
-                features_tensor[wl_idx, 6, u_idx, v_idx] = rf['f_waste']
-                features_tensor[wl_idx, 7, u_idx, v_idx] = rf['f_dist']
-                features_tensor[wl_idx, 8, u_idx, v_idx] = rf['f_bypass'] / 5.0
-                
-                # 第 9 层作为严格的 Existence Mask
-                features_tensor[wl_idx, 9, u_idx, v_idx] = 1.0
+            # 0: LD Power
+            if wl not in wl_power_info: raise KeyError(f"WL {wl} missing power info")
+            p_info = wl_power_info[wl]
+            ld_power = p_info['source'] + p_info['detector'] + p_info['other']
+            wl_tensor[base_idx + 0, u_idx, v_idx] = ld_power
             
-    return features_tensor.reshape(100, num_nodes, num_nodes)
+            # 1: Capacity
+            if wl not in wl_caps: raise KeyError(f"WL {wl} missing capacity info")
+            wl_tensor[base_idx + 1, u_idx, v_idx] = wl_caps[wl]
+            
+            # 2: Waste Rate
+            if 'f_waste' not in rf: raise KeyError("Missing 'f_waste'")
+            wl_tensor[base_idx + 2, u_idx, v_idx] = rf['f_waste']
+            
+            # 3: LD Bypass Count
+            wl_tensor[base_idx + 3, u_idx, v_idx] = float(wl_bypass_info.get(wl, 0))
+            
+            # 4: WL Distance (New)
+            wl_tensor[base_idx + 4, u_idx, v_idx] = float(wl_dist_info.get(wl, 0.0))
+
+    # [Modification]: 移除所有归一化/Log处理。
+    # Raw Data In, Norm Data Out. 所有的数值变换都交给 Neural Network 的输入层处理。
+    if remain_request_matrix is not None:
+        global_tensor[6] = remain_request_matrix
+    
+    return global_tensor, wl_tensor
 
 def build_auxiliary_graph_with_weights(topology, wavelength_list, traffic, physical_topology, shared_key_rate_list, served_request, remain_num_request, action_weights, node_to_idx):
     """
@@ -979,10 +1075,10 @@ def build_auxiliary_graph_with_weights(topology, wavelength_list, traffic, physi
     # 2. 第二阶段：统一应用权重矩阵
     for entry in all_raw_entries:
         u_idx, v_idx = node_to_idx[entry['src']], node_to_idx[entry['dst']]
-        # 物理启发式权重：NN 输出作为功耗的“虚拟附加代价”
-        # 这样 NN 可以通过给某些边增加数千的权重来引导 Dijkstra 避开它们（如避开新开冰箱）
-        nn_virtual_cost = float(action_weights[u_idx, v_idx])
-        entry['weight'] = max(1e-6, entry['power'] + nn_virtual_cost)
+        # 直接使用 NN 输出的权重 (范围 0~1)
+        # 此时 NN 充当了一个完全端到端的“打分器”，全权负责评估这条边的价值
+        nn_weight = float(action_weights[u_idx, v_idx])
+        entry['weight'] = nn_weight
         auxiliary_graph.add_edge(entry['src'], entry['dst'], key=uuid.uuid4().hex, **entry)
 
     return auxiliary_graph

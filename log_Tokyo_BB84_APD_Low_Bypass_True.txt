@@ -1,0 +1,10 @@
+--- BIPOP-CMA-ES Training Log for Bypass=True ---
+Gen 0 (R0-L) | Pop: 64 | Time: 131.61s | Cur: 2198.18W (Spec:37.14%) | HistBest: 2198.18W
+Gen 1 (R0-L) | Pop: 64 | Time: 143.36s | Cur: 2150.91W (Spec:40.24%) | HistBest: 2150.91W
+Gen 2 (R0-L) | Pop: 64 | Time: 150.21s | Cur: 2174.55W (Spec:38.57%) | HistBest: 2150.91W
+Gen 3 (R0-L) | Pop: 64 | Time: 155.57s | Cur: 2198.18W (Spec:38.81%) | HistBest: 2150.91W
+Gen 4 (R0-L) | Pop: 64 | Time: 155.72s | Cur: 2150.91W (Spec:38.57%) | HistBest: 2150.91W
+Gen 5 (R0-L) | Pop: 64 | Time: 153.90s | Cur: 2174.55W (Spec:37.86%) | HistBest: 2150.91W
+Gen 6 (R0-L) | Pop: 64 | Time: 145.03s | Cur: 2127.27W (Spec:38.33%) | HistBest: 2127.27W
+Gen 7 (R0-L) | Pop: 64 | Time: 141.22s | Cur: 2150.91W (Spec:38.81%) | HistBest: 2127.27W
+Gen 8 (R0-L) | Pop: 64 | Time: 147.68s | Cur: 2127.27W (Spec:38.81%) | HistBest: 2127.27W
