@@ -315,15 +315,19 @@ class OpenAIESOptimizer:
         # 如果没找到（停滞），说明陷入局部最优，增大噪声以跳出
         current_best_fit = fitnesses[min_idx]
         
-        if current_best_fit < self.prev_best_fitness - 1e-3:
-            # 进步显著 -> 收敛
-            self.sigma *= 0.98
+        if current_best_fit < self.prev_best_fitness:
+            # 进步了 -> 根据进步幅度自适应收敛
+            # 进步越大，收敛越快 (Sigma *= ratio)
+            ratio = current_best_fit / (self.prev_best_fitness + 1e-8)
+            # 保护性 Clip，防止 ratio 异常
+            ratio = np.clip(ratio, 0.5, 0.99) 
+            self.sigma *= ratio
         else:
-            # 停滞 -> 膨胀 (Exponential Growth for consistency)
+            # 停滞 -> 膨胀
             self.sigma *= 1.02
             
-        # [Sigma Clip] 限制最大噪声幅度 (0.05 - 0.25)
-        self.sigma = np.clip(self.sigma, 0.05, 0.25)
+        # [Sigma Clip] 限制最大噪声幅度 (0.10 - 0.25)
+        self.sigma = np.clip(self.sigma, 0.1, 0.25)
         self.prev_best_fitness = self.best_fitness_found # 更新历史最佳基准
             
         self.generation += 1
