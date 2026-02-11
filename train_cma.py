@@ -311,11 +311,12 @@ class OpenAIESOptimizer:
             self.log_file.flush()
             
         # 8. [Adaptive Sigma] 动态调整噪声幅度
-        # 如果当前代找到了比历史最佳更好的解，说明方向对，稍微收敛以精细搜索
-        # 如果没找到（停滞），说明陷入局部最优，增大噪声以跳出
         current_best_fit = fitnesses[min_idx]
         
-        if current_best_fit < self.prev_best_fitness:
+        if self.prev_best_fitness == float('inf'):
+            # 第一代，跳过调整，保持初始 Sigma
+            pass
+        elif current_best_fit < self.prev_best_fitness:
             # 进步了 -> 根据进步幅度自适应收敛
             # 进步越大，收敛越快 (Sigma *= ratio)
             ratio = current_best_fit / (self.prev_best_fitness + 1e-8)
