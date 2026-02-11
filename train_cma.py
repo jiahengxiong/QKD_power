@@ -193,7 +193,8 @@ class OpenAIESOptimizer:
         self.pop_size = pop_size
         self.sigma = 0.1 # 噪声标准差
         self.lr = 0.02   # 学习率 (Adam)
-        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
+        # [Optimization] 添加 Weight Decay 防止参数漂移
+        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr, weight_decay=0.005)
         
         # 状态记录
         self.best_fitness_found = float('inf')
@@ -326,9 +327,10 @@ class OpenAIESOptimizer:
             if os.path.exists(fname):
                 self.model.load_state_dict(torch.load(fname))
             else:
-                pass
         except: pass
-        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
+        
+        # 重置 Adam (带 Weight Decay)
+        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr, weight_decay=0.005)
         print(f"✅ Transfer complete. Adam reset.")
 
     def close(self):
