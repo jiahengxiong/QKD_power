@@ -4,3 +4,9 @@ Gen 1 (R0-L) | Pop: 64 | Time: 31.77s | Cur: 1276.36W (Spec:44.58%) | HistBest: 
 Gen 2 (R0-L) | Pop: 64 | Time: 31.65s | Cur: 1162.91W (Spec:32.92%) | HistBest: 1162.91W
 Gen 3 (R0-L) | Pop: 64 | Time: 36.37s | Cur: 1106.18W (Spec:27.92%) | HistBest: 1106.18W
 Gen 4 (R0-L) | Pop: 64 | Time: 37.32s | Cur: 1134.55W (Spec:36.25%) | HistBest: 1106.18W
+Gen 5 (R0-L) | Pop: 64 | Time: 38.81s | Cur: 1162.91W (Spec:34.58%) | HistBest: 1106.18W
+Gen 6 (R0-L) | Pop: 64 | Time: 35.91s | Cur: 1049.45W (Spec:26.25%) | HistBest: 1049.45W
+Gen 7 (R0-L) | Pop: 64 | Time: 36.18s | Cur: 1077.82W (Spec:35.83%) | HistBest: 1049.45W
+Gen 8 (R0-L) | Pop: 64 | Time: 41.59s | Cur: 1021.09W (Spec:22.50%) | HistBest: 1021.09W
+Gen 9 (R0-L) | Pop: 64 | Time: 40.00s | Cur: 992.73W (Spec:23.75%) | HistBest: 992.73W
+Gen 10 (R0-L) | Pop: 64 | Time: 39.49s | Cur: 992.73W (Spec:23.75%) | HistBest: 992.73W

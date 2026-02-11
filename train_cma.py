@@ -119,6 +119,9 @@ def evaluate_worker(args):
         avg_power = info.get('avg_power', 10000.0)
         spec_occ = info.get('spec_occ', 1.0)
         
+        # [New] Add detailed component power dict for analysis
+        info['component_power'] = _WORKER_ENV.total_component_power
+        
         # 综合适应度：平均功耗 + 频谱占用 + 热能风险 + 微观路径权重惩罚
         path_cost_sum = info.get('path_cost', 0.0)
         fitness = avg_power + spec_occ
