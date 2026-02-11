@@ -644,12 +644,30 @@ def run_experiment(map_name, protocol, detector, traffic_mid):
     import multiprocessing
     # num_workers = multiprocessing.cpu_count()
     # 如果核心数过多，限制一下以免内存爆炸 (e.g. 64核)
-    # [Debug] 强制串行模式以排查逻辑错误 (No Multiprocessing)
-    num_workers = 0
-    print(f"🚀 Launching Executor (Workers={num_workers})")
+    # [Performance] 恢复多进程并行，强制使用 fork 模式
+    import multiprocessing
     
-    if num_workers > 0:
-        executor_cm = ProcessPoolExecutor(max_workers=num_workers, initializer=worker_initializer, initargs=initargs)
+    # 尝试获取 fork 上下文 (Linux/Unix 默认，但在某些配置下可能被覆盖)
+    try:
+        mp_context = multiprocessing.get_context("fork")
+    except ValueError:
+        # 如果不支持 fork (e.g. Windows)，回退到默认
+        mp_context = None
+        
+    num_workers = multiprocessing.cpu_count()
+    # 限制最大 Worker 数
+    num_workers = min(num_workers, 32)
+    print(f"🚀 Launching ProcessPoolExecutor with {num_workers} workers (Context: {mp_context})")
+    
+    # 这里的 if-else 是为了保留 SyncExecutor 作为一个 fallback 选项，但我们现在要切回并行
+    if True: 
+        # Python 3.7+ 支持 mp_context
+        executor_cm = ProcessPoolExecutor(
+            max_workers=num_workers, 
+            initializer=worker_initializer, 
+            initargs=initargs,
+            mp_context=mp_context
+        )
     else:
         # Fake Executor for debugging
         class SyncExecutor:
