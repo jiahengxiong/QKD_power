@@ -689,7 +689,7 @@ def run_experiment(map_name, protocol, detector, traffic_mid):
         print(f"\n=== Phase 2: Transferring Knowledge & Training Bypass ===")
         opt_bypass.load_from_optimizer(opt_nobypass)
         
-        max_it = 200
+        max_it = 300
         total_gens = phase1_gens + phase2_gens
         
         final_status = "max_gens_reached"
