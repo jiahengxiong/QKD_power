@@ -6,6 +6,7 @@ import torch
 
 # 动态添加路径，确保能找到 train_cma
 sys.path.append(os.getcwd())
+from train_cma import run_experiment
 
 try:
     import train_cma
