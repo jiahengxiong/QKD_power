@@ -302,9 +302,9 @@ class OpenAIESOptimizer:
         if self.generation % 1 == 0:
             avg_power = infos[min_idx].get('avg_power', 0.0)
             spec_occ = infos[min_idx].get('spec_occ', 0.0)
-            fit_std = np.std(fitnesses)
+            fit_std = np.std(fitnesses) # 替换 Unique Count 为 Fitness Std
             
-            log_str = (f"Gen {self.generation} (ES) | Pop: {self.pop_size} | Time: {duration:.2f}s | "
+            log_str = (f"Gen {self.generation} (ES) | Pop: {self.pop_size} | Sigma: {self.sigma:.3f} | Time: {duration:.2f}s | "
                        f"Cur: {avg_power:.2f}W (S:{spec_occ:.2%}) | Std: {fit_std:.2f} | Best: {self.best_pure_power_found:.2f}W")
             print(f"[{'Bypass' if self.bypass else 'NoBypass'}] {log_str}")
             self.log_file.write(log_str + "\n")
