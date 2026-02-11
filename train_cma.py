@@ -199,6 +199,7 @@ class OpenAIESOptimizer:
         # 状态记录
         self.best_fitness_found = float('inf')
         self.best_pure_power_found = float('inf')
+        self.prev_best_fitness = float('inf') # [Adaptive Sigma] 记录上一代的最佳
         self.best_metrics = {}
         self.generation = 0
         self.current_center_params = None
@@ -308,6 +309,22 @@ class OpenAIESOptimizer:
             print(f"[{'Bypass' if self.bypass else 'NoBypass'}] {log_str}")
             self.log_file.write(log_str + "\n")
             self.log_file.flush()
+            
+        # 8. [Adaptive Sigma] 动态调整噪声幅度
+        # 如果当前代找到了比历史最佳更好的解，说明方向对，稍微收敛以精细搜索
+        # 如果没找到（停滞），说明陷入局部最优，增大噪声以跳出
+        current_best_fit = fitnesses[min_idx]
+        
+        if current_best_fit < self.prev_best_fitness - 1e-3:
+            # 进步显著 -> 收敛
+            self.sigma *= 0.98
+        else:
+            # 停滞 -> 膨胀 (缓慢)
+            self.sigma += 0.001
+            
+        # [Sigma Clip] 限制最大噪声幅度，防止变成随机游走 (0.4 -> 0.2)
+        self.sigma = np.clip(self.sigma, 0.05, 0.2)
+        self.prev_best_fitness = self.best_fitness_found # 更新历史最佳基准
             
         self.generation += 1
         return True
