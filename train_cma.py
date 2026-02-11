@@ -630,9 +630,10 @@ def run_experiment(map_name, protocol, detector, traffic_mid):
     # 使用 Context Manager 管理 ProcessPoolExecutor
     # [Performance] 使用所有可用核心
     import multiprocessing
-    num_workers = multiprocessing.cpu_count()
+    # num_workers = multiprocessing.cpu_count()
     # 如果核心数过多，限制一下以免内存爆炸 (e.g. 64核)
-    num_workers = min(num_workers, 32) 
+    # [Fix] 回退到 8 核以排查稳定性问题 (Worker 闪退)
+    num_workers = 8 
     print(f"🚀 Launching ProcessPoolExecutor with {num_workers} workers")
     
     with ProcessPoolExecutor(max_workers=num_workers, initializer=worker_initializer, initargs=initargs) as shared_executor:
