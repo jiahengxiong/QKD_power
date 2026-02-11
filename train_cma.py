@@ -644,11 +644,29 @@ def run_experiment(map_name, protocol, detector, traffic_mid):
     import multiprocessing
     # num_workers = multiprocessing.cpu_count()
     # 如果核心数过多，限制一下以免内存爆炸 (e.g. 64核)
-    # [Debug] 强制单进程以排查 Worker 启动失败问题
-    num_workers = 1
-    print(f"🚀 Launching ProcessPoolExecutor with {num_workers} workers")
+    # [Debug] 强制串行模式以排查逻辑错误 (No Multiprocessing)
+    num_workers = 0
+    print(f"🚀 Launching Executor (Workers={num_workers})")
     
-    with ProcessPoolExecutor(max_workers=num_workers, initializer=worker_initializer, initargs=initargs) as shared_executor:
+    if num_workers > 0:
+        executor_cm = ProcessPoolExecutor(max_workers=num_workers, initializer=worker_initializer, initargs=initargs)
+    else:
+        # Fake Executor for debugging
+        class SyncExecutor:
+            def __enter__(self): 
+                # Manually initialize worker state in main process
+                print("🔧 Initializing Worker State in Main Process...")
+                worker_initializer(*initargs)
+                return self
+            def __exit__(self, exc_type, exc_val, exc_tb): pass
+            def map(self, func, iterable):
+                return map(func, iterable)
+            def shutdown(self, wait=True): pass
+            
+        executor_cm = SyncExecutor()
+        print("⚠️ Running in SYNC mode (No Multiprocessing)")
+
+    with executor_cm as shared_executor:
     
         # 使用 CMA-ES (回归经典)
         opt_bypass = CMAESOptimizer(global_request_list, shared_executor, bypass=True, map_name=map_name, traffic_mid=traffic_mid, protocol=protocol, detector=detector, device=device)
