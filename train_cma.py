@@ -203,6 +203,7 @@ class OpenAIESOptimizer:
         self.best_metrics = {}
         self.generation = 0
         self.current_center_params = None
+        self.stagnation_counter = 0 # [Restart] 停滞计数器
         
         # 尝试热启动
         model_path = os.path.join("models", self.model_filename)
@@ -330,6 +331,27 @@ class OpenAIESOptimizer:
         # [Sigma Clip] 限制最大噪声幅度 (0.10 - 0.25)
         self.sigma = np.clip(self.sigma, 0.1, 0.25)
         self.prev_best_fitness = self.best_fitness_found # 更新历史最佳基准
+        
+        # [Restart Mechanism] 如果 Sigma 长期顶在上限 (0.25)，说明陷入深坑，强制重启
+        if self.sigma >= 0.248:
+            self.stagnation_counter += 1
+        else:
+            self.stagnation_counter = 0
+            
+        if self.stagnation_counter >= 10:
+            print(f"⚠️ [{self.generation}] Stagnation detected! Restarting with large perturbation...")
+            
+            # 1. 参数大跳跃 (Jump)
+            current_params = self.get_flat_params()
+            # 扰动幅度 0.5 (对于权重来说已经很大了)
+            perturbation = np.random.randn(self.total_params) * 0.5
+            self.set_flat_params(current_params + perturbation)
+            
+            # 2. 重置状态
+            self.sigma = 0.15
+            self.stagnation_counter = 0
+            # 重置 Adam 动量 (保留 Weight Decay 设置)
+            self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr, weight_decay=0.001)
             
         self.generation += 1
         return True
