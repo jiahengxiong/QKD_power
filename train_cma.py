@@ -688,7 +688,8 @@ def run_experiment(map_name, protocol, detector, traffic_mid):
     num_workers = multiprocessing.cpu_count()
     # 限制最大 Worker 数
     # [Performance Tuning] 线程数已限制为 1，现在可以全核跑了
-    num_workers = min(num_workers, 32) 
+    # num_workers = min(num_workers, 32) 
+    um_workers = num_workers
     print(f"🚀 Launching ProcessPoolExecutor with {num_workers} workers (Context: {mp_context})")
     
     # 这里的 if-else 是为了保留 SyncExecutor 作为一个 fallback 选项，但我们现在要切回并行
