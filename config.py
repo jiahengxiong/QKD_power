@@ -221,9 +221,9 @@ cases = [{'Topology': 'Paris', 'Protocol': 'BB84', 'Bypass': True, 'Detector': '
     {"Protocol": "CV-QKD", "Bypass": False, "Detector": "ThorlabsPDB", "Topology": "Large", "Traffic": "Medium"},
     {"Protocol": "CV-QKD", "Bypass": False, "Detector": "ThorlabsPDB", "Topology": "Large", "Traffic": "High"}
 ]"""
-Traffic_cases = {'Paris':{'Low': 100000, 'Medium':200000, 'High':800000},
-                 'Tokyo':{'Low': 700000, 'Medium':1400000, 'High':4000000},
-                 'Large': {'Low': 25000, 'Medium': 50000, 'High': 180000}}
+Traffic_cases = {'Paris':{'Low': 100000, 'Medium':200000, 'High':750000},
+                 'Tokyo':{'Low': 700000, 'Medium':1400000, 'High':3500000},
+                 'Large': {'Low': 25000, 'Medium': 50000, 'High': 160000}}
 
 
 # cases = [
