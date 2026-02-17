@@ -229,7 +229,7 @@ def serve_traffic(G, AG, path_edge_list, request_traffic, pbar, served_request):
             edge_traffic -= trans_traffic
             if edge_traffic <= 0:
                 break # 流量已满，不再处理后续波长
-        # gc.collect()
+        gc.collect()
 
     return occupied_wavelength, actual_power
 

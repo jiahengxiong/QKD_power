@@ -148,14 +148,14 @@ def evaluate_worker(args):
         fitness = avg_power + spec_occ
         # fitness = avg_power + spec_occ + 0.00001 * path_cost_sum
         
-        # 显式清理 (防止计算图残留)
-        del h_state, last_action_t
+        # # 显式清理 (防止计算图残留)
+        # del h_state, last_action_t
         
-        # [Memory] 手动清理大对象并触发 GC
-        if hasattr(_WORKER_ENV, 'current_aux_graph'):
-            _WORKER_ENV.current_aux_graph = None
-        import gc
-        gc.collect()
+        # # [Memory] 手动清理大对象并触发 GC
+        # if hasattr(_WORKER_ENV, 'current_aux_graph'):
+        #     _WORKER_ENV.current_aux_graph = None
+        # import gc
+        # gc.collect()
         
         return fitness, info
     except Exception as e:
