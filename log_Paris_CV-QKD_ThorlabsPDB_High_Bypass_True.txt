@@ -1,561 +1,251 @@
-Gym has been unmaintained since 2022 and does not support NumPy 2.0 amongst other critical functionality.
-Please upgrade to Gymnasium, the maintained drop-in replacement of Gym, or contact the authors of your software and request that they upgrade.
-Users of this version of Gym should be able to simply replace 'import gym' with 'import gymnasium as gym' in the vast majority of cases.
-See the migration guide at https://gymnasium.farama.org/introduction/migration_guide/ for additional information.
-Using device: cpu | Config: CV-QKD, ThorlabsPDB, High, Bypass=True
-✅ Generated request list (Size: 55) with seed 42. Consistent across runs.
-🚀 GNN-CMA-ES Optimizer Initialized. Total Parameters: 1497
-🚀 Starting BIPOP-CMA-ES optimization...
-(32_w,64)-aCMA-ES (mu_w=17.6,w_1=11%) in dimension 1497 (seed=288798, Wed Feb  4 00:37:55 2026)
-
-
---- Starting Iteration at Wed Feb  4 00:37:46 2026 (max_iter=100) ---
-Gym has been unmaintained since 2022 and does not support NumPy 2.0 amongst other critical functionality.
-Please upgrade to Gymnasium, the maintained drop-in replacement of Gym, or contact the authors of your software and request that they upgrade.
-Users of this version of Gym should be able to simply replace 'import gym' with 'import gymnasium as gym' in the vast majority of cases.
-See the migration guide at https://gymnasium.farama.org/introduction/migration_guide/ for additional information.
-Using device: cpu | Config: CV-QKD, ThorlabsPDB, High, Bypass=True
-✅ Generated request list (Size: 55) with seed 42. Consistent across runs.
-🚀 GNN-CMA-ES Optimizer Initialized. Total Parameters: 1497
-🚀 Starting BIPOP-CMA-ES optimization...
-(32_w,64)-aCMA-ES (mu_w=17.6,w_1=11%) in dimension 1497 (seed=231938, Wed Feb  4 00:39:20 2026)
-Gym has been unmaintained since 2022 and does not support NumPy 2.0 amongst other critical functionality.
-Please upgrade to Gymnasium, the maintained drop-in replacement of Gym, or contact the authors of your software and request that they upgrade.
-Users of this version of Gym should be able to simply replace 'import gym' with 'import gymnasium as gym' in the vast majority of cases.
-See the migration guide at https://gymnasium.farama.org/introduction/migration_guide/ for additional information.
-Using device: cpu | Config: CV-QKD, ThorlabsPDB, High, Bypass=True
-✅ Generated request list (Size: 55) with seed 42. Consistent across runs.
-🚀 GNN-CMA-ES Optimizer Initialized. Total Parameters: 1497
-🚀 Starting BIPOP-CMA-ES optimization...
-(32_w,64)-aCMA-ES (mu_w=17.6,w_1=11%) in dimension 1497 (seed=241364, Wed Feb  4 00:40:34 2026)
-  Eval 8 | Power: 376.27W
-  Eval 16 | Power: 253.26W
-  Eval 24 | Power: 354.55W
-  Eval 32 | Power: 188.19W
-  Eval 40 | Power: 303.93W
-  Eval 48 | Power: 361.79W
-  Eval 56 | Power: 361.80W
-  Eval 64 | Power: 340.09W
-✨ New Best Fitness: 180.9216 (Power: 339.64W) | Model Saved: gnn_best_Paris_CV-QKD_ThorlabsPDB_High_bypass_True.pth
-Iterat #Fevals   function value  axis ratio  sigma  min&max std  t[m:s]
-    1     64 1.809215909090909e+02 1.0e+00 2.97e-01  3e-01  3e-01 12:34.2
-  Eval 72 | Power: 332.85W
-  Eval 80 | Power: 369.01W
-  Eval 88 | Power: 274.95W
-  Eval 96 | Power: 180.91W
-  Eval 104 | Power: 361.81W
-  Eval 112 | Power: 144.79W
-  Eval 120 | Power: 354.55W
-  Eval 128 | Power: 260.50W
-✨ New Best Fitness: 122.9482 (Power: 260.15W) | Model Saved: gnn_best_Paris_CV-QKD_ThorlabsPDB_High_bypass_True.pth
-    2    128 1.229481818181818e+02 1.0e+00 2.94e-01  3e-01  3e-01 25:22.5
-  Eval 136 | Power: 311.19W
-  Eval 144 | Power: 303.94W
-  Eval 152 | Power: 209.84W
-  Eval 160 | Power: 260.46W
-  Eval 168 | Power: 318.40W
-  Eval 176 | Power: 354.58W
-  Eval 184 | Power: 202.60W
-  Eval 192 | Power: 166.41W
-    3    192 1.519119696969697e+02 1.0e+00 2.91e-01  3e-01  3e-01 39:54.8
-  Eval 200 | Power: 325.61W
-  Eval 208 | Power: 267.75W
-  Eval 216 | Power: 188.16W
-  Eval 224 | Power: 332.88W
-  Eval 232 | Power: 159.15W
-  Eval 240 | Power: 180.91W
-  Eval 248 | Power: 318.34W
-  Eval 256 | Power: 188.11W
-    4    256 1.446897727272727e+02 1.0e+00 2.89e-01  3e-01  3e-01 52:00.0
-  Eval 264 | Power: 151.92W
-  Eval 272 | Power: 311.17W
-  Eval 280 | Power: 361.80W
-  Eval 288 | Power: 202.62W
-  Eval 296 | Power: 202.65W
-  Eval 304 | Power: 195.35W
-  Eval 312 | Power: 376.27W
-  Eval 320 | Power: 188.16W
-    5    320 1.519161363636363e+02 1.0e+00 2.86e-01  3e-01  3e-01 65:08.9
-  Eval 328 | Power: 354.60W
-  Eval 336 | Power: 260.57W
-  Eval 344 | Power: 173.64W
-  Eval 352 | Power: 217.11W
-  Eval 360 | Power: 274.94W
-  Eval 368 | Power: 325.65W
-  Eval 376 | Power: 340.11W
-  Eval 384 | Power: 274.93W
-    6    384 1.229856818181818e+02 1.0e+00 2.84e-01  3e-01  3e-01 79:41.8
-  Eval 392 | Power: 340.11W
-  Eval 400 | Power: 166.38W
-  Eval 408 | Power: 188.16W
-  Eval 416 | Power: 202.69W
-  Eval 424 | Power: 282.29W
-  Eval 432 | Power: 217.16W
-  Eval 440 | Power: 275.02W
-  Eval 448 | Power: 332.88W
-    7    448 1.592300000000000e+02 1.0e+00 2.82e-01  3e-01  3e-01 96:11.6
-  Eval 456 | Power: 173.67W
-  Eval 464 | Power: 195.42W
-  Eval 472 | Power: 311.15W
-  Eval 480 | Power: 209.86W
-  Eval 488 | Power: 340.13W
-  Eval 496 | Power: 209.78W
-  Eval 504 | Power: 303.86W
-  Eval 512 | Power: 325.62W
-✨ New Best Fitness: 122.9440 (Power: 325.19W) | Model Saved: gnn_best_Paris_CV-QKD_ThorlabsPDB_High_bypass_True.pth
-    8    512 1.229440151515151e+02 1.0e+00 2.80e-01  3e-01  3e-01 112:21.6
-  Eval 520 | Power: 332.85W
-  Eval 528 | Power: 282.17W
-  Eval 536 | Power: 376.27W
-  Eval 544 | Power: 340.07W
-  Eval 552 | Power: 246.01W
-  Eval 560 | Power: 173.62W
-  Eval 568 | Power: 347.35W
-  Eval 576 | Power: 325.63W
-    9    576 1.302287121212121e+02 1.0e+00 2.78e-01  3e-01  3e-01 125:19.3
-  Eval 584 | Power: 303.93W
-  Eval 592 | Power: 347.33W
-  Eval 600 | Power: 137.46W
-  Eval 608 | Power: 209.76W
-  Eval 616 | Power: 246.01W
-  Eval 624 | Power: 318.39W
-  Eval 632 | Power: 303.93W
-  Eval 640 | Power: 195.37W
-   10    640 1.374634090909091e+02 1.0e+00 2.76e-01  3e-01  3e-01 138:32.7
-  Eval 648 | Power: 347.33W
-  Eval 656 | Power: 303.92W
-  Eval 664 | Power: 354.58W
-  Eval 672 | Power: 253.23W
-  Eval 680 | Power: 253.28W
-  Eval 688 | Power: 188.13W
-  Eval 696 | Power: 238.82W
-  Eval 704 | Power: 369.01W
-Iterat #Fevals   function value  axis ratio  sigma  min&max std  t[m:s]
-   11    704 1.301703787878787e+02 1.0e+00 2.74e-01  3e-01  3e-01 151:04.6
-  Eval 712 | Power: 260.53W
-  Eval 720 | Power: 246.02W
-  Eval 728 | Power: 224.29W
-  Eval 736 | Power: 332.86W
-  Eval 744 | Power: 246.03W
-  Eval 752 | Power: 289.48W
-  Eval 760 | Power: 159.17W
-  Eval 768 | Power: 224.31W
-✨ New Best Fitness: 115.6885 (Power: 224.02W) | Model Saved: gnn_best_Paris_CV-QKD_ThorlabsPDB_High_bypass_True.pth
-   12    768 1.156884848484848e+02 1.0e+00 2.73e-01  3e-01  3e-01 162:23.5
-  Eval 776 | Power: 361.80W
-  Eval 784 | Power: 151.98W
-  Eval 792 | Power: 115.76W
-  Eval 800 | Power: 332.84W
-  Eval 808 | Power: 340.10W
-  Eval 816 | Power: 361.75W
-  Eval 824 | Power: 289.46W
-  Eval 832 | Power: 188.15W
-   13    832 1.157634848484848e+02 1.0e+00 2.71e-01  3e-01  3e-01 176:47.6
-  Eval 840 | Power: 238.69W
-  Eval 848 | Power: 217.11W
-  Eval 856 | Power: 173.70W
-  Eval 864 | Power: 180.95W
-  Eval 872 | Power: 296.67W
-  Eval 880 | Power: 354.58W
-  Eval 888 | Power: 238.81W
-  Eval 896 | Power: 173.67W
-✨ New Best Fitness: 101.2274 (Power: 173.43W) | Model Saved: gnn_best_Paris_CV-QKD_ThorlabsPDB_High_bypass_True.pth
-   14    896 1.012274242424242e+02 1.0e+00 2.70e-01  3e-01  3e-01 192:59.8
-  Eval 904 | Power: 166.44W
-  Eval 912 | Power: 311.18W
-  Eval 920 | Power: 347.36W
-  Eval 928 | Power: 238.80W
-  Eval 936 | Power: 151.95W
-  Eval 944 | Power: 202.65W
-  Eval 952 | Power: 180.88W
-  Eval 960 | Power: 180.89W
-   15    960 1.229356818181818e+02 1.0e+00 2.68e-01  3e-01  3e-01 204:29.1
-  Eval 968 | Power: 260.54W
-  Eval 976 | Power: 166.41W
-  Eval 984 | Power: 318.39W
-  Eval 992 | Power: 311.13W
-  Eval 1000 | Power: 231.61W
-  Eval 1008 | Power: 188.07W
-  Eval 1016 | Power: 311.15W
-  Eval 1024 | Power: 209.82W
-   16   1024 1.519119696969697e+02 1.0e+00 2.67e-01  3e-01  3e-01 217:16.1
-  Eval 1032 | Power: 231.54W
-  Eval 1040 | Power: 318.37W
-  Eval 1048 | Power: 202.54W
-  Eval 1056 | Power: 369.06W
-  Eval 1064 | Power: 246.04W
-  Eval 1072 | Power: 195.31W
-  Eval 1080 | Power: 159.15W
-  Eval 1088 | Power: 253.29W
-   17   1088 1.229731818181818e+02 1.0e+00 2.65e-01  3e-01  3e-01 230:33.8
-  Eval 1096 | Power: 159.16W
-  Eval 1104 | Power: 318.40W
-  Eval 1112 | Power: 303.91W
-  Eval 1120 | Power: 296.64W
-  Eval 1128 | Power: 195.38W
-  Eval 1136 | Power: 325.64W
-  Eval 1144 | Power: 253.32W
-  Eval 1152 | Power: 347.24W
-   18   1152 1.229606818181818e+02 1.0e+00 2.64e-01  3e-01  3e-01 245:56.1
-  Eval 1160 | Power: 318.34W
-  Eval 1168 | Power: 245.95W
-  Eval 1176 | Power: 238.80W
-  Eval 1184 | Power: 202.55W
-  Eval 1192 | Power: 325.63W
-  Eval 1200 | Power: 253.27W
-  Eval 1208 | Power: 361.78W
-  Eval 1216 | Power: 217.10W
-   19   1216 1.302203787878788e+02 1.0e+00 2.62e-01  3e-01  3e-01 260:59.5
-  Eval 1224 | Power: 238.80W
-  Eval 1232 | Power: 267.79W
-  Eval 1240 | Power: 224.34W
-  Eval 1248 | Power: 246.01W
-  Eval 1256 | Power: 332.82W
-  Eval 1264 | Power: 267.72W
-  Eval 1272 | Power: 332.85W
-  Eval 1280 | Power: 188.06W
-   20   1280 1.374592424242424e+02 1.0e+00 2.61e-01  3e-01  3e-01 272:40.4
-  Eval 1288 | Power: 325.64W
-  Eval 1296 | Power: 195.42W
-  Eval 1304 | Power: 195.37W
-  Eval 1312 | Power: 274.98W
-  Eval 1320 | Power: 318.40W
-  Eval 1328 | Power: 231.56W
-  Eval 1336 | Power: 325.65W
-  Eval 1344 | Power: 159.19W
-Iterat #Fevals   function value  axis ratio  sigma  min&max std  t[m:s]
-   21   1344 1.229856818181818e+02 1.0e+00 2.60e-01  3e-01  3e-01 287:05.9
-  Eval 1352 | Power: 354.57W
-  Eval 1360 | Power: 325.61W
-  Eval 1368 | Power: 224.34W
-  Eval 1376 | Power: 180.92W
-  Eval 1384 | Power: 289.43W
-  Eval 1392 | Power: 188.11W
-  Eval 1400 | Power: 159.22W
-  Eval 1408 | Power: 137.45W
-   22   1408 1.302078787878787e+02 1.0e+00 2.59e-01  3e-01  3e-01 299:11.9
-  Eval 1416 | Power: 144.71W
-  Eval 1424 | Power: 311.15W
-  Eval 1432 | Power: 188.17W
-  Eval 1440 | Power: 217.09W
-  Eval 1448 | Power: 303.89W
-  Eval 1456 | Power: 144.71W
-  Eval 1464 | Power: 159.16W
-  Eval 1472 | Power: 325.59W
-   23   1472 1.374634090909091e+02 1.0e+00 2.58e-01  3e-01  3e-01 314:57.0
-  Eval 1480 | Power: 274.96W
-  Eval 1488 | Power: 173.65W
-  Eval 1496 | Power: 188.13W
-  Eval 1504 | Power: 318.37W
-  Eval 1512 | Power: 311.05W
-  Eval 1520 | Power: 260.54W
-  Eval 1528 | Power: 144.69W
-  Eval 1536 | Power: 246.03W
-   24   1536 1.229273484848485e+02 1.0e+00 2.56e-01  3e-01  3e-01 326:58.4
-  Eval 1544 | Power: 275.02W
-  Eval 1552 | Power: 282.15W
-  Eval 1560 | Power: 318.36W
-  Eval 1568 | Power: 325.64W
-  Eval 1576 | Power: 217.08W
-  Eval 1584 | Power: 361.83W
-  Eval 1592 | Power: 267.70W
-  Eval 1600 | Power: 260.47W
-   25   1600 1.229440151515151e+02 1.0e+00 2.55e-01  3e-01  3e-01 338:49.7
-  Eval 1608 | Power: 274.94W
-  Eval 1616 | Power: 217.04W
-  Eval 1624 | Power: 173.71W
-  Eval 1632 | Power: 202.68W
-  Eval 1640 | Power: 195.39W
-  Eval 1648 | Power: 209.88W
-  Eval 1656 | Power: 303.88W
-  Eval 1664 | Power: 311.15W
-   26   1664 1.229481818181818e+02 1.0e+00 2.54e-01  3e-01  3e-01 351:11.8
-  Eval 1672 | Power: 188.19W
-  Eval 1680 | Power: 159.16W
-  Eval 1688 | Power: 173.59W
-  Eval 1696 | Power: 354.58W
-  Eval 1704 | Power: 173.67W
-  Eval 1712 | Power: 122.96W
-  Eval 1720 | Power: 238.82W
-  Eval 1728 | Power: 202.62W
-   27   1728 1.157301515151515e+02 1.0e+00 2.53e-01  3e-01  3e-01 366:27.6
-  Eval 1736 | Power: 137.46W
-  Eval 1744 | Power: 173.65W
-  Eval 1752 | Power: 180.82W
-  Eval 1760 | Power: 217.12W
-  Eval 1768 | Power: 188.20W
-  Eval 1776 | Power: 180.88W
-  Eval 1784 | Power: 347.32W
-  Eval 1792 | Power: 166.41W
-   28   1792 1.157134848484848e+02 1.0e+00 2.52e-01  3e-01  3e-01 380:23.2
-  Eval 1800 | Power: 282.23W
-  Eval 1808 | Power: 209.80W
-  Eval 1816 | Power: 216.99W
-  Eval 1824 | Power: 274.96W
-  Eval 1832 | Power: 188.11W
-  Eval 1840 | Power: 217.03W
-  Eval 1848 | Power: 231.55W
-  Eval 1856 | Power: 151.90W
-   29   1856 1.156884848484848e+02 1.0e+00 2.51e-01  3e-01  3e-01 393:09.8
-  Eval 1864 | Power: 159.22W
-  Eval 1872 | Power: 166.46W
-  Eval 1880 | Power: 195.35W
-  Eval 1888 | Power: 151.94W
-  Eval 1896 | Power: 188.17W
-  Eval 1904 | Power: 180.92W
-  Eval 1912 | Power: 137.49W
-  Eval 1920 | Power: 195.41W
-   30   1920 1.084746212121212e+02 1.0e+00 2.50e-01  3e-01  3e-01 404:53.3
-  Eval 1928 | Power: 151.84W
-  Eval 1936 | Power: 253.25W
-  Eval 1944 | Power: 195.36W
-  Eval 1952 | Power: 173.70W
-  Eval 1960 | Power: 267.77W
-  Eval 1968 | Power: 275.01W
-  Eval 1976 | Power: 224.33W
-  Eval 1984 | Power: 224.38W
-Iterat #Fevals   function value  axis ratio  sigma  min&max std  t[m:s]
-   31   1984 1.156884848484848e+02 1.0e+00 2.49e-01  2e-01  2e-01 418:15.8
-  Eval 1992 | Power: 130.15W
-  Eval 2000 | Power: 202.48W
-  Eval 2008 | Power: 282.17W
-  Eval 2016 | Power: 144.71W
-  Eval 2024 | Power: 325.64W
-  Eval 2032 | Power: 274.97W
-  Eval 2040 | Power: 231.54W
-  Eval 2048 | Power: 166.34W
-   32   2048 1.301537121212121e+02 1.0e+00 2.49e-01  2e-01  2e-01 431:28.4
-  Eval 2056 | Power: 282.13W
-  Eval 2064 | Power: 318.39W
-  Eval 2072 | Power: 217.05W
-  Eval 2080 | Power: 217.06W
-  Eval 2088 | Power: 217.02W
-  Eval 2096 | Power: 296.67W
-  Eval 2104 | Power: 311.14W
-  Eval 2112 | Power: 318.40W
-   33   2112 1.156884848484848e+02 1.0e+00 2.48e-01  2e-01  2e-01 444:29.2
-  Eval 2120 | Power: 195.39W
-  Eval 2128 | Power: 130.23W
-  Eval 2136 | Power: 159.21W
-  Eval 2144 | Power: 303.98W
-  Eval 2152 | Power: 332.85W
-  Eval 2160 | Power: 311.12W
-  Eval 2168 | Power: 217.07W
-  Eval 2176 | Power: 173.70W
-   34   2176 1.156884848484848e+02 1.0e+00 2.47e-01  2e-01  2e-01 456:50.4
-  Eval 2184 | Power: 238.72W
-  Eval 2192 | Power: 180.90W
-  Eval 2200 | Power: 188.16W
-  Eval 2208 | Power: 144.73W
-  Eval 2216 | Power: 347.35W
-  Eval 2224 | Power: 245.98W
-  Eval 2232 | Power: 209.84W
-  Eval 2240 | Power: 151.98W
-   35   2240 1.156884848484848e+02 1.0e+00 2.46e-01  2e-01  2e-01 469:13.5
-  Eval 2248 | Power: 231.56W
-  Eval 2256 | Power: 325.63W
-  Eval 2264 | Power: 217.05W
-  Eval 2272 | Power: 195.39W
-  Eval 2280 | Power: 166.46W
-  Eval 2288 | Power: 274.99W
-  Eval 2296 | Power: 202.58W
-  Eval 2304 | Power: 224.34W
-   36   2304 1.156884848484848e+02 1.0e+00 2.45e-01  2e-01  2e-01 483:20.7
-  Eval 2312 | Power: 195.42W
-  Eval 2320 | Power: 188.16W
-  Eval 2328 | Power: 340.07W
-  Eval 2336 | Power: 311.16W
-  Eval 2344 | Power: 238.77W
-  Eval 2352 | Power: 188.17W
-  Eval 2360 | Power: 282.16W
-  Eval 2368 | Power: 159.16W
-   37   2368 1.229273484848485e+02 1.0e+00 2.45e-01  2e-01  2e-01 495:53.5
-  Eval 2376 | Power: 195.36W
-  Eval 2384 | Power: 318.38W
-  Eval 2392 | Power: 224.33W
-  Eval 2400 | Power: 151.95W
-  Eval 2408 | Power: 282.22W
-  Eval 2416 | Power: 195.39W
-  Eval 2424 | Power: 137.44W
-  Eval 2432 | Power: 137.48W
-   38   2432 1.084621212121212e+02 1.0e+00 2.44e-01  2e-01  2e-01 510:33.3
-  Eval 2440 | Power: 267.73W
-  Eval 2448 | Power: 195.35W
-  Eval 2456 | Power: 122.92W
-  Eval 2464 | Power: 246.02W
-  Eval 2472 | Power: 122.94W
-  Eval 2480 | Power: 188.14W
-  Eval 2488 | Power: 144.72W
-  Eval 2496 | Power: 195.30W
-   39   2496 1.156884848484848e+02 1.0e+00 2.43e-01  2e-01  2e-01 525:47.7
-  Eval 2504 | Power: 217.02W
-  Eval 2512 | Power: 144.66W
-  Eval 2520 | Power: 347.32W
-  Eval 2528 | Power: 195.33W
-  Eval 2536 | Power: 253.21W
-  Eval 2544 | Power: 115.71W
-  Eval 2552 | Power: 115.69W
-  Eval 2560 | Power: 260.51W
-   40   2560 1.156884848484848e+02 1.0e+00 2.43e-01  2e-01  2e-01 539:44.3
-  Eval 2568 | Power: 166.42W
-  Eval 2576 | Power: 180.93W
-  Eval 2584 | Power: 173.72W
-  Eval 2592 | Power: 325.59W
-  Eval 2600 | Power: 115.69W
-  Eval 2608 | Power: 267.71W
-  Eval 2616 | Power: 115.69W
-  Eval 2624 | Power: 217.06W
-Iterat #Fevals   function value  axis ratio  sigma  min&max std  t[m:s]
-   41   2624 1.084662878787879e+02 1.0e+00 2.42e-01  2e-01  2e-01 553:13.7
-  Eval 2632 | Power: 180.93W
-  Eval 2640 | Power: 231.47W
-  Eval 2648 | Power: 209.78W
-  Eval 2656 | Power: 188.04W
-  Eval 2664 | Power: 332.87W
-  Eval 2672 | Power: 231.56W
-  Eval 2680 | Power: 217.12W
-  Eval 2688 | Power: 318.41W
-   42   2688 1.084662878787879e+02 1.0e+00 2.41e-01  2e-01  2e-01 564:27.4
-  Eval 2696 | Power: 195.35W
-  Eval 2704 | Power: 195.32W
-  Eval 2712 | Power: 267.67W
-  Eval 2720 | Power: 122.93W
-  Eval 2728 | Power: 311.16W
-  Eval 2736 | Power: 115.69W
-  Eval 2744 | Power: 246.06W
-  Eval 2752 | Power: 311.18W
-   43   2752 1.156884848484848e+02 1.0e+00 2.41e-01  2e-01  2e-01 579:38.9
-  Eval 2760 | Power: 180.91W
-  Eval 2768 | Power: 209.71W
-  Eval 2776 | Power: 289.45W
-  Eval 2784 | Power: 253.28W
-  Eval 2792 | Power: 238.87W
-  Eval 2800 | Power: 318.39W
-  Eval 2808 | Power: 122.94W
-  Eval 2816 | Power: 274.98W
-   44   2816 1.156968181818182e+02 1.0e+00 2.40e-01  2e-01  2e-01 592:09.1
-  Eval 2824 | Power: 108.47W
-  Eval 2832 | Power: 260.39W
-  Eval 2840 | Power: 289.44W
-  Eval 2848 | Power: 224.35W
-  Eval 2856 | Power: 173.56W
-  Eval 2864 | Power: 202.52W
-  Eval 2872 | Power: 115.72W
-  Eval 2880 | Power: 115.71W
-   45   2880 1.084662878787879e+02 1.0e+00 2.40e-01  2e-01  2e-01 606:09.8
-  Eval 2888 | Power: 173.54W
-  Eval 2896 | Power: 195.27W
-  Eval 2904 | Power: 332.85W
-  Eval 2912 | Power: 151.87W
-  Eval 2920 | Power: 238.80W
-  Eval 2928 | Power: 282.22W
-  Eval 2936 | Power: 231.60W
-  Eval 2944 | Power: 260.51W
-   46   2944 1.156884848484848e+02 1.0e+00 2.39e-01  2e-01  2e-01 617:51.2
-  Eval 2952 | Power: 217.09W
-  Eval 2960 | Power: 188.16W
-  Eval 2968 | Power: 347.34W
-  Eval 2976 | Power: 195.40W
-  Eval 2984 | Power: 159.13W
-  Eval 2992 | Power: 115.73W
-  Eval 3000 | Power: 122.94W
-  Eval 3008 | Power: 202.58W
-   47   3008 1.156968181818182e+02 1.0e+00 2.38e-01  2e-01  2e-01 636:02.8
-  Eval 3016 | Power: 159.18W
-  Eval 3024 | Power: 224.27W
-  Eval 3032 | Power: 173.56W
-  Eval 3040 | Power: 144.64W
-  Eval 3048 | Power: 188.04W
-  Eval 3056 | Power: 202.55W
-  Eval 3064 | Power: 202.65W
-  Eval 3072 | Power: 253.26W
-   48   3072 1.084579545454545e+02 1.0e+00 2.38e-01  2e-01  2e-01 648:56.7
-  Eval 3080 | Power: 217.10W
-  Eval 3088 | Power: 195.29W
-  Eval 3096 | Power: 267.72W
-  Eval 3104 | Power: 151.88W
-  Eval 3112 | Power: 231.53W
-  Eval 3120 | Power: 202.56W
-  Eval 3128 | Power: 130.15W
-  Eval 3136 | Power: 173.68W
-   49   3136 1.156968181818182e+02 1.0e+00 2.38e-01  2e-01  2e-01 662:33.2
-  Eval 3144 | Power: 318.39W
-  Eval 3152 | Power: 253.23W
-  Eval 3160 | Power: 289.40W
-  Eval 3168 | Power: 151.87W
-  Eval 3176 | Power: 202.68W
-  Eval 3184 | Power: 166.46W
-  Eval 3192 | Power: 130.22W
-  Eval 3200 | Power: 180.97W
-   50   3200 1.156884848484848e+02 1.0e+00 2.37e-01  2e-01  2e-01 677:11.1
-  Eval 3208 | Power: 289.40W
-  Eval 3216 | Power: 180.90W
-  Eval 3224 | Power: 173.70W
-  Eval 3232 | Power: 282.21W
-  Eval 3240 | Power: 217.00W
-  Eval 3248 | Power: 151.94W
-  Eval 3256 | Power: 180.92W
-  Eval 3264 | Power: 195.23W
-Iterat #Fevals   function value  axis ratio  sigma  min&max std  t[m:s]
-   51   3264 1.084746212121212e+02 1.0e+00 2.37e-01  2e-01  2e-01 690:13.3
-  Eval 3272 | Power: 144.67W
-  Eval 3280 | Power: 122.94W
-  Eval 3288 | Power: 195.40W
-  Eval 3296 | Power: 202.63W
-  Eval 3304 | Power: 173.69W
-  Eval 3312 | Power: 209.79W
-  Eval 3320 | Power: 332.86W
-  Eval 3328 | Power: 159.12W
-   52   3328 1.084662878787879e+02 1.0e+00 2.36e-01  2e-01  2e-01 701:52.2
-  Eval 3336 | Power: 188.07W
-  Eval 3344 | Power: 209.84W
-  Eval 3352 | Power: 122.96W
-  Eval 3360 | Power: 202.63W
-  Eval 3368 | Power: 274.93W
-  Eval 3376 | Power: 180.77W
-  Eval 3384 | Power: 195.34W
-  Eval 3392 | Power: 166.33W
-   53   3392 1.084662878787879e+02 1.0e+00 2.36e-01  2e-01  2e-01 715:32.3
-  Eval 3400 | Power: 180.95W
-  Eval 3408 | Power: 115.72W
-  Eval 3416 | Power: 303.93W
-  Eval 3424 | Power: 173.70W
-  Eval 3432 | Power: 115.72W
-  Eval 3440 | Power: 152.00W
-  Eval 3448 | Power: 246.01W
-  Eval 3456 | Power: 260.53W
-   54   3456 1.084662878787879e+02 1.0e+00 2.35e-01  2e-01  2e-01 729:57.1
-  Eval 3464 | Power: 159.08W
-  Eval 3472 | Power: 195.30W
-  Eval 3480 | Power: 195.28W
-  Eval 3488 | Power: 195.34W
-  Eval 3496 | Power: 166.39W
-  Eval 3504 | Power: 195.33W
-  Eval 3512 | Power: 202.55W
-  Eval 3520 | Power: 289.42W
-   55   3520 1.156968181818182e+02 1.0e+00 2.35e-01  2e-01  2e-01 745:38.3
-  Eval 3528 | Power: 115.69W
-  Eval 3536 | Power: 159.23W
-  Eval 3544 | Power: 122.93W
-  Eval 3552 | Power: 166.30W
-  Eval 3560 | Power: 166.33W
-  Eval 3568 | Power: 166.45W
-  Eval 3576 | Power: 173.68W
-  Eval 3584 | Power: 195.27W
-   56   3584 1.084662878787879e+02 1.0e+00 2.35e-01  2e-01  2e-01 759:22.7
-  Eval 3592 | Power: 173.70W
-
-
---- Starting Iteration at Wed Feb  4 00:40:31 2026 (max_iter=100) ---
-Gym has been unmaintained since 2022 and does not support NumPy 2.0 amongst other critical functionality.
-Please upgrade to Gymnasium, the maintained drop-in replacement of Gym, or contact the authors of your software and request that they upgrade.
-Users of this version of Gym should be able to simply replace 'import gym' with 'import gymnasium as gym' in the vast majority of cases.
-See the migration guide at https://gymnasium.farama.org/introduction/migration_guide/ for additional information.
-Using device: cpu | Config: CV-QKD, ThorlabsPDB, High, Bypass=True
-✅ Generated request list (Size: 55) with seed 42. Consistent across runs.
-🚀 GNN-CMA-ES Optimizer Initialized. Total Parameters: 1497
-📂 Found existing best model: gnn_best_Paris_CV-QKD_ThorlabsPDB_High_bypass_True.pth. Loading for warm start...
-/home/qiaolun/Jiaheng/QKD_Power_Journal/QKD_power/train_cma.py:126: FutureWarning: You are using `torch.load` with `weights_only=False` (the current default value), which uses the default pickle module implicitly. It is possible to construct malicious pickle data which will execute arbitrary code during unpickling (See https://github.com/pytorch/pytorch/blob/main/SECURITY.md#untrusted-models for more details). In a future release, the default value for `weights_only` will be flipped to `True`. This limits the functions that could be executed during unpickling. Arbitrary objects will no longer be allowed to be loaded via this mode unless they are explicitly allowlisted by the user via `torch.serialization.add_safe_globals`. We recommend you start setting `weights_only=True` for any use case where you don't have full control of the loaded file. Please open an issue on GitHub for any issues related to this experimental feature.
-  self.model.load_state_dict(torch.load(model_path))
-🚀 Starting BIPOP-CMA-ES optimization...
-(32_w,64)-aCMA-ES (mu_w=17.6,w_1=11%) in dimension 1497 (seed=379986, Wed Feb  4 13:21:37 2026)
+--- OpenAI-ES Training Log for Bypass=True ---
+Gen 0 (ES) | Pop: 128 | Sigma: 0.150 | Time: 33.46s | Cur: 238.47W (S:27.92%) | Std: 6902.74 | Best: 238.47W
+Gen 1 (ES) | Pop: 128 | Sigma: 0.150 | Time: 31.90s | Cur: 216.79W (S:18.33%) | Std: 15923.45 | Best: 216.79W
+Gen 2 (ES) | Pop: 128 | Sigma: 0.136 | Time: 33.07s | Cur: 158.98W (S:18.75%) | Std: 24771.34 | Best: 158.98W
+Gen 3 (ES) | Pop: 128 | Sigma: 0.100 | Time: 34.44s | Cur: 173.43W (S:22.50%) | Std: 51.09 | Best: 158.98W
+Gen 4 (ES) | Pop: 128 | Sigma: 0.102 | Time: 34.91s | Cur: 151.75W (S:13.75%) | Std: 1969.18 | Best: 151.75W
+Gen 5 (ES) | Pop: 128 | Sigma: 0.100 | Time: 33.15s | Cur: 122.85W (S:8.75%) | Std: 47.32 | Best: 122.85W
+Gen 6 (ES) | Pop: 128 | Sigma: 0.100 | Time: 34.03s | Cur: 122.85W (S:10.83%) | Std: 36.58 | Best: 122.85W
+Gen 7 (ES) | Pop: 128 | Sigma: 0.102 | Time: 34.53s | Cur: 122.85W (S:9.58%) | Std: 38.51 | Best: 122.85W
+Gen 8 (ES) | Pop: 128 | Sigma: 0.104 | Time: 35.12s | Cur: 108.40W (S:7.08%) | Std: 35.03 | Best: 108.40W
+Gen 9 (ES) | Pop: 128 | Sigma: 0.100 | Time: 35.71s | Cur: 108.40W (S:7.50%) | Std: 30.98 | Best: 108.40W
+Gen 10 (ES) | Pop: 128 | Sigma: 0.102 | Time: 34.84s | Cur: 101.17W (S:6.25%) | Std: 34.28 | Best: 101.17W
+Gen 11 (ES) | Pop: 128 | Sigma: 0.100 | Time: 37.81s | Cur: 108.40W (S:6.67%) | Std: 28.10 | Best: 101.17W
+Gen 12 (ES) | Pop: 128 | Sigma: 0.102 | Time: 33.59s | Cur: 108.40W (S:6.67%) | Std: 26.61 | Best: 101.17W
+Gen 13 (ES) | Pop: 128 | Sigma: 0.104 | Time: 36.95s | Cur: 108.40W (S:6.67%) | Std: 22.04 | Best: 101.17W
+Gen 14 (ES) | Pop: 128 | Sigma: 0.106 | Time: 36.38s | Cur: 108.40W (S:6.67%) | Std: 16.03 | Best: 101.17W
+Gen 15 (ES) | Pop: 128 | Sigma: 0.108 | Time: 36.15s | Cur: 108.40W (S:7.50%) | Std: 14.85 | Best: 101.17W
+Gen 16 (ES) | Pop: 128 | Sigma: 0.110 | Time: 34.01s | Cur: 101.17W (S:5.83%) | Std: 17.91 | Best: 101.17W
+Gen 17 (ES) | Pop: 128 | Sigma: 0.109 | Time: 35.99s | Cur: 108.40W (S:6.25%) | Std: 15.58 | Best: 101.17W
+Gen 18 (ES) | Pop: 128 | Sigma: 0.111 | Time: 36.22s | Cur: 101.17W (S:6.25%) | Std: 13.19 | Best: 101.17W
+Gen 19 (ES) | Pop: 128 | Sigma: 0.114 | Time: 34.22s | Cur: 101.17W (S:6.25%) | Std: 12.46 | Best: 101.17W
+Gen 20 (ES) | Pop: 128 | Sigma: 0.116 | Time: 35.69s | Cur: 101.17W (S:6.25%) | Std: 13.23 | Best: 101.17W
+Gen 21 (ES) | Pop: 128 | Sigma: 0.118 | Time: 35.51s | Cur: 101.17W (S:6.25%) | Std: 14.18 | Best: 101.17W
+Gen 22 (ES) | Pop: 128 | Sigma: 0.121 | Time: 36.91s | Cur: 101.17W (S:6.25%) | Std: 12.67 | Best: 101.17W
+Gen 23 (ES) | Pop: 128 | Sigma: 0.123 | Time: 37.51s | Cur: 101.17W (S:5.83%) | Std: 17.04 | Best: 101.17W
+Gen 24 (ES) | Pop: 128 | Sigma: 0.126 | Time: 34.25s | Cur: 101.17W (S:5.83%) | Std: 13.18 | Best: 101.17W
+Gen 25 (ES) | Pop: 128 | Sigma: 0.128 | Time: 39.54s | Cur: 101.17W (S:5.83%) | Std: 9.81 | Best: 101.17W
+Gen 26 (ES) | Pop: 128 | Sigma: 0.131 | Time: 39.17s | Cur: 101.17W (S:5.83%) | Std: 11.73 | Best: 101.17W
+Gen 27 (ES) | Pop: 128 | Sigma: 0.133 | Time: 35.05s | Cur: 101.17W (S:5.83%) | Std: 10.61 | Best: 101.17W
+Gen 28 (ES) | Pop: 128 | Sigma: 0.136 | Time: 36.41s | Cur: 101.17W (S:5.83%) | Std: 13.08 | Best: 101.17W
+Gen 29 (ES) | Pop: 128 | Sigma: 0.139 | Time: 39.46s | Cur: 101.17W (S:5.83%) | Std: 9.76 | Best: 101.17W
+Gen 30 (ES) | Pop: 128 | Sigma: 0.141 | Time: 35.27s | Cur: 101.17W (S:5.83%) | Std: 10.06 | Best: 101.17W
+Gen 31 (ES) | Pop: 128 | Sigma: 0.144 | Time: 34.62s | Cur: 101.17W (S:5.83%) | Std: 10.57 | Best: 101.17W
+Gen 32 (ES) | Pop: 128 | Sigma: 0.147 | Time: 35.01s | Cur: 101.17W (S:5.83%) | Std: 11.57 | Best: 101.17W
+Gen 33 (ES) | Pop: 128 | Sigma: 0.150 | Time: 34.99s | Cur: 101.17W (S:5.83%) | Std: 25.92 | Best: 101.17W
+Gen 34 (ES) | Pop: 128 | Sigma: 0.153 | Time: 37.10s | Cur: 101.17W (S:5.83%) | Std: 22.75 | Best: 101.17W
+Gen 35 (ES) | Pop: 128 | Sigma: 0.156 | Time: 36.37s | Cur: 101.17W (S:5.83%) | Std: 10.98 | Best: 101.17W
+Gen 36 (ES) | Pop: 128 | Sigma: 0.159 | Time: 39.12s | Cur: 101.17W (S:5.83%) | Std: 19.24 | Best: 101.17W
+Gen 37 (ES) | Pop: 128 | Sigma: 0.162 | Time: 39.35s | Cur: 101.17W (S:5.83%) | Std: 23.60 | Best: 101.17W
+Gen 38 (ES) | Pop: 128 | Sigma: 0.166 | Time: 37.16s | Cur: 101.17W (S:5.83%) | Std: 22.33 | Best: 101.17W
+Gen 39 (ES) | Pop: 128 | Sigma: 0.169 | Time: 35.85s | Cur: 101.17W (S:5.83%) | Std: 36.38 | Best: 101.17W
+Gen 40 (ES) | Pop: 128 | Sigma: 0.172 | Time: 34.72s | Cur: 101.17W (S:5.83%) | Std: 895.82 | Best: 101.17W
+Gen 41 (ES) | Pop: 128 | Sigma: 0.176 | Time: 38.27s | Cur: 101.17W (S:5.83%) | Std: 36.35 | Best: 101.17W
+Gen 42 (ES) | Pop: 128 | Sigma: 0.179 | Time: 34.08s | Cur: 101.17W (S:5.83%) | Std: 37.74 | Best: 101.17W
+Gen 43 (ES) | Pop: 128 | Sigma: 0.183 | Time: 36.82s | Cur: 101.17W (S:5.83%) | Std: 42.39 | Best: 101.17W
+Gen 44 (ES) | Pop: 128 | Sigma: 0.187 | Time: 38.09s | Cur: 101.17W (S:5.83%) | Std: 25.98 | Best: 101.17W
+Gen 45 (ES) | Pop: 128 | Sigma: 0.190 | Time: 38.13s | Cur: 101.17W (S:5.83%) | Std: 45.95 | Best: 101.17W
+Gen 46 (ES) | Pop: 128 | Sigma: 0.194 | Time: 34.83s | Cur: 101.17W (S:5.83%) | Std: 33.89 | Best: 101.17W
+Gen 47 (ES) | Pop: 128 | Sigma: 0.198 | Time: 36.24s | Cur: 101.17W (S:5.83%) | Std: 28.77 | Best: 101.17W
+Gen 48 (ES) | Pop: 128 | Sigma: 0.202 | Time: 34.84s | Cur: 101.17W (S:5.83%) | Std: 26.55 | Best: 101.17W
+Gen 49 (ES) | Pop: 128 | Sigma: 0.206 | Time: 36.23s | Cur: 101.17W (S:5.83%) | Std: 40.53 | Best: 101.17W
+Gen 50 (ES) | Pop: 128 | Sigma: 0.210 | Time: 35.23s | Cur: 101.17W (S:5.83%) | Std: 29.97 | Best: 101.17W
+Gen 51 (ES) | Pop: 128 | Sigma: 0.214 | Time: 35.52s | Cur: 101.17W (S:5.83%) | Std: 36.41 | Best: 101.17W
+Gen 52 (ES) | Pop: 128 | Sigma: 0.219 | Time: 35.79s | Cur: 101.17W (S:5.83%) | Std: 33.91 | Best: 101.17W
+Gen 53 (ES) | Pop: 128 | Sigma: 0.223 | Time: 35.61s | Cur: 101.17W (S:5.83%) | Std: 30.58 | Best: 101.17W
+Gen 54 (ES) | Pop: 128 | Sigma: 0.227 | Time: 33.94s | Cur: 101.17W (S:5.83%) | Std: 35.99 | Best: 101.17W
+Gen 55 (ES) | Pop: 128 | Sigma: 0.232 | Time: 36.39s | Cur: 101.17W (S:5.83%) | Std: 32.51 | Best: 101.17W
+Gen 56 (ES) | Pop: 128 | Sigma: 0.237 | Time: 35.96s | Cur: 101.17W (S:5.83%) | Std: 29.72 | Best: 101.17W
+Gen 57 (ES) | Pop: 128 | Sigma: 0.241 | Time: 36.70s | Cur: 101.17W (S:5.83%) | Std: 37.38 | Best: 101.17W
+Gen 58 (ES) | Pop: 128 | Sigma: 0.246 | Time: 40.36s | Cur: 101.17W (S:5.83%) | Std: 34.27 | Best: 101.17W
+Gen 59 (ES) | Pop: 128 | Sigma: 0.250 | Time: 36.70s | Cur: 101.17W (S:5.83%) | Std: 39.84 | Best: 101.17W
+Gen 60 (ES) | Pop: 128 | Sigma: 0.250 | Time: 36.80s | Cur: 101.17W (S:5.83%) | Std: 48.33 | Best: 101.17W
+Gen 61 (ES) | Pop: 128 | Sigma: 0.250 | Time: 34.88s | Cur: 101.17W (S:5.83%) | Std: 903.78 | Best: 101.17W
+Gen 62 (ES) | Pop: 128 | Sigma: 0.250 | Time: 35.66s | Cur: 101.17W (S:5.83%) | Std: 33.31 | Best: 101.17W
+Gen 63 (ES) | Pop: 128 | Sigma: 0.250 | Time: 35.48s | Cur: 101.17W (S:5.83%) | Std: 35.17 | Best: 101.17W
+Gen 64 (ES) | Pop: 128 | Sigma: 0.250 | Time: 35.02s | Cur: 101.17W (S:5.83%) | Std: 36.59 | Best: 101.17W
+Gen 65 (ES) | Pop: 128 | Sigma: 0.250 | Time: 35.52s | Cur: 101.17W (S:5.83%) | Std: 41.95 | Best: 101.17W
+Gen 66 (ES) | Pop: 128 | Sigma: 0.250 | Time: 35.96s | Cur: 101.17W (S:5.83%) | Std: 44.03 | Best: 101.17W
+Gen 67 (ES) | Pop: 128 | Sigma: 0.250 | Time: 40.48s | Cur: 101.17W (S:5.83%) | Std: 32.83 | Best: 101.17W
+Gen 68 (ES) | Pop: 128 | Sigma: 0.150 | Time: 32.58s | Cur: 252.92W (S:26.25%) | Std: 31251.69 | Best: 101.17W
+Gen 69 (ES) | Pop: 128 | Sigma: 0.153 | Time: 30.41s | Cur: 202.34W (S:22.92%) | Std: 20488.45 | Best: 101.17W
+Gen 70 (ES) | Pop: 128 | Sigma: 0.156 | Time: 31.22s | Cur: 151.75W (S:14.17%) | Std: 20464.16 | Best: 101.17W
+Gen 71 (ES) | Pop: 128 | Sigma: 0.159 | Time: 30.52s | Cur: 130.07W (S:10.00%) | Std: 35228.46 | Best: 101.17W
+Gen 72 (ES) | Pop: 128 | Sigma: 0.162 | Time: 32.82s | Cur: 137.30W (S:9.58%) | Std: 14376.17 | Best: 101.17W
+Gen 73 (ES) | Pop: 128 | Sigma: 0.166 | Time: 32.73s | Cur: 187.89W (S:15.00%) | Std: 11131.67 | Best: 101.17W
+Gen 74 (ES) | Pop: 128 | Sigma: 0.169 | Time: 32.52s | Cur: 151.75W (S:12.50%) | Std: 4451.93 | Best: 101.17W
+Gen 75 (ES) | Pop: 128 | Sigma: 0.172 | Time: 34.03s | Cur: 151.75W (S:15.00%) | Std: 1258.44 | Best: 101.17W
+Gen 76 (ES) | Pop: 128 | Sigma: 0.176 | Time: 34.97s | Cur: 130.07W (S:11.67%) | Std: 73.69 | Best: 101.17W
+Gen 77 (ES) | Pop: 128 | Sigma: 0.179 | Time: 34.30s | Cur: 122.85W (S:9.58%) | Std: 1774.44 | Best: 101.17W
+Gen 78 (ES) | Pop: 128 | Sigma: 0.183 | Time: 33.92s | Cur: 101.17W (S:7.08%) | Std: 74.23 | Best: 101.17W
+Gen 79 (ES) | Pop: 128 | Sigma: 0.187 | Time: 34.70s | Cur: 108.40W (S:7.08%) | Std: 74.67 | Best: 101.17W
+Gen 80 (ES) | Pop: 128 | Sigma: 0.190 | Time: 36.47s | Cur: 122.85W (S:9.17%) | Std: 63.30 | Best: 101.17W
+Gen 81 (ES) | Pop: 128 | Sigma: 0.194 | Time: 33.54s | Cur: 122.85W (S:7.50%) | Std: 5292.75 | Best: 101.17W
+Gen 82 (ES) | Pop: 128 | Sigma: 0.198 | Time: 34.88s | Cur: 122.85W (S:7.50%) | Std: 60.40 | Best: 101.17W
+Gen 83 (ES) | Pop: 128 | Sigma: 0.202 | Time: 34.78s | Cur: 101.17W (S:5.83%) | Std: 70.14 | Best: 101.17W
+Gen 84 (ES) | Pop: 128 | Sigma: 0.206 | Time: 35.23s | Cur: 108.40W (S:7.50%) | Std: 62.01 | Best: 101.17W
+Gen 85 (ES) | Pop: 128 | Sigma: 0.210 | Time: 34.30s | Cur: 108.40W (S:6.25%) | Std: 60.98 | Best: 101.17W
+Gen 86 (ES) | Pop: 128 | Sigma: 0.214 | Time: 33.93s | Cur: 108.40W (S:7.50%) | Std: 60.62 | Best: 101.17W
+Gen 87 (ES) | Pop: 128 | Sigma: 0.219 | Time: 38.06s | Cur: 101.17W (S:5.83%) | Std: 63.71 | Best: 101.17W
+Gen 88 (ES) | Pop: 128 | Sigma: 0.223 | Time: 34.98s | Cur: 108.40W (S:6.25%) | Std: 51.40 | Best: 101.17W
+Gen 89 (ES) | Pop: 128 | Sigma: 0.227 | Time: 33.92s | Cur: 101.17W (S:5.83%) | Std: 59.97 | Best: 101.17W
+Gen 90 (ES) | Pop: 128 | Sigma: 0.232 | Time: 36.01s | Cur: 101.17W (S:6.25%) | Std: 56.94 | Best: 101.17W
+Gen 91 (ES) | Pop: 128 | Sigma: 0.237 | Time: 34.25s | Cur: 101.17W (S:6.25%) | Std: 65.64 | Best: 101.17W
+Gen 92 (ES) | Pop: 128 | Sigma: 0.241 | Time: 34.78s | Cur: 101.17W (S:5.83%) | Std: 61.63 | Best: 101.17W
+Gen 93 (ES) | Pop: 128 | Sigma: 0.246 | Time: 37.86s | Cur: 101.17W (S:5.83%) | Std: 49.74 | Best: 101.17W
+Gen 94 (ES) | Pop: 128 | Sigma: 0.250 | Time: 35.17s | Cur: 101.17W (S:7.08%) | Std: 54.78 | Best: 101.17W
+Gen 95 (ES) | Pop: 128 | Sigma: 0.250 | Time: 35.34s | Cur: 108.40W (S:7.08%) | Std: 61.16 | Best: 101.17W
+Gen 96 (ES) | Pop: 128 | Sigma: 0.250 | Time: 34.04s | Cur: 101.17W (S:5.83%) | Std: 53.25 | Best: 101.17W
+Gen 97 (ES) | Pop: 128 | Sigma: 0.250 | Time: 35.32s | Cur: 101.17W (S:7.08%) | Std: 48.59 | Best: 101.17W
+Gen 98 (ES) | Pop: 128 | Sigma: 0.250 | Time: 33.60s | Cur: 101.17W (S:5.83%) | Std: 49.27 | Best: 101.17W
+Gen 99 (ES) | Pop: 128 | Sigma: 0.250 | Time: 37.41s | Cur: 108.40W (S:6.25%) | Std: 59.49 | Best: 101.17W
+Gen 100 (ES) | Pop: 128 | Sigma: 0.250 | Time: 35.47s | Cur: 101.17W (S:5.83%) | Std: 47.71 | Best: 101.17W
+Gen 101 (ES) | Pop: 128 | Sigma: 0.250 | Time: 35.48s | Cur: 101.17W (S:5.83%) | Std: 55.88 | Best: 101.17W
+Gen 102 (ES) | Pop: 128 | Sigma: 0.250 | Time: 38.59s | Cur: 101.17W (S:5.83%) | Std: 56.68 | Best: 101.17W
+Gen 103 (ES) | Pop: 128 | Sigma: 0.150 | Time: 32.76s | Cur: 130.07W (S:9.58%) | Std: 60.19 | Best: 101.17W
+Gen 104 (ES) | Pop: 128 | Sigma: 0.153 | Time: 34.17s | Cur: 115.62W (S:7.08%) | Std: 61.49 | Best: 101.17W
+Gen 105 (ES) | Pop: 128 | Sigma: 0.156 | Time: 34.17s | Cur: 130.07W (S:7.92%) | Std: 59.80 | Best: 101.17W
+Gen 106 (ES) | Pop: 128 | Sigma: 0.159 | Time: 37.99s | Cur: 115.62W (S:7.08%) | Std: 45.74 | Best: 101.17W
+Gen 107 (ES) | Pop: 128 | Sigma: 0.162 | Time: 34.65s | Cur: 115.62W (S:8.75%) | Std: 40.99 | Best: 101.17W
+Gen 108 (ES) | Pop: 128 | Sigma: 0.166 | Time: 35.22s | Cur: 115.62W (S:7.50%) | Std: 51.00 | Best: 101.17W
+Gen 109 (ES) | Pop: 128 | Sigma: 0.169 | Time: 36.34s | Cur: 115.62W (S:7.50%) | Std: 49.85 | Best: 101.17W
+Gen 110 (ES) | Pop: 128 | Sigma: 0.172 | Time: 33.42s | Cur: 115.62W (S:7.92%) | Std: 54.03 | Best: 101.17W
+Gen 111 (ES) | Pop: 128 | Sigma: 0.176 | Time: 38.46s | Cur: 108.40W (S:7.92%) | Std: 57.02 | Best: 101.17W
+Gen 112 (ES) | Pop: 128 | Sigma: 0.179 | Time: 34.01s | Cur: 122.85W (S:9.17%) | Std: 57.77 | Best: 101.17W
+Gen 113 (ES) | Pop: 128 | Sigma: 0.183 | Time: 36.35s | Cur: 115.62W (S:7.50%) | Std: 54.98 | Best: 101.17W
+Gen 114 (ES) | Pop: 128 | Sigma: 0.187 | Time: 36.80s | Cur: 115.62W (S:7.92%) | Std: 54.86 | Best: 101.17W
+Gen 115 (ES) | Pop: 128 | Sigma: 0.190 | Time: 34.88s | Cur: 115.62W (S:7.92%) | Std: 54.40 | Best: 101.17W
+Gen 116 (ES) | Pop: 128 | Sigma: 0.194 | Time: 34.34s | Cur: 108.40W (S:9.17%) | Std: 41.57 | Best: 101.17W
+Gen 117 (ES) | Pop: 128 | Sigma: 0.198 | Time: 34.79s | Cur: 115.62W (S:8.75%) | Std: 54.88 | Best: 101.17W
+Gen 118 (ES) | Pop: 128 | Sigma: 0.202 | Time: 35.34s | Cur: 115.62W (S:7.50%) | Std: 42.39 | Best: 101.17W
+Gen 119 (ES) | Pop: 128 | Sigma: 0.206 | Time: 34.57s | Cur: 115.62W (S:7.92%) | Std: 39.26 | Best: 101.17W
+Gen 120 (ES) | Pop: 128 | Sigma: 0.210 | Time: 33.76s | Cur: 115.62W (S:7.50%) | Std: 53.38 | Best: 101.17W
+Gen 121 (ES) | Pop: 128 | Sigma: 0.214 | Time: 34.67s | Cur: 108.40W (S:7.08%) | Std: 45.06 | Best: 101.17W
+Gen 122 (ES) | Pop: 128 | Sigma: 0.219 | Time: 34.84s | Cur: 115.62W (S:8.33%) | Std: 42.27 | Best: 101.17W
+Gen 123 (ES) | Pop: 128 | Sigma: 0.223 | Time: 35.55s | Cur: 108.40W (S:7.08%) | Std: 51.23 | Best: 101.17W
+Gen 124 (ES) | Pop: 128 | Sigma: 0.227 | Time: 35.09s | Cur: 115.62W (S:7.92%) | Std: 42.18 | Best: 101.17W
+Gen 125 (ES) | Pop: 128 | Sigma: 0.232 | Time: 35.37s | Cur: 108.40W (S:7.50%) | Std: 39.42 | Best: 101.17W
+Gen 126 (ES) | Pop: 128 | Sigma: 0.237 | Time: 35.71s | Cur: 101.17W (S:6.67%) | Std: 46.68 | Best: 101.17W
+Gen 127 (ES) | Pop: 128 | Sigma: 0.241 | Time: 34.62s | Cur: 108.40W (S:7.08%) | Std: 55.87 | Best: 101.17W
+Gen 128 (ES) | Pop: 128 | Sigma: 0.246 | Time: 35.57s | Cur: 115.62W (S:7.50%) | Std: 56.82 | Best: 101.17W
+Gen 129 (ES) | Pop: 128 | Sigma: 0.250 | Time: 34.76s | Cur: 108.40W (S:8.33%) | Std: 51.38 | Best: 101.17W
+Gen 130 (ES) | Pop: 128 | Sigma: 0.250 | Time: 34.45s | Cur: 108.40W (S:7.08%) | Std: 54.20 | Best: 101.17W
+Gen 131 (ES) | Pop: 128 | Sigma: 0.250 | Time: 37.87s | Cur: 108.40W (S:8.33%) | Std: 47.00 | Best: 101.17W
+Gen 132 (ES) | Pop: 128 | Sigma: 0.250 | Time: 34.53s | Cur: 108.40W (S:8.33%) | Std: 71.58 | Best: 101.17W
+Gen 133 (ES) | Pop: 128 | Sigma: 0.250 | Time: 36.93s | Cur: 108.40W (S:8.33%) | Std: 58.47 | Best: 101.17W
+Gen 134 (ES) | Pop: 128 | Sigma: 0.250 | Time: 35.40s | Cur: 108.40W (S:7.50%) | Std: 61.36 | Best: 101.17W
+Gen 135 (ES) | Pop: 128 | Sigma: 0.250 | Time: 34.50s | Cur: 108.40W (S:7.50%) | Std: 47.81 | Best: 101.17W
+Gen 136 (ES) | Pop: 128 | Sigma: 0.250 | Time: 37.24s | Cur: 108.40W (S:7.92%) | Std: 56.87 | Best: 101.17W
+Gen 137 (ES) | Pop: 128 | Sigma: 0.250 | Time: 35.22s | Cur: 108.40W (S:8.33%) | Std: 41.99 | Best: 101.17W
+Gen 138 (ES) | Pop: 128 | Sigma: 0.150 | Time: 37.41s | Cur: 115.62W (S:7.92%) | Std: 56.98 | Best: 101.17W
+Gen 139 (ES) | Pop: 128 | Sigma: 0.153 | Time: 35.13s | Cur: 108.40W (S:6.67%) | Std: 47.80 | Best: 101.17W
+Gen 140 (ES) | Pop: 128 | Sigma: 0.156 | Time: 38.12s | Cur: 108.40W (S:7.08%) | Std: 33.33 | Best: 101.17W
+Gen 141 (ES) | Pop: 128 | Sigma: 0.159 | Time: 35.70s | Cur: 101.17W (S:6.25%) | Std: 37.45 | Best: 101.17W
+Gen 142 (ES) | Pop: 128 | Sigma: 0.162 | Time: 37.01s | Cur: 101.17W (S:6.67%) | Std: 34.07 | Best: 101.17W
+Gen 143 (ES) | Pop: 128 | Sigma: 0.166 | Time: 35.59s | Cur: 108.40W (S:7.08%) | Std: 41.16 | Best: 101.17W
+Gen 144 (ES) | Pop: 128 | Sigma: 0.169 | Time: 35.54s | Cur: 101.17W (S:6.25%) | Std: 25.44 | Best: 101.17W
+Gen 145 (ES) | Pop: 128 | Sigma: 0.172 | Time: 38.72s | Cur: 101.17W (S:6.25%) | Std: 24.82 | Best: 101.17W
+Gen 146 (ES) | Pop: 128 | Sigma: 0.176 | Time: 34.91s | Cur: 101.17W (S:6.25%) | Std: 28.73 | Best: 101.17W
+Gen 147 (ES) | Pop: 128 | Sigma: 0.179 | Time: 38.40s | Cur: 101.17W (S:6.25%) | Std: 26.71 | Best: 101.17W
+Gen 148 (ES) | Pop: 128 | Sigma: 0.183 | Time: 37.28s | Cur: 101.17W (S:6.25%) | Std: 23.73 | Best: 101.17W
+Gen 149 (ES) | Pop: 128 | Sigma: 0.187 | Time: 36.89s | Cur: 101.17W (S:6.25%) | Std: 28.03 | Best: 101.17W
+Gen 150 (ES) | Pop: 128 | Sigma: 0.190 | Time: 34.55s | Cur: 101.17W (S:6.25%) | Std: 28.55 | Best: 101.17W
+Gen 151 (ES) | Pop: 128 | Sigma: 0.194 | Time: 39.49s | Cur: 101.17W (S:6.25%) | Std: 28.84 | Best: 101.17W
+Gen 152 (ES) | Pop: 128 | Sigma: 0.198 | Time: 36.01s | Cur: 101.17W (S:6.25%) | Std: 33.16 | Best: 101.17W
+Gen 153 (ES) | Pop: 128 | Sigma: 0.202 | Time: 38.19s | Cur: 101.17W (S:6.25%) | Std: 38.10 | Best: 101.17W
+Gen 154 (ES) | Pop: 128 | Sigma: 0.206 | Time: 36.40s | Cur: 101.17W (S:6.25%) | Std: 40.47 | Best: 101.17W
+Gen 155 (ES) | Pop: 128 | Sigma: 0.210 | Time: 36.52s | Cur: 101.17W (S:5.83%) | Std: 41.49 | Best: 101.17W
+Gen 156 (ES) | Pop: 128 | Sigma: 0.214 | Time: 36.44s | Cur: 101.17W (S:6.25%) | Std: 40.10 | Best: 101.17W
+Gen 157 (ES) | Pop: 128 | Sigma: 0.219 | Time: 36.43s | Cur: 101.17W (S:5.83%) | Std: 44.73 | Best: 101.17W
+Gen 158 (ES) | Pop: 128 | Sigma: 0.223 | Time: 34.70s | Cur: 101.17W (S:6.25%) | Std: 35.82 | Best: 101.17W
+Gen 159 (ES) | Pop: 128 | Sigma: 0.227 | Time: 38.31s | Cur: 101.17W (S:6.25%) | Std: 49.98 | Best: 101.17W
+Gen 160 (ES) | Pop: 128 | Sigma: 0.232 | Time: 36.97s | Cur: 101.17W (S:6.25%) | Std: 46.07 | Best: 101.17W
+Gen 161 (ES) | Pop: 128 | Sigma: 0.237 | Time: 36.27s | Cur: 101.17W (S:6.25%) | Std: 41.02 | Best: 101.17W
+Gen 162 (ES) | Pop: 128 | Sigma: 0.241 | Time: 37.34s | Cur: 101.17W (S:6.25%) | Std: 48.77 | Best: 101.17W
+Gen 163 (ES) | Pop: 128 | Sigma: 0.246 | Time: 37.67s | Cur: 101.17W (S:5.83%) | Std: 48.40 | Best: 101.17W
+Gen 164 (ES) | Pop: 128 | Sigma: 0.250 | Time: 36.67s | Cur: 101.17W (S:5.83%) | Std: 37.35 | Best: 101.17W
+Gen 165 (ES) | Pop: 128 | Sigma: 0.250 | Time: 35.82s | Cur: 101.17W (S:6.25%) | Std: 48.72 | Best: 101.17W
+Gen 166 (ES) | Pop: 128 | Sigma: 0.250 | Time: 37.73s | Cur: 101.17W (S:5.83%) | Std: 31.43 | Best: 101.17W
+Gen 167 (ES) | Pop: 128 | Sigma: 0.250 | Time: 37.30s | Cur: 101.17W (S:6.25%) | Std: 34.12 | Best: 101.17W
+Gen 168 (ES) | Pop: 128 | Sigma: 0.250 | Time: 36.47s | Cur: 101.17W (S:6.25%) | Std: 51.11 | Best: 101.17W
+Gen 169 (ES) | Pop: 128 | Sigma: 0.250 | Time: 35.37s | Cur: 101.17W (S:6.25%) | Std: 39.03 | Best: 101.17W
+Gen 170 (ES) | Pop: 128 | Sigma: 0.250 | Time: 36.99s | Cur: 101.17W (S:5.83%) | Std: 40.14 | Best: 101.17W
+Gen 171 (ES) | Pop: 128 | Sigma: 0.250 | Time: 39.69s | Cur: 101.17W (S:5.83%) | Std: 42.72 | Best: 101.17W
+Gen 172 (ES) | Pop: 128 | Sigma: 0.250 | Time: 36.26s | Cur: 101.17W (S:6.25%) | Std: 50.31 | Best: 101.17W
+Gen 173 (ES) | Pop: 128 | Sigma: 0.150 | Time: 34.28s | Cur: 151.75W (S:9.17%) | Std: 62.23 | Best: 101.17W
+Gen 174 (ES) | Pop: 128 | Sigma: 0.153 | Time: 30.64s | Cur: 158.98W (S:10.83%) | Std: 66.53 | Best: 101.17W
+Gen 175 (ES) | Pop: 128 | Sigma: 0.156 | Time: 31.12s | Cur: 137.30W (S:8.33%) | Std: 66.12 | Best: 101.17W
+Gen 176 (ES) | Pop: 128 | Sigma: 0.159 | Time: 37.03s | Cur: 130.07W (S:8.75%) | Std: 67.75 | Best: 101.17W
+Gen 177 (ES) | Pop: 128 | Sigma: 0.162 | Time: 32.41s | Cur: 130.07W (S:8.75%) | Std: 53.57 | Best: 101.17W
+Gen 178 (ES) | Pop: 128 | Sigma: 0.166 | Time: 36.11s | Cur: 122.85W (S:7.92%) | Std: 58.41 | Best: 101.17W
+Gen 179 (ES) | Pop: 128 | Sigma: 0.169 | Time: 34.26s | Cur: 101.17W (S:6.67%) | Std: 58.21 | Best: 101.17W
+Gen 180 (ES) | Pop: 128 | Sigma: 0.172 | Time: 31.56s | Cur: 115.62W (S:7.92%) | Std: 39.60 | Best: 101.17W
+Gen 181 (ES) | Pop: 128 | Sigma: 0.176 | Time: 33.45s | Cur: 108.40W (S:7.08%) | Std: 47.85 | Best: 101.17W
+Gen 182 (ES) | Pop: 128 | Sigma: 0.179 | Time: 34.27s | Cur: 108.40W (S:7.08%) | Std: 41.58 | Best: 101.17W
+Gen 183 (ES) | Pop: 128 | Sigma: 0.183 | Time: 34.81s | Cur: 101.17W (S:6.67%) | Std: 44.86 | Best: 101.17W
+Gen 184 (ES) | Pop: 128 | Sigma: 0.187 | Time: 35.91s | Cur: 101.17W (S:6.67%) | Std: 42.31 | Best: 101.17W
+Gen 185 (ES) | Pop: 128 | Sigma: 0.190 | Time: 36.82s | Cur: 101.17W (S:6.67%) | Std: 52.33 | Best: 101.17W
+Gen 186 (ES) | Pop: 128 | Sigma: 0.194 | Time: 35.79s | Cur: 101.17W (S:6.67%) | Std: 51.27 | Best: 101.17W
+Gen 187 (ES) | Pop: 128 | Sigma: 0.198 | Time: 35.21s | Cur: 101.17W (S:6.67%) | Std: 51.61 | Best: 101.17W
+Gen 188 (ES) | Pop: 128 | Sigma: 0.202 | Time: 35.23s | Cur: 101.17W (S:6.25%) | Std: 55.11 | Best: 101.17W
+Gen 189 (ES) | Pop: 128 | Sigma: 0.206 | Time: 37.95s | Cur: 101.17W (S:6.25%) | Std: 58.55 | Best: 101.17W
+Gen 190 (ES) | Pop: 128 | Sigma: 0.210 | Time: 35.07s | Cur: 101.17W (S:6.25%) | Std: 56.02 | Best: 101.17W
+Gen 191 (ES) | Pop: 128 | Sigma: 0.214 | Time: 37.81s | Cur: 101.17W (S:6.25%) | Std: 54.55 | Best: 101.17W
+Gen 192 (ES) | Pop: 128 | Sigma: 0.219 | Time: 34.15s | Cur: 101.17W (S:6.25%) | Std: 56.05 | Best: 101.17W
+Gen 193 (ES) | Pop: 128 | Sigma: 0.223 | Time: 36.07s | Cur: 101.17W (S:6.25%) | Std: 59.28 | Best: 101.17W
+Gen 194 (ES) | Pop: 128 | Sigma: 0.227 | Time: 37.14s | Cur: 101.17W (S:6.25%) | Std: 55.60 | Best: 101.17W
+Gen 195 (ES) | Pop: 128 | Sigma: 0.232 | Time: 37.06s | Cur: 101.17W (S:6.25%) | Std: 56.62 | Best: 101.17W
+Gen 196 (ES) | Pop: 128 | Sigma: 0.237 | Time: 38.97s | Cur: 101.17W (S:6.25%) | Std: 45.87 | Best: 101.17W
+Gen 197 (ES) | Pop: 128 | Sigma: 0.241 | Time: 35.57s | Cur: 101.17W (S:5.83%) | Std: 52.78 | Best: 101.17W
+Gen 198 (ES) | Pop: 128 | Sigma: 0.246 | Time: 36.66s | Cur: 101.17W (S:5.83%) | Std: 45.96 | Best: 101.17W
+Gen 199 (ES) | Pop: 128 | Sigma: 0.250 | Time: 38.73s | Cur: 101.17W (S:6.25%) | Std: 42.45 | Best: 101.17W
+Gen 200 (ES) | Pop: 128 | Sigma: 0.250 | Time: 37.72s | Cur: 101.17W (S:6.25%) | Std: 36.13 | Best: 101.17W
+Gen 201 (ES) | Pop: 128 | Sigma: 0.250 | Time: 35.77s | Cur: 101.17W (S:6.25%) | Std: 55.41 | Best: 101.17W
+Gen 202 (ES) | Pop: 128 | Sigma: 0.250 | Time: 35.42s | Cur: 101.17W (S:5.83%) | Std: 36.83 | Best: 101.17W
+Gen 203 (ES) | Pop: 128 | Sigma: 0.250 | Time: 36.06s | Cur: 101.17W (S:6.25%) | Std: 42.72 | Best: 101.17W
+Gen 204 (ES) | Pop: 128 | Sigma: 0.250 | Time: 35.61s | Cur: 101.17W (S:6.25%) | Std: 39.92 | Best: 101.17W
+Gen 205 (ES) | Pop: 128 | Sigma: 0.250 | Time: 36.54s | Cur: 101.17W (S:6.25%) | Std: 39.63 | Best: 101.17W
+Gen 206 (ES) | Pop: 128 | Sigma: 0.250 | Time: 35.30s | Cur: 101.17W (S:5.83%) | Std: 41.93 | Best: 101.17W
+Gen 207 (ES) | Pop: 128 | Sigma: 0.250 | Time: 36.41s | Cur: 101.17W (S:5.83%) | Std: 35.72 | Best: 101.17W
+Gen 208 (ES) | Pop: 128 | Sigma: 0.150 | Time: 30.78s | Cur: 339.64W (S:37.92%) | Std: 43378.46 | Best: 101.17W
+Gen 209 (ES) | Pop: 128 | Sigma: 0.153 | Time: 32.91s | Cur: 245.70W (S:30.42%) | Std: 24125.95 | Best: 101.17W
+Gen 210 (ES) | Pop: 128 | Sigma: 0.156 | Time: 31.97s | Cur: 224.02W (S:24.17%) | Std: 11877.67 | Best: 101.17W
+Gen 211 (ES) | Pop: 128 | Sigma: 0.159 | Time: 35.04s | Cur: 158.98W (S:17.50%) | Std: 20019.50 | Best: 101.17W
+Gen 212 (ES) | Pop: 128 | Sigma: 0.162 | Time: 32.60s | Cur: 202.34W (S:19.58%) | Std: 10751.56 | Best: 101.17W
+Gen 213 (ES) | Pop: 128 | Sigma: 0.166 | Time: 31.87s | Cur: 187.89W (S:16.67%) | Std: 12593.42 | Best: 101.17W
+Gen 214 (ES) | Pop: 128 | Sigma: 0.169 | Time: 32.75s | Cur: 137.30W (S:11.67%) | Std: 1768.06 | Best: 101.17W
+Gen 215 (ES) | Pop: 128 | Sigma: 0.172 | Time: 34.44s | Cur: 151.75W (S:14.58%) | Std: 8445.07 | Best: 101.17W
+Gen 216 (ES) | Pop: 128 | Sigma: 0.176 | Time: 34.32s | Cur: 137.30W (S:10.00%) | Std: 8807.65 | Best: 101.17W
+Gen 217 (ES) | Pop: 128 | Sigma: 0.179 | Time: 33.91s | Cur: 130.07W (S:11.67%) | Std: 72.57 | Best: 101.17W
+Gen 218 (ES) | Pop: 128 | Sigma: 0.183 | Time: 33.67s | Cur: 108.40W (S:7.08%) | Std: 1776.88 | Best: 101.17W
+Gen 219 (ES) | Pop: 128 | Sigma: 0.187 | Time: 34.84s | Cur: 122.85W (S:8.33%) | Std: 3536.40 | Best: 101.17W
+Gen 220 (ES) | Pop: 128 | Sigma: 0.190 | Time: 35.62s | Cur: 108.40W (S:7.50%) | Std: 70.99 | Best: 101.17W
+Gen 221 (ES) | Pop: 128 | Sigma: 0.194 | Time: 37.36s | Cur: 115.62W (S:7.50%) | Std: 64.59 | Best: 101.17W
+Gen 222 (ES) | Pop: 128 | Sigma: 0.198 | Time: 35.97s | Cur: 108.40W (S:8.33%) | Std: 65.59 | Best: 101.17W
+Gen 223 (ES) | Pop: 128 | Sigma: 0.202 | Time: 38.40s | Cur: 108.40W (S:6.67%) | Std: 47.85 | Best: 101.17W
+Gen 224 (ES) | Pop: 128 | Sigma: 0.206 | Time: 35.81s | Cur: 108.40W (S:7.08%) | Std: 56.31 | Best: 101.17W
+Gen 225 (ES) | Pop: 128 | Sigma: 0.210 | Time: 35.54s | Cur: 101.17W (S:6.25%) | Std: 46.70 | Best: 101.17W
+Gen 226 (ES) | Pop: 128 | Sigma: 0.214 | Time: 37.68s | Cur: 108.40W (S:6.25%) | Std: 44.61 | Best: 101.17W
+Gen 227 (ES) | Pop: 128 | Sigma: 0.219 | Time: 37.52s | Cur: 108.40W (S:6.25%) | Std: 39.30 | Best: 101.17W
+Gen 228 (ES) | Pop: 128 | Sigma: 0.223 | Time: 38.98s | Cur: 101.17W (S:6.67%) | Std: 41.81 | Best: 101.17W
+Gen 229 (ES) | Pop: 128 | Sigma: 0.227 | Time: 35.22s | Cur: 101.17W (S:6.25%) | Std: 53.80 | Best: 101.17W
+Gen 230 (ES) | Pop: 128 | Sigma: 0.232 | Time: 35.25s | Cur: 101.17W (S:6.25%) | Std: 39.72 | Best: 101.17W
+Gen 231 (ES) | Pop: 128 | Sigma: 0.237 | Time: 38.85s | Cur: 101.17W (S:6.25%) | Std: 42.88 | Best: 101.17W
+Gen 232 (ES) | Pop: 128 | Sigma: 0.241 | Time: 37.57s | Cur: 101.17W (S:6.25%) | Std: 44.66 | Best: 101.17W
+Gen 233 (ES) | Pop: 128 | Sigma: 0.246 | Time: 39.40s | Cur: 101.17W (S:6.25%) | Std: 44.10 | Best: 101.17W
+Gen 234 (ES) | Pop: 128 | Sigma: 0.250 | Time: 34.82s | Cur: 101.17W (S:6.67%) | Std: 38.38 | Best: 101.17W
+Gen 235 (ES) | Pop: 128 | Sigma: 0.250 | Time: 35.85s | Cur: 101.17W (S:6.25%) | Std: 44.40 | Best: 101.17W
+Gen 236 (ES) | Pop: 128 | Sigma: 0.250 | Time: 36.05s | Cur: 101.17W (S:6.25%) | Std: 36.50 | Best: 101.17W
+Gen 237 (ES) | Pop: 128 | Sigma: 0.250 | Time: 39.03s | Cur: 101.17W (S:5.83%) | Std: 28.49 | Best: 101.17W
+Gen 238 (ES) | Pop: 128 | Sigma: 0.250 | Time: 38.79s | Cur: 101.17W (S:5.83%) | Std: 36.47 | Best: 101.17W
+Gen 239 (ES) | Pop: 128 | Sigma: 0.250 | Time: 35.00s | Cur: 101.17W (S:5.83%) | Std: 25.52 | Best: 101.17W
+Gen 240 (ES) | Pop: 128 | Sigma: 0.250 | Time: 36.45s | Cur: 101.17W (S:6.25%) | Std: 43.72 | Best: 101.17W
+Gen 241 (ES) | Pop: 128 | Sigma: 0.250 | Time: 37.20s | Cur: 101.17W (S:6.25%) | Std: 26.54 | Best: 101.17W
+Gen 242 (ES) | Pop: 128 | Sigma: 0.250 | Time: 35.39s | Cur: 101.17W (S:5.83%) | Std: 40.59 | Best: 101.17W
+Gen 243 (ES) | Pop: 128 | Sigma: 0.150 | Time: 33.19s | Cur: 108.40W (S:7.08%) | Std: 27.17 | Best: 101.17W
+Gen 244 (ES) | Pop: 128 | Sigma: 0.153 | Time: 36.39s | Cur: 101.17W (S:7.50%) | Std: 23.93 | Best: 101.17W
+Gen 245 (ES) | Pop: 128 | Sigma: 0.156 | Time: 35.41s | Cur: 101.17W (S:6.67%) | Std: 21.98 | Best: 101.17W
+Gen 246 (ES) | Pop: 128 | Sigma: 0.159 | Time: 35.43s | Cur: 101.17W (S:6.25%) | Std: 16.79 | Best: 101.17W
+Gen 247 (ES) | Pop: 128 | Sigma: 0.162 | Time: 36.56s | Cur: 101.17W (S:5.83%) | Std: 18.12 | Best: 101.17W
+Gen 248 (ES) | Pop: 128 | Sigma: 0.166 | Time: 38.60s | Cur: 101.17W (S:5.83%) | Std: 16.44 | Best: 101.17W
+Gen 249 (ES) | Pop: 128 | Sigma: 0.169 | Time: 36.19s | Cur: 101.17W (S:6.25%) | Std: 25.10 | Best: 101.17W

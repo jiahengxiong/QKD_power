@@ -1,51 +1,51 @@
---- BIPOP-CMA-ES Training Log for Bypass=False ---
-Gen 0 (R0-L) | Pop: 64 | Time: 4.36s | Cur: 1432.73W (Spec:20.83%) | HistBest: 1432.73W
-Gen 1 (R0-L) | Pop: 64 | Time: 2.84s | Cur: 1356.95W (Spec:21.67%) | HistBest: 1356.95W
-Gen 2 (R0-L) | Pop: 64 | Time: 2.93s | Cur: 1323.64W (Spec:20.83%) | HistBest: 1323.64W
-Gen 3 (R0-L) | Pop: 64 | Time: 2.90s | Cur: 1378.18W (Spec:20.83%) | HistBest: 1323.64W
-Gen 4 (R0-L) | Pop: 64 | Time: 3.00s | Cur: 1361.53W (Spec:20.42%) | HistBest: 1323.64W
-Gen 5 (R0-L) | Pop: 64 | Time: 2.91s | Cur: 1306.98W (Spec:20.42%) | HistBest: 1306.98W
-Gen 6 (R0-L) | Pop: 64 | Time: 2.92s | Cur: 1378.18W (Spec:20.83%) | HistBest: 1306.98W
-Gen 7 (R0-L) | Pop: 64 | Time: 2.96s | Cur: 1361.53W (Spec:20.42%) | HistBest: 1306.98W
-Gen 8 (R0-L) | Pop: 64 | Time: 2.89s | Cur: 1306.98W (Spec:20.42%) | HistBest: 1306.98W
-Gen 9 (R0-L) | Pop: 64 | Time: 2.87s | Cur: 1361.53W (Spec:20.42%) | HistBest: 1306.98W
-Gen 10 (R0-L) | Pop: 64 | Time: 2.83s | Cur: 1344.87W (Spec:20.00%) | HistBest: 1306.98W
-Gen 11 (R0-L) | Pop: 64 | Time: 2.97s | Cur: 1323.64W (Spec:20.83%) | HistBest: 1306.98W
-Gen 12 (R0-L) | Pop: 64 | Time: 3.00s | Cur: 1323.64W (Spec:20.83%) | HistBest: 1306.98W
-Gen 13 (R0-L) | Pop: 64 | Time: 3.08s | Cur: 1306.98W (Spec:20.42%) | HistBest: 1306.98W
-Gen 14 (R0-L) | Pop: 64 | Time: 3.10s | Cur: 1306.98W (Spec:20.42%) | HistBest: 1306.98W
-Gen 15 (R0-L) | Pop: 64 | Time: 3.03s | Cur: 1290.33W (Spec:20.00%) | HistBest: 1290.33W
-Gen 16 (R0-L) | Pop: 64 | Time: 3.10s | Cur: 1306.98W (Spec:20.42%) | HistBest: 1290.33W
-Gen 17 (R0-L) | Pop: 64 | Time: 2.95s | Cur: 1290.33W (Spec:20.00%) | HistBest: 1290.33W
-Gen 18 (R0-L) | Pop: 64 | Time: 2.91s | Cur: 1290.33W (Spec:20.00%) | HistBest: 1290.33W
-Gen 19 (R0-L) | Pop: 64 | Time: 2.96s | Cur: 1306.98W (Spec:20.42%) | HistBest: 1290.33W
-Gen 20 (R0-L) | Pop: 64 | Time: 3.00s | Cur: 1290.33W (Spec:20.00%) | HistBest: 1290.33W
-Gen 21 (R0-L) | Pop: 64 | Time: 2.94s | Cur: 1290.33W (Spec:20.00%) | HistBest: 1290.33W
-Gen 22 (R0-L) | Pop: 64 | Time: 3.04s | Cur: 1290.33W (Spec:20.00%) | HistBest: 1290.33W
-Gen 23 (R0-L) | Pop: 64 | Time: 3.01s | Cur: 1290.33W (Spec:20.00%) | HistBest: 1290.33W
-Gen 24 (R0-L) | Pop: 64 | Time: 2.92s | Cur: 1290.33W (Spec:20.00%) | HistBest: 1290.33W
-Gen 25 (R0-L) | Pop: 64 | Time: 2.95s | Cur: 1290.33W (Spec:20.00%) | HistBest: 1290.33W
-Gen 26 (R0-L) | Pop: 64 | Time: 2.94s | Cur: 1290.33W (Spec:20.00%) | HistBest: 1290.33W
-Gen 27 (R0-L) | Pop: 64 | Time: 3.02s | Cur: 1290.33W (Spec:20.00%) | HistBest: 1290.33W
-Gen 28 (R0-L) | Pop: 64 | Time: 3.11s | Cur: 1290.33W (Spec:20.00%) | HistBest: 1290.33W
-Gen 29 (R0-L) | Pop: 64 | Time: 2.97s | Cur: 1290.33W (Spec:20.00%) | HistBest: 1290.33W
-Gen 30 (R0-L) | Pop: 64 | Time: 3.00s | Cur: 1290.33W (Spec:20.00%) | HistBest: 1290.33W
-Gen 31 (R0-L) | Pop: 64 | Time: 3.01s | Cur: 1290.33W (Spec:20.00%) | HistBest: 1290.33W
-Gen 32 (R0-L) | Pop: 64 | Time: 2.93s | Cur: 1252.44W (Spec:20.42%) | HistBest: 1252.44W
-Gen 33 (R0-L) | Pop: 64 | Time: 2.95s | Cur: 1290.33W (Spec:20.00%) | HistBest: 1252.44W
-Gen 34 (R0-L) | Pop: 64 | Time: 2.98s | Cur: 1290.33W (Spec:20.00%) | HistBest: 1252.44W
-Gen 35 (R0-L) | Pop: 64 | Time: 2.97s | Cur: 1290.33W (Spec:20.00%) | HistBest: 1252.44W
-Gen 36 (R0-L) | Pop: 64 | Time: 2.95s | Cur: 1290.33W (Spec:20.00%) | HistBest: 1252.44W
-Gen 37 (R0-L) | Pop: 64 | Time: 3.01s | Cur: 1252.44W (Spec:20.42%) | HistBest: 1252.44W
-Gen 38 (R0-L) | Pop: 64 | Time: 2.96s | Cur: 1290.33W (Spec:20.00%) | HistBest: 1252.44W
-Gen 39 (R0-L) | Pop: 64 | Time: 3.20s | Cur: 1290.33W (Spec:20.00%) | HistBest: 1252.44W
-Gen 40 (R0-L) | Pop: 64 | Time: 3.04s | Cur: 1290.33W (Spec:20.00%) | HistBest: 1252.44W
-Gen 41 (R0-L) | Pop: 64 | Time: 3.04s | Cur: 1290.33W (Spec:20.00%) | HistBest: 1252.44W
-Gen 42 (R0-L) | Pop: 64 | Time: 3.02s | Cur: 1290.33W (Spec:20.00%) | HistBest: 1252.44W
-Gen 43 (R0-L) | Pop: 64 | Time: 3.07s | Cur: 1290.33W (Spec:20.00%) | HistBest: 1252.44W
-Gen 44 (R0-L) | Pop: 64 | Time: 2.92s | Cur: 1290.33W (Spec:20.00%) | HistBest: 1252.44W
-Gen 45 (R0-L) | Pop: 64 | Time: 2.96s | Cur: 1290.33W (Spec:20.00%) | HistBest: 1252.44W
-Gen 46 (R0-L) | Pop: 64 | Time: 3.13s | Cur: 1290.33W (Spec:20.00%) | HistBest: 1252.44W
-Gen 47 (R0-L) | Pop: 64 | Time: 3.03s | Cur: 1290.33W (Spec:20.00%) | HistBest: 1252.44W
-Gen 48 (R0-L) | Pop: 64 | Time: 2.99s | Cur: 1290.33W (Spec:20.00%) | HistBest: 1252.44W
-Gen 49 (R0-L) | Pop: 64 | Time: 3.12s | Cur: 1290.33W (Spec:20.00%) | HistBest: 1252.44W
+--- OpenAI-ES Training Log for Bypass=False ---
+Gen 0 (ES) | Pop: 128 | Sigma: 0.150 | Time: 1.47s | Cur: 1323.64W (S:20.83%) | Std: 88.75 | Best: 1323.64W
+Gen 1 (ES) | Pop: 128 | Sigma: 0.150 | Time: 0.84s | Cur: 1328.22W (S:19.58%) | Std: 96.42 | Best: 1323.64W
+Gen 2 (ES) | Pop: 128 | Sigma: 0.153 | Time: 0.86s | Cur: 1361.53W (S:20.42%) | Std: 85.03 | Best: 1323.64W
+Gen 3 (ES) | Pop: 128 | Sigma: 0.156 | Time: 0.86s | Cur: 1323.64W (S:20.83%) | Std: 91.70 | Best: 1323.64W
+Gen 4 (ES) | Pop: 128 | Sigma: 0.159 | Time: 0.86s | Cur: 1323.64W (S:20.83%) | Std: 90.52 | Best: 1323.64W
+Gen 5 (ES) | Pop: 128 | Sigma: 0.162 | Time: 1.65s | Cur: 1306.98W (S:20.42%) | Std: 95.08 | Best: 1306.98W
+Gen 6 (ES) | Pop: 128 | Sigma: 0.160 | Time: 0.84s | Cur: 1306.98W (S:20.42%) | Std: 96.79 | Best: 1306.98W
+Gen 7 (ES) | Pop: 128 | Sigma: 0.164 | Time: 0.84s | Cur: 1306.98W (S:20.42%) | Std: 97.41 | Best: 1306.98W
+Gen 8 (ES) | Pop: 128 | Sigma: 0.167 | Time: 0.87s | Cur: 1269.09W (S:20.83%) | Std: 93.90 | Best: 1269.09W
+Gen 9 (ES) | Pop: 128 | Sigma: 0.162 | Time: 0.84s | Cur: 1306.98W (S:20.42%) | Std: 91.66 | Best: 1269.09W
+Gen 10 (ES) | Pop: 128 | Sigma: 0.165 | Time: 0.85s | Cur: 1306.98W (S:20.42%) | Std: 70.75 | Best: 1269.09W
+Gen 11 (ES) | Pop: 128 | Sigma: 0.169 | Time: 0.85s | Cur: 1323.64W (S:20.83%) | Std: 76.58 | Best: 1269.09W
+Gen 12 (ES) | Pop: 128 | Sigma: 0.172 | Time: 0.85s | Cur: 1306.98W (S:20.42%) | Std: 93.69 | Best: 1269.09W
+Gen 13 (ES) | Pop: 128 | Sigma: 0.175 | Time: 0.82s | Cur: 1306.98W (S:20.42%) | Std: 66.87 | Best: 1269.09W
+Gen 14 (ES) | Pop: 128 | Sigma: 0.179 | Time: 1.58s | Cur: 1269.09W (S:20.83%) | Std: 61.10 | Best: 1269.09W
+Gen 15 (ES) | Pop: 128 | Sigma: 0.182 | Time: 1.19s | Cur: 1306.98W (S:20.42%) | Std: 63.47 | Best: 1269.09W
+Gen 16 (ES) | Pop: 128 | Sigma: 0.186 | Time: 0.84s | Cur: 1290.33W (S:20.00%) | Std: 59.30 | Best: 1269.09W
+Gen 17 (ES) | Pop: 128 | Sigma: 0.190 | Time: 0.80s | Cur: 1290.33W (S:20.00%) | Std: 76.21 | Best: 1269.09W
+Gen 18 (ES) | Pop: 128 | Sigma: 0.194 | Time: 0.84s | Cur: 1306.98W (S:20.42%) | Std: 63.84 | Best: 1269.09W
+Gen 19 (ES) | Pop: 128 | Sigma: 0.197 | Time: 0.81s | Cur: 1290.33W (S:20.00%) | Std: 51.41 | Best: 1269.09W
+Gen 20 (ES) | Pop: 128 | Sigma: 0.201 | Time: 0.86s | Cur: 1290.33W (S:20.00%) | Std: 55.29 | Best: 1269.09W
+Gen 21 (ES) | Pop: 128 | Sigma: 0.205 | Time: 0.83s | Cur: 1290.33W (S:20.00%) | Std: 56.84 | Best: 1269.09W
+Gen 22 (ES) | Pop: 128 | Sigma: 0.210 | Time: 0.80s | Cur: 1290.33W (S:20.00%) | Std: 49.80 | Best: 1269.09W
+Gen 23 (ES) | Pop: 128 | Sigma: 0.214 | Time: 1.45s | Cur: 1252.44W (S:20.42%) | Std: 48.49 | Best: 1252.44W
+Gen 24 (ES) | Pop: 128 | Sigma: 0.211 | Time: 1.78s | Cur: 1306.98W (S:20.42%) | Std: 49.23 | Best: 1252.44W
+Gen 25 (ES) | Pop: 128 | Sigma: 0.215 | Time: 0.82s | Cur: 1290.33W (S:20.00%) | Std: 43.18 | Best: 1252.44W
+Gen 26 (ES) | Pop: 128 | Sigma: 0.219 | Time: 0.81s | Cur: 1290.33W (S:20.00%) | Std: 55.04 | Best: 1252.44W
+Gen 27 (ES) | Pop: 128 | Sigma: 0.224 | Time: 0.79s | Cur: 1290.33W (S:20.00%) | Std: 50.25 | Best: 1252.44W
+Gen 28 (ES) | Pop: 128 | Sigma: 0.228 | Time: 0.81s | Cur: 1290.33W (S:20.00%) | Std: 51.89 | Best: 1252.44W
+Gen 29 (ES) | Pop: 128 | Sigma: 0.233 | Time: 0.82s | Cur: 1290.33W (S:20.00%) | Std: 51.35 | Best: 1252.44W
+Gen 30 (ES) | Pop: 128 | Sigma: 0.238 | Time: 0.80s | Cur: 1290.33W (S:20.00%) | Std: 47.18 | Best: 1252.44W
+Gen 31 (ES) | Pop: 128 | Sigma: 0.242 | Time: 0.81s | Cur: 1290.33W (S:20.00%) | Std: 54.41 | Best: 1252.44W
+Gen 32 (ES) | Pop: 128 | Sigma: 0.247 | Time: 0.90s | Cur: 1290.33W (S:20.00%) | Std: 62.33 | Best: 1252.44W
+Gen 33 (ES) | Pop: 128 | Sigma: 0.250 | Time: 1.48s | Cur: 1290.33W (S:20.00%) | Std: 63.92 | Best: 1252.44W
+Gen 34 (ES) | Pop: 128 | Sigma: 0.250 | Time: 0.79s | Cur: 1290.33W (S:20.00%) | Std: 52.96 | Best: 1252.44W
+Gen 35 (ES) | Pop: 128 | Sigma: 0.250 | Time: 0.78s | Cur: 1290.33W (S:20.00%) | Std: 56.35 | Best: 1252.44W
+Gen 36 (ES) | Pop: 128 | Sigma: 0.250 | Time: 0.78s | Cur: 1290.33W (S:20.00%) | Std: 55.72 | Best: 1252.44W
+Gen 37 (ES) | Pop: 128 | Sigma: 0.250 | Time: 0.83s | Cur: 1290.33W (S:20.00%) | Std: 58.85 | Best: 1252.44W
+Gen 38 (ES) | Pop: 128 | Sigma: 0.250 | Time: 0.83s | Cur: 1290.33W (S:20.00%) | Std: 48.89 | Best: 1252.44W
+Gen 39 (ES) | Pop: 128 | Sigma: 0.250 | Time: 0.82s | Cur: 1290.33W (S:20.00%) | Std: 47.80 | Best: 1252.44W
+Gen 40 (ES) | Pop: 128 | Sigma: 0.250 | Time: 0.80s | Cur: 1290.33W (S:20.00%) | Std: 51.41 | Best: 1252.44W
+Gen 41 (ES) | Pop: 128 | Sigma: 0.250 | Time: 0.84s | Cur: 1290.33W (S:20.00%) | Std: 39.80 | Best: 1252.44W
+Gen 42 (ES) | Pop: 128 | Sigma: 0.150 | Time: 1.82s | Cur: 1306.98W (S:20.42%) | Std: 107.24 | Best: 1252.44W
+Gen 43 (ES) | Pop: 128 | Sigma: 0.153 | Time: 1.10s | Cur: 1290.33W (S:20.00%) | Std: 98.67 | Best: 1252.44W
+Gen 44 (ES) | Pop: 128 | Sigma: 0.156 | Time: 0.78s | Cur: 1290.33W (S:20.00%) | Std: 92.78 | Best: 1252.44W
+Gen 45 (ES) | Pop: 128 | Sigma: 0.159 | Time: 0.80s | Cur: 1290.33W (S:20.00%) | Std: 84.74 | Best: 1252.44W
+Gen 46 (ES) | Pop: 128 | Sigma: 0.162 | Time: 0.84s | Cur: 1306.98W (S:20.42%) | Std: 79.77 | Best: 1252.44W
+Gen 47 (ES) | Pop: 128 | Sigma: 0.166 | Time: 0.79s | Cur: 1290.33W (S:20.00%) | Std: 55.30 | Best: 1252.44W
+Gen 48 (ES) | Pop: 128 | Sigma: 0.169 | Time: 0.80s | Cur: 1290.33W (S:20.00%) | Std: 61.34 | Best: 1252.44W
+Gen 49 (ES) | Pop: 128 | Sigma: 0.172 | Time: 0.83s | Cur: 1290.33W (S:20.00%) | Std: 49.96 | Best: 1252.44W

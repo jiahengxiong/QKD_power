@@ -1,0 +1,61 @@
+🚀 Starting Full Evaluation: 3 Maps x 8 Configs = 24 Cases
+
+[1/24] Checking Paris-BB84-APD-Low...
+⏩ Skipping Paris-BB84-APD-Low (Already done)
+
+[2/24] Checking Paris-BB84-APD-Medium...
+⏩ Skipping Paris-BB84-APD-Medium (Already done)
+
+[3/24] Checking Paris-BB84-SNSPD-Low...
+⏩ Skipping Paris-BB84-SNSPD-Low (Already done)
+
+[4/24] Checking Paris-BB84-SNSPD-Medium...
+⏩ Skipping Paris-BB84-SNSPD-Medium (Already done)
+
+[5/24] Checking Paris-BB84-SNSPD-High...
+⏩ Skipping Paris-BB84-SNSPD-High (Already done)
+
+[6/24] Checking Paris-CV-QKD-ThorlabsPDB-Low...
+⏩ Skipping Paris-CV-QKD-ThorlabsPDB-Low (Already done)
+
+[7/24] Checking Paris-CV-QKD-ThorlabsPDB-Medium...
+⏩ Skipping Paris-CV-QKD-ThorlabsPDB-Medium (Already done)
+
+[8/24] Checking Paris-CV-QKD-ThorlabsPDB-High...
+⏩ Skipping Paris-CV-QKD-ThorlabsPDB-High (Already done)
+
+[9/24] Checking Tokyo-BB84-APD-Low...
+⏩ Skipping Tokyo-BB84-APD-Low (Already done)
+
+[10/24] Checking Tokyo-BB84-APD-Medium...
+🔥 Starting Experiment: Tokyo | BB84 | APD | Medium on cpu
+🌍 Generated Global Request List (Size: 66)
+🚀 Launching ProcessPoolExecutor with 128 workers (Context: <multiprocessing.context.ForkContext object at 0x7f9412451870>)
+🚀 OpenAI-ES Optimizer Initialized. Params: 1323
+🚀 OpenAI-ES Optimizer Initialized. Params: 1323
+
+=== Phase 1: Pre-training NoBypass (50 gens) ===
+Process ForkProcess-128:
+Traceback (most recent call last):
+  File "/usr/lib/python3.10/multiprocessing/process.py", line 314, in _bootstrap
+    self.run()
+  File "/usr/lib/python3.10/multiprocessing/process.py", line 108, in run
+    self._target(*self._args, **self._kwargs)
+  File "/usr/lib/python3.10/concurrent/futures/process.py", line 240, in _process_worker
+    call_item = call_queue.get(block=True)
+  File "/usr/lib/python3.10/multiprocessing/queues.py", line 103, in get
+    res = self._recv_bytes()
+  File "/usr/lib/python3.10/multiprocessing/connection.py", line 216, in recv_bytes
+    buf = self._recv_bytes(maxlength)
+  File "/usr/lib/python3.10/multiprocessing/connection.py", line 414, in _recv_bytes
+    buf = self._recv(4)
+  File "/usr/lib/python3.10/multiprocessing/connection.py", line 379, in _recv
+    chunk = read(handle, remaining)
+KeyboardInterrupt
+[NoBypass] Gen 0 (ES) | Pop: 128 | Sigma: 0.150 | Time: 60.27s | Cur: 4514.55W (S:45.48%) | Std: 102.63 | Best: 4514.55W
+[NoBypass] Gen 1 (ES) | Pop: 128 | Sigma: 0.150 | Time: 36.92s | Cur: 4490.91W (S:45.24%) | Std: 100.49 | Best: 4490.91W
+[NoBypass] Gen 2 (ES) | Pop: 128 | Sigma: 0.148 | Time: 42.77s | Cur: 4467.27W (S:45.00%) | Std: 92.22 | Best: 4467.27W
+[NoBypass] Gen 3 (ES) | Pop: 128 | Sigma: 0.147 | Time: 36.05s | Cur: 4490.91W (S:45.24%) | Std: 77.95 | Best: 4467.27W
+[NoBypass] Gen 4 (ES) | Pop: 128 | Sigma: 0.150 | Time: 42.39s | Cur: 4443.64W (S:44.76%) | Std: 80.84 | Best: 4443.64W
+
+🛑 Interrupted by user. Saving progress...

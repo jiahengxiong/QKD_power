@@ -314,8 +314,8 @@ class OpenAIESOptimizer:
             log_str = (f"Gen {self.generation} (ES) | Pop: {self.pop_size} | Sigma: {self.sigma:.3f} | Time: {duration:.2f}s | "
                        f"Cur: {avg_power:.2f}W (S:{spec_occ:.2%}) | Std: {fit_std:.2f} | Best: {self.best_pure_power_found:.2f}W")
             print(f"[{'Bypass' if self.bypass else 'NoBypass'}] {log_str}")
-            self.log_file.write(log_str + "\n")
-            self.log_file.flush()
+            #self.log_file.write(log_str + "\n")
+            #self.log_file.flush()
             
         # 8. [Adaptive Sigma] 动态调整噪声幅度
         current_best_fit = fitnesses[min_idx]
