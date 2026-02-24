@@ -403,5 +403,185 @@
             }
         },
         "status": "bypass_wins_tradeoff"
+    },
+    {
+        "config": {
+            "topology": "Tokyo",
+            "protocol": "BB84",
+            "detector": "APD",
+            "traffic": "Medium"
+        },
+        "bypass_result": {
+            "success_rate": 1.0,
+            "avg_power": 3876.3636363636365,
+            "spec_occ": 0.5857142857142857,
+            "total_wls": 246,
+            "heat_risk": 0,
+            "path_cost": 16082.439140319824,
+            "source_p": 9.93939393939394,
+            "detector_p": 1600.2424242424242,
+            "other_p": 2266.181818181818,
+            "ice_box_p": 0.0,
+            "component_power": {
+                "source": 656,
+                "detector": 105616,
+                "other": 149568,
+                "ice_box": 0
+            }
+        },
+        "nobypass_result": {
+            "success_rate": 1.0,
+            "avg_power": 4372.727272727273,
+            "spec_occ": 0.44047619047619047,
+            "total_wls": 185,
+            "heat_risk": 0,
+            "path_cost": 1257.0739800930023,
+            "source_p": 11.212121212121213,
+            "detector_p": 1805.1515151515152,
+            "other_p": 2556.3636363636365,
+            "ice_box_p": 0.0,
+            "component_power": {
+                "source": 740,
+                "detector": 119140,
+                "other": 168720,
+                "ice_box": 0
+            }
+        },
+        "status": "bypass_wins_tradeoff"
+    },
+    {
+        "config": {
+            "topology": "Tokyo",
+            "protocol": "BB84",
+            "detector": "SNSPD",
+            "traffic": "Low"
+        },
+        "bypass_result": {
+            "success_rate": 1.0,
+            "avg_power": 625.939393939394,
+            "spec_occ": 0.10476190476190476,
+            "total_wls": 44,
+            "heat_risk": 0,
+            "path_cost": 43.47374047880591,
+            "source_p": 1.9393939393939394,
+            "detector_p": 0.0,
+            "other_p": 442.1818181818182,
+            "ice_box_p": 181.8181818181818,
+            "component_power": {
+                "source": 128,
+                "detector": 0,
+                "other": 29184,
+                "ice_box": 12000
+            }
+        },
+        "nobypass_result": {
+            "success_rate": 1.0,
+            "avg_power": 657.5151515151515,
+            "spec_occ": 0.07380952380952381,
+            "total_wls": 31,
+            "heat_risk": 1.203125,
+            "path_cost": 0.019624566171444258,
+            "source_p": 1.878787878787879,
+            "detector_p": 0.0,
+            "other_p": 428.3636363636364,
+            "ice_box_p": 227.27272727272728,
+            "component_power": {
+                "source": 124,
+                "detector": 0,
+                "other": 28272,
+                "ice_box": 15000
+            }
+        },
+        "status": "bypass_wins_tradeoff"
+    },
+    {
+        "config": {
+            "topology": "Tokyo",
+            "protocol": "BB84",
+            "detector": "SNSPD",
+            "traffic": "Medium"
+        },
+        "bypass_result": {
+            "success_rate": 1.0,
+            "avg_power": 1140.8484848484848,
+            "spec_occ": 0.2261904761904762,
+            "total_wls": 95,
+            "heat_risk": 2.3125,
+            "path_cost": 491.7007360458374,
+            "source_p": 3.393939393939394,
+            "detector_p": 0.0,
+            "other_p": 773.8181818181819,
+            "ice_box_p": 363.6363636363636,
+            "component_power": {
+                "source": 224,
+                "detector": 0,
+                "other": 51072,
+                "ice_box": 24000
+            }
+        },
+        "nobypass_result": {
+            "success_rate": 1.0,
+            "avg_power": 1144.6666666666667,
+            "spec_occ": 0.1261904761904762,
+            "total_wls": 53,
+            "heat_risk": 2.390625,
+            "path_cost": 1116.7005236148834,
+            "source_p": 3.212121212121212,
+            "detector_p": 0.0,
+            "other_p": 732.3636363636364,
+            "ice_box_p": 409.09090909090907,
+            "component_power": {
+                "source": 212,
+                "detector": 0,
+                "other": 48336,
+                "ice_box": 27000
+            }
+        },
+        "status": "bypass_wins_tradeoff"
+    },
+    {
+        "config": {
+            "topology": "Tokyo",
+            "protocol": "BB84",
+            "detector": "SNSPD",
+            "traffic": "High"
+        },
+        "bypass_result": {
+            "success_rate": 1.0,
+            "avg_power": 2295.5757575757575,
+            "spec_occ": 0.4095238095238095,
+            "total_wls": 172,
+            "heat_risk": 3.890625,
+            "path_cost": 33325.534729003906,
+            "source_p": 6.848484848484849,
+            "detector_p": 0.0,
+            "other_p": 1561.4545454545455,
+            "ice_box_p": 727.2727272727273,
+            "component_power": {
+                "source": 452,
+                "detector": 0,
+                "other": 103056,
+                "ice_box": 48000
+            }
+        },
+        "nobypass_result": {
+            "success_rate": 1.0,
+            "avg_power": 2539.151515151515,
+            "spec_occ": 0.29523809523809524,
+            "total_wls": 124,
+            "heat_risk": 1.59375,
+            "path_cost": 2532.8741931915283,
+            "source_p": 7.515151515151516,
+            "detector_p": 0.0,
+            "other_p": 1713.4545454545455,
+            "ice_box_p": 818.1818181818181,
+            "component_power": {
+                "source": 496,
+                "detector": 0,
+                "other": 113088,
+                "ice_box": 54000
+            }
+        },
+        "status": "bypass_wins_tradeoff"
     }
 ]
