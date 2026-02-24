@@ -1,0 +1,40 @@
+{
+    "generation": 64,
+    "bypass": {
+        "success_rate": 1.0,
+        "avg_power": 1339.5652173913043,
+        "spec_occ": 0.30348837209302326,
+        "total_wls": 261,
+        "heat_risk": 0,
+        "path_cost": 4219.8093570065685,
+        "source_p": 3.4347826086956523,
+        "detector_p": 553.0,
+        "other_p": 783.1304347826087,
+        "ice_box_p": 0.0,
+        "component_power": {
+            "source": 948,
+            "detector": 152628,
+            "other": 216144,
+            "ice_box": 0
+        }
+    },
+    "nobypass": {
+        "success_rate": 1.0,
+        "avg_power": 1119.1304347826087,
+        "spec_occ": 0.2302325581395349,
+        "total_wls": 198,
+        "heat_risk": 0,
+        "path_cost": 16542.5195813179,
+        "source_p": 2.869565217391304,
+        "detector_p": 462.0,
+        "other_p": 654.2608695652174,
+        "ice_box_p": 0.0,
+        "component_power": {
+            "source": 792,
+            "detector": 127512,
+            "other": 180576,
+            "ice_box": 0
+        }
+    },
+    "status": "phase2_bypass"
+}

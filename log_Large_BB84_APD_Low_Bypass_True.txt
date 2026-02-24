@@ -1,0 +1,15 @@
+--- OpenAI-ES Training Log for Bypass=True ---
+Gen 0 (ES) | Pop: 128 | Sigma: 0.150 | Time: 8884.58s | Cur: 1463.91W (S:37.56%) | Std: 53.32 | Best: 1463.91W
+Gen 1 (ES) | Pop: 128 | Sigma: 0.150 | Time: 9860.58s | Cur: 1452.61W (S:36.86%) | Std: 50.43 | Best: 1452.61W
+Gen 2 (ES) | Pop: 128 | Sigma: 0.148 | Time: 13676.11s | Cur: 1435.65W (S:36.51%) | Std: 57.41 | Best: 1435.65W
+Gen 3 (ES) | Pop: 128 | Sigma: 0.147 | Time: 13572.50s | Cur: 1418.70W (S:36.28%) | Std: 57.98 | Best: 1418.70W
+Gen 4 (ES) | Pop: 128 | Sigma: 0.145 | Time: 13612.97s | Cur: 1413.04W (S:35.00%) | Std: 54.97 | Best: 1413.04W
+Gen 5 (ES) | Pop: 128 | Sigma: 0.144 | Time: 15665.98s | Cur: 1396.09W (S:33.49%) | Std: 52.84 | Best: 1396.09W
+Gen 6 (ES) | Pop: 128 | Sigma: 0.142 | Time: 13901.88s | Cur: 1373.48W (S:32.67%) | Std: 55.20 | Best: 1373.48W
+Gen 7 (ES) | Pop: 128 | Sigma: 0.140 | Time: 13875.95s | Cur: 1367.83W (S:33.37%) | Std: 58.22 | Best: 1367.83W
+Gen 8 (ES) | Pop: 128 | Sigma: 0.138 | Time: 13905.97s | Cur: 1362.17W (S:31.98%) | Std: 60.95 | Best: 1362.17W
+Gen 9 (ES) | Pop: 128 | Sigma: 0.137 | Time: 13861.21s | Cur: 1373.48W (S:32.09%) | Std: 53.01 | Best: 1362.17W
+Gen 10 (ES) | Pop: 128 | Sigma: 0.140 | Time: 13761.23s | Cur: 1362.17W (S:34.77%) | Std: 60.17 | Best: 1362.17W
+Gen 11 (ES) | Pop: 128 | Sigma: 0.142 | Time: 13768.74s | Cur: 1339.57W (S:30.35%) | Std: 56.11 | Best: 1339.57W
+Gen 12 (ES) | Pop: 128 | Sigma: 0.140 | Time: 13929.09s | Cur: 1339.57W (S:30.58%) | Std: 53.39 | Best: 1339.57W
+Gen 13 (ES) | Pop: 128 | Sigma: 0.143 | Time: 13987.52s | Cur: 1345.22W (S:31.74%) | Std: 58.16 | Best: 1339.57W
