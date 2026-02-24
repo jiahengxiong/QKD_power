@@ -1071,6 +1071,12 @@ def build_auxiliary_graph_with_weights(topology, wavelength_list, traffic, physi
                 
                 if path_found_for_pair:
                     break # 找到有效路径后跳出 path_list 循环
+                else:
+                    # [Optimization] 如果该路径尝试了所有波长组合仍无法满足流量，
+                    # 应该从缓存中剔除，避免后续无意义的重试
+                    cache_key_full = (src, dst, config.bypass, config.protocol, config.detector)
+                    if cache_key_full in _PATH_CACHE and path in _PATH_CACHE[cache_key_full]:
+                        _PATH_CACHE[cache_key_full].remove(path)
 
     # 2. 第二阶段：统一应用权重矩阵
     for entry in all_raw_entries:
