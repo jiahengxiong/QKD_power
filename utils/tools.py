@@ -71,7 +71,9 @@ def get_cached_paths(G, src, dst, is_bypass, traffic, path_cache=None):
         if G.has_edge(src, dst):
             paths = [[src, dst]]
             
-    _PATH_CACHE[key] = paths
+    _PATH_CACHE = {} # Deleted
+    
+    path_cache[key] = paths
     return list(paths)
 
 def build_network_slice(wavelength_list, topology, traffic):
