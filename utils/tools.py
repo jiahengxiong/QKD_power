@@ -21,31 +21,34 @@ from itertools import combinations
 # 路径缓存与永久剪枝逻辑
 # ==========================================
 
-# 全局缓存，减少重复计算
-_PATH_CACHE = {}
-_LD_POS_CACHE = {}
+# 全局缓存已移除，改为参数传递
+# _PATH_CACHE = {}
+# _LD_POS_CACHE = {}
 
-def clear_path_cache():
-    _PATH_CACHE.clear()
-    _LD_POS_CACHE.clear()
+def clear_path_cache(path_cache=None, ld_pos_cache=None):
+    if path_cache is not None:
+        path_cache.clear()
+    if ld_pos_cache is not None:
+        ld_pos_cache.clear()
 
-def get_cached_paths(G, src, dst, is_bypass, traffic):
+def get_cached_paths(G, src, dst, is_bypass, traffic, path_cache=None):
     """
     路径缓存引擎：
     1. 第一次访问时使用 nx.shortest_simple_paths 生成路径。
-    2. 后续访问直接从 _PATH_CACHE 读取副本。
+    2. 后续访问直接从 path_cache 读取副本。
     """
+    if path_cache is None:
+        path_cache = {}
+
     protocol = config.protocol
     detector = config.detector
     
-    # 缓存键：源、宿、是否旁路、协议、检测器
-    # 注意：我们不把 traffic 放在 key 里，因为物理路径是通用的。
-    # 我们在 build_auxiliary_graph 中根据流量动态剔除。
+    # 缓存键：源、宿
     key = (src, dst)
     
-    if key in _PATH_CACHE:
+    if key in path_cache:
         # 返回副本，防止外部修改影响缓存
-        return list(_PATH_CACHE[key])
+        return list(path_cache[key])
     
     paths = []
     if is_bypass:
@@ -73,7 +76,7 @@ def get_cached_paths(G, src, dst, is_bypass, traffic):
     if paths and isinstance(paths[0], (int, str, np.integer)):
         paths = [paths]
         
-    _PATH_CACHE[key] = paths
+    path_cache[key] = paths
     return list(paths)
 
 def build_network_slice(wavelength_list, topology, traffic):
@@ -122,19 +125,22 @@ def find_min_free_capacity(wavelength_slice, path):
 
 import copy
 
-def find_laser_detector_position(wavelength_slice, path, wavelength):
+def find_laser_detector_position(wavelength_slice, path, wavelength, ld_pos_cache=None):
     """
     优化版：
     1. 增加缓存机制
     2. 解决 unhashable type: 'list' 报错
     """
+    if ld_pos_cache is None:
+        ld_pos_cache = {}
+        
     # 建立缓存键
     # 注意：wavelength_slice 的状态可能会变（虽然在 build_auxiliary_graph 内部是静态的）
     # 但为了保险，我们只在 build_auxiliary_graph 的单次运行中信任它
     # 或者包含 wavelength_slice 的 id 或其他标识
     cache_key = (id(wavelength_slice), tuple(path), wavelength)
-    if cache_key in _LD_POS_CACHE:
-        return _LD_POS_CACHE[cache_key]
+    if cache_key in ld_pos_cache:
+        return ld_pos_cache[cache_key]
 
     # --- 辅助函数：将 list/dict 递归转为 tuple，使其可哈希 ---
     def to_tuple(obj):
@@ -262,7 +268,7 @@ def find_laser_detector_position(wavelength_slice, path, wavelength):
                 if can_connect_path(path=path, laser_detector=possible_laser_detector):
                     laser_detector_position.append(pair)
             
-    _LD_POS_CACHE[cache_key] = laser_detector_position
+    ld_pos_cache[cache_key] = laser_detector_position
     return laser_detector_position
 
 
@@ -658,13 +664,16 @@ def check_path_validity_for_request(path, wavelength_combination, served_request
 # 核心重构：build_auxiliary_graph
 # ==========================================
 
-def build_auxiliary_graph(topology, wavelength_list, traffic, physical_topology, shared_key_rate_list, served_request, remain_num_request):
+def build_auxiliary_graph(topology, wavelength_list, traffic, physical_topology, shared_key_rate_list, served_request, remain_num_request, path_cache=None, ld_pos_cache=None):
     """
     终极修正版 V8：DFS 回溯 + 智能剪枝 (Backtracking with Pruning)
     """
+    if path_cache is None: path_cache = {}
+    if ld_pos_cache is None: ld_pos_cache = {}
+    
     # [关键修正]：每次构建辅助图前，必须清空硬件位置缓存
     # 因为随着业务上线，节点上的硬件状态（Laser/Detector）是动态变化的
-    _LD_POS_CACHE.clear()
+    ld_pos_cache.clear()
     
     auxiliary_graph = nx.MultiDiGraph()
     
@@ -695,7 +704,7 @@ def build_auxiliary_graph(topology, wavelength_list, traffic, physical_topology,
     all_raw_entries = []
     for src, dst in pairs:
         # --- 3.1 从路径缓存中读取候选路径 ---
-        path_list = get_cached_paths(physical_topology, src, dst, config.bypass, traffic)
+        path_list = get_cached_paths(physical_topology, src, dst, config.bypass, traffic, path_cache=path_cache)
         if not path_list: continue
         
         # 获取用于永久剔除的缓存键
@@ -761,7 +770,7 @@ def build_auxiliary_graph(topology, wavelength_list, traffic, physical_topology,
                         current_pos_dict = {}
                         pos_valid = True
                         for wl in found_wls:
-                            pos = find_laser_detector_position(network_slice[wl], path, wl)
+                            pos = find_laser_detector_position(network_slice[wl], path, wl, ld_pos_cache=ld_pos_cache)
                             if not pos:
                                 pos_valid = False
                                 break
@@ -788,8 +797,8 @@ def build_auxiliary_graph(topology, wavelength_list, traffic, physical_topology,
                 # [核心判定]：如果该路径尝试了仍无法建立边，永久剔除
                 if path in path_list:
                     path_list.remove(path)
-                if path in _PATH_CACHE.get(cache_key_full, []):
-                    _PATH_CACHE[cache_key_full].remove(path)
+                if path in path_cache.get(cache_key_full, []):
+                    path_cache[cache_key_full].remove(path)
 
     # 4. 动态标定与权重应用 (回归物理本质)
     if all_raw_entries:
@@ -1007,12 +1016,15 @@ def extract_feature_matrices_from_graph(auxiliary_graph, node_to_idx, num_nodes,
     
     return global_tensor, wl_tensor
 
-def build_auxiliary_graph_with_weights(topology, wavelength_list, traffic, physical_topology, shared_key_rate_list, served_request, remain_num_request, action_weights, node_to_idx):
+def build_auxiliary_graph_with_weights(topology, wavelength_list, traffic, physical_topology, shared_key_rate_list, served_request, remain_num_request, action_weights, node_to_idx, path_cache=None, ld_pos_cache=None):
     """
     RL 专用：先建立所有辅助边，最后统一使用 NN 输出的权重矩阵更新
     action_weights: [N, N]
     """
-    _LD_POS_CACHE.clear()
+    if path_cache is None: path_cache = {}
+    if ld_pos_cache is None: ld_pos_cache = {}
+
+    ld_pos_cache.clear()
     auxiliary_graph = nx.MultiDiGraph()
     for node in topology.nodes():
         auxiliary_graph.add_node(node)
@@ -1026,8 +1038,10 @@ def build_auxiliary_graph_with_weights(topology, wavelength_list, traffic, physi
     for src, dst in itertools.product(nodes, nodes):
         if src == dst: continue
         
-        path_list = get_cached_paths(physical_topology, src, dst, config.bypass, traffic)
+        path_list = get_cached_paths(physical_topology, src, dst, config.bypass, traffic, path_cache=path_cache)
         for path in path_list:
+            if isinstance(path, int): continue # 防御性跳过
+            
             candidates = []
             for wavelength in wavelength_list:
                 wl_slice = network_slice[wavelength]
@@ -1039,8 +1053,8 @@ def build_auxiliary_graph_with_weights(topology, wavelength_list, traffic, physi
             if not candidates: 
                 # [Optimization] 没有任何波长可用，剔除该路径
                 cache_key_full = (src, dst)
-                if cache_key_full in _PATH_CACHE and path in _PATH_CACHE[cache_key_full]:
-                    _PATH_CACHE[cache_key_full].remove(path)
+                if cache_key_full in path_cache and path in path_cache[cache_key_full]:
+                    path_cache[cache_key_full].remove(path)
                 continue
             
             candidates.sort(key=lambda x: x['cap'])
@@ -1057,7 +1071,7 @@ def build_auxiliary_graph_with_weights(topology, wavelength_list, traffic, physi
                     current_pos_dict = {}
                     pos_valid = True
                     for wl in found_wls:
-                        pos = find_laser_detector_position(network_slice[wl], path, wl)
+                        pos = find_laser_detector_position(network_slice[wl], path, wl, ld_pos_cache=ld_pos_cache)
                         if not pos:
                             pos_valid = False
                             break
@@ -1085,13 +1099,13 @@ def build_auxiliary_graph_with_weights(topology, wavelength_list, traffic, physi
                     # [Optimization] 如果该路径尝试了所有波长组合仍无法满足流量，
                     # 应该从缓存中剔除，避免后续无意义的重试
                     cache_key_full = (src, dst)
-                    if cache_key_full in _PATH_CACHE and path in _PATH_CACHE[cache_key_full]:
-                        _PATH_CACHE[cache_key_full].remove(path)
+                    if cache_key_full in path_cache and path in path_cache[cache_key_full]:
+                        path_cache[cache_key_full].remove(path)
             else:
                 # [Optimization] 如果所有可用波长的容量总和都不足以承载当前请求，剔除该路径
                 cache_key_full = (src, dst)
-                if cache_key_full in _PATH_CACHE and path in _PATH_CACHE[cache_key_full]:
-                    _PATH_CACHE[cache_key_full].remove(path)
+                if cache_key_full in path_cache and path in path_cache[cache_key_full]:
+                    path_cache[cache_key_full].remove(path)
 
     # 2. 第二阶段：统一应用权重矩阵
     for entry in all_raw_entries:

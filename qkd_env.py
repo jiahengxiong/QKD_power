@@ -73,11 +73,23 @@ class QKDEnv(gym.Env):
         self.physical_topology = None
         self.served_request = {}
         
+        # 实例级缓存 (Instance-level Cache)
+        # 替代 utils.tools 的全局缓存，避免跨进程/跨实验污染
+        self.path_cache = {}
+        self.ld_pos_cache = {}
+        
         # 不在 init 时自动 reset，推迟到显式调用时
         # self.reset() 
 
     def reset(self):
+        # 清空实例级缓存
+        self.path_cache.clear()
+        self.ld_pos_cache.clear()
+        
+        # 兼容旧代码：虽然不再依赖全局缓存，但为了保险起见，
+        # 如果有其他地方还在用 clear_path_cache，这里调用一下也没坏处（虽然它只清空空字典）
         clear_path_cache()
+        
         config.protocol = self.protocol
         config.detector = self.detector
         config.bypass = self.is_bypass # 强制使用实例配置覆盖全局配置
@@ -127,7 +139,8 @@ class QKDEnv(gym.Env):
         self.current_aux_graph = build_auxiliary_graph_with_weights(
             self.topology, self.wavelength_list, traffic, self.physical_topology, 
             config.key_rate_list, self.served_request, len(self.requests) - self.current_req_idx,
-            dummy_weights, self.node_to_idx
+            dummy_weights, self.node_to_idx,
+            path_cache=self.path_cache, ld_pos_cache=self.ld_pos_cache
         )
         
         # 1.5 构建未来流量矩阵 (Future Traffic Matrix)
