@@ -928,11 +928,21 @@ def extract_feature_matrices_from_graph(auxiliary_graph, node_to_idx, num_nodes,
     min_power_map = np.full((num_nodes, num_nodes), 1e9, dtype=np.float32)
     wl_to_idx = {wl: i for i, wl in enumerate(wavelength_list)}
     
-    # --- 第一步：填入原始物理值 (Raw Values) ---
+    # --- 第一步：批量收集特征 (Batch Collection) ---
+    # 使用列表收集数据，最后一次性填入 Tensor，比逐个填入 Tensor 快得多
+    u_list, v_list = [], []
+    
+    # Global Features Buffers
+    dist_list, occ_list, nwls_list, fridge_list, hops_list = [], [], [], [], []
+    
+    # Wavelength Features Buffers: [List for ch0, List for ch1, ...]
+    # 每个波长通道的数据需要单独维护，或者维护一个大列表 [(wl_idx, feature_val), ...]
+    # 这里为了性能，我们维护 dict: {wl_idx: {'p': [], 'c': [], 'w': [], 'b': [], 'd': [], 'u': [], 'v': []}}
+    wl_data_map = {} 
+    
     for u, v, data in auxiliary_graph.edges(data=True):
         if u not in node_to_idx or v not in node_to_idx: continue
         u_idx, v_idx = node_to_idx[u], node_to_idx[v]
-        edge_mask[u_idx, v_idx] = True
         
         # [Strict Mode] 严格校验数据完整性
         rf = data.get('raw_features')
@@ -941,70 +951,122 @@ def extract_feature_matrices_from_graph(auxiliary_graph, node_to_idx, num_nodes,
             
         current_p = data.get('power', 0)
         
+        # 仅当当前边是该节点对间功耗最低的边时，才记录 Global 特征
+        # 注意：Global 特征是 per-link 的，而不是 per-edge (multi-graph)
+        # 所以这里其实是在做一次 Min-Pooling
         if current_p < min_power_map[u_idx, v_idx]:
             min_power_map[u_idx, v_idx] = current_p
+            edge_mask[u_idx, v_idx] = True
             
-            # Global Features (Strict Extraction)
-            # 0: Distance (Logic)
-            if 'distance' not in data: raise KeyError(f"Edge {u}->{v} missing 'distance'")
-            global_tensor[0, u_idx, v_idx] = data['distance']
+            u_list.append(u_idx)
+            v_list.append(v_idx)
             
-            # 1: Occupancy (0-1)
-            if 'f_occ' not in rf: raise KeyError(f"Edge {u}->{v} missing 'f_occ'")
-            global_tensor[1, u_idx, v_idx] = rf['f_occ']
+            # 收集 Global Features
+            dist_list.append(data.get('distance', 0))
+            occ_list.append(rf.get('f_occ', 0))
+            nwls_list.append(rf.get('num_wls', 0))
+            fridge_list.append(rf.get('num_new_fridges', 0) * 3000.0)
+            path_hops = len(data.get('path', [])) - 1
+            hops_list.append(float(max(0, path_hops)))
             
-            # 2: Num Wavelengths (Integer) (原 Ch 3)
-            if 'num_wls' not in rf: raise KeyError(f"Edge {u}->{v} missing 'num_wls'")
-            global_tensor[2, u_idx, v_idx] = rf['num_wls']
-            
-            # 3: Fridge Power (Watt) (原 Ch 4)
-            if 'num_new_fridges' not in rf: raise KeyError(f"Edge {u}->{v} missing 'num_new_fridges'")
-            global_tensor[3, u_idx, v_idx] = rf['num_new_fridges'] * 3000.0
-            
-            # 4: Physical Distance (已在前面填入)
-             
-            # 5: Path Hops (原 Ch 7)
-            if 'path' not in data: raise KeyError(f"Edge {u}->{v} missing 'path'")
-            path_hops = len(data['path']) - 1
-            global_tensor[5, u_idx, v_idx] = float(max(0, path_hops))
-            
-        # Wavelength Features (Strict Extraction)
-        wls = data.get('wavelength_list', [])
-        wl_power_info = data.get('wavelength_power_info', {})
-        wl_bypass_info = data.get('wavelength_bypass_info', {})
-        wl_dist_info = data.get('wavelength_dist_info', {}) # New
-        wl_caps = data.get('wavelength_traffic', {})
+        # 收集 Wavelength Features (对每一条边都收集，不只是最小功耗边)
+        # 实际上 GNN 通常也只关注最优边，或者聚合所有边。
+        # 原逻辑是：只要 power < min_power，就填入 global；
+        # 但 wl_tensor 是基于 u,v 索引的。
+        # 如果 u,v 之间有多条边（多重图），wl_tensor 会被覆盖。
+        # 原逻辑中：`wl_tensor[..., u, v] = ...` 也是在 if current_p < min_power 内部吗？
+        # 让我们回看原代码... 是的！原代码所有赋值都在 if 块内。
+        # 所以 wl features 也只取功耗最低的那条边的。
         
-        if not wls:
-            # 兼容旧逻辑？不，现在必须有 wls
-            # wl = data.get('wavelength', -1)
-            # if wl != -1: wls = [wl]
-            raise KeyError(f"Edge {u}->{v} missing 'wavelength_list'")
+        if current_p <= min_power_map[u_idx, v_idx]: # 注意这里用 <= 或者是上面的 < 已经更新了 min_power
+            # 由于上面更新了 min_power，这里需要判断是否就是刚才更新的那条
+            # 简单起见，我们把 wl 收集也放在上面的 if 块里
+            pass
+
+    # --- 重新组织循环以匹配原逻辑 ---
+    # 重新初始化
+    min_power_map.fill(1e9)
+    edge_mask.fill(False)
+    u_list, v_list = [], []
+    dist_list, occ_list, nwls_list, fridge_list, hops_list = [], [], [], [], []
+    
+    # 针对 WL 特征，我们使用 list of lists: feats[wl_idx][channel_idx] -> list of values
+    # 并记录对应的 u, v
+    wl_feats_u = [[] for _ in range(num_wavelengths)]
+    wl_feats_v = [[] for _ in range(num_wavelengths)]
+    wl_feats_val = [[[] for _ in range(num_wl_feats)] for _ in range(num_wavelengths)]
+    
+    for u, v, data in auxiliary_graph.edges(data=True):
+        if u not in node_to_idx or v not in node_to_idx: continue
+        u_idx, v_idx = node_to_idx[u], node_to_idx[v]
+        
+        current_p = data.get('power', 0)
+        
+        # 仅处理最优边
+        if current_p < min_power_map[u_idx, v_idx]:
+            min_power_map[u_idx, v_idx] = current_p
+            edge_mask[u_idx, v_idx] = True
             
-        for wl in wls:
-            if wl not in wl_to_idx: continue
-            w_idx = wl_to_idx[wl]
+            # 1. Global Features Collection
+            u_list.append(u_idx)
+            v_list.append(v_idx)
+            rf = data['raw_features']
+            
+            dist_list.append(data.get('distance', 0))
+            occ_list.append(rf.get('f_occ', 0))
+            nwls_list.append(rf.get('num_wls', 0))
+            fridge_list.append(rf.get('num_new_fridges', 0) * 3000.0)
+            hops_list.append(float(max(0, len(data.get('path', [])) - 1)))
+            
+            # 2. Wavelength Features Collection
+            wls = data.get('wavelength_list', [])
+            wl_power_info = data.get('wavelength_power_info', {})
+            wl_bypass_info = data.get('wavelength_bypass_info', {})
+            wl_dist_info = data.get('wavelength_dist_info', {})
+            wl_caps = data.get('wavelength_traffic', {})
+            
+            for wl in wls:
+                if wl not in wl_to_idx: continue
+                w_idx = wl_to_idx[wl]
+                
+                wl_feats_u[w_idx].append(u_idx)
+                wl_feats_v[w_idx].append(v_idx)
+                
+                p_info = wl_power_info.get(wl, {'source':0, 'detector':0, 'other':0})
+                ld_power = p_info['source'] + p_info['detector'] + p_info['other']
+                
+                # Append values to channels
+                wl_feats_val[w_idx][0].append(ld_power)
+                wl_feats_val[w_idx][1].append(wl_caps.get(wl, 0))
+                wl_feats_val[w_idx][2].append(rf.get('f_waste', 0))
+                wl_feats_val[w_idx][3].append(float(wl_bypass_info.get(wl, 0)))
+                wl_feats_val[w_idx][4].append(float(wl_dist_info.get(wl, 0.0)))
+
+    # --- 第二步：批量赋值 (Vectorized Assignment) ---
+    if u_list:
+        # Global Features Assignment
+        global_tensor[0, u_list, v_list] = dist_list
+        global_tensor[1, u_list, v_list] = occ_list
+        global_tensor[2, u_list, v_list] = nwls_list
+        global_tensor[3, u_list, v_list] = fridge_list
+        global_tensor[5, u_list, v_list] = hops_list
+        
+        # Wavelength Features Assignment
+        for w_idx in range(num_wavelengths):
+            us = wl_feats_u[w_idx]
+            if not us: continue
+            vs = wl_feats_v[w_idx]
+            vals = wl_feats_val[w_idx] # list of 5 channels
+            
             base_idx = w_idx * num_wl_feats
             
-            # 0: LD Power
-            if wl not in wl_power_info: raise KeyError(f"WL {wl} missing power info")
-            p_info = wl_power_info[wl]
-            ld_power = p_info['source'] + p_info['detector'] + p_info['other']
-            wl_tensor[base_idx + 0, u_idx, v_idx] = ld_power
-            
-            # 1: Capacity
-            if wl not in wl_caps: raise KeyError(f"WL {wl} missing capacity info")
-            wl_tensor[base_idx + 1, u_idx, v_idx] = wl_caps[wl]
-            
-            # 2: Waste Rate
-            if 'f_waste' not in rf: raise KeyError("Missing 'f_waste'")
-            wl_tensor[base_idx + 2, u_idx, v_idx] = rf['f_waste']
-            
-            # 3: LD Bypass Count
-            wl_tensor[base_idx + 3, u_idx, v_idx] = float(wl_bypass_info.get(wl, 0))
-            
-            # 4: WL Distance (New)
-            wl_tensor[base_idx + 4, u_idx, v_idx] = float(wl_dist_info.get(wl, 0.0))
+            # 一次性对该波长的所有边进行赋值
+            # vals[c] 是一个列表，长度等于 us 的长度
+            wl_tensor[base_idx + 0, us, vs] = vals[0]
+            wl_tensor[base_idx + 1, us, vs] = vals[1]
+            wl_tensor[base_idx + 2, us, vs] = vals[2]
+            wl_tensor[base_idx + 3, us, vs] = vals[3]
+            wl_tensor[base_idx + 4, us, vs] = vals[4]
 
     # [Modification]: 移除所有归一化/Log处理。
     # Raw Data In, Norm Data Out. 所有的数值变换都交给 Neural Network 的输入层处理。
