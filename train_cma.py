@@ -655,9 +655,11 @@ def run_experiment(map_name, protocol, detector, traffic_mid):
     
     import glob
     for f in glob.glob(f"models/gnn_best_{map_name}_{protocol}_{detector}_{traffic_mid}_*.pth"):
-        try: os.remove(f) 
-        except: pass
-            
+        try:
+            os.remove(f)
+        except:
+            pass
+
     random.seed(42)
     np.random.seed(42)
     wavelength_list = np.linspace(1530, 1565, 10).tolist()
@@ -706,7 +708,7 @@ def run_experiment(map_name, protocol, detector, traffic_mid):
             processes=num_workers, 
             initializer=worker_initializer, 
             initargs=initargs,
-            maxtasksperchild=10
+            maxtasksperchild=8
         )
         
         # 封装 Pool 为 Executor 接口

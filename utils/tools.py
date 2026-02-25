@@ -737,6 +737,15 @@ def build_auxiliary_graph(topology, wavelength_list, traffic, physical_topology,
                 if not check_path_validity_for_request(path, [wavelength], served_request):
                     continue
                 
+                # [Optimization] 物理预检查 (Physics Prefiltering)
+                # 如果单个波长都无法物理连通 (find_laser_detector_position 返回空)，
+                # 那么包含它的任何组合也都不可行。直接剔除！
+                # 这一步会利用 ld_pos_cache，并且如果可行，结果会被缓存供后续 DFS 使用。
+                # 这能指数级削减 DFS 的搜索空间。
+                pos = find_laser_detector_position(network_slice[wavelength], path, wavelength, ld_pos_cache=ld_pos_cache)
+                if not pos:
+                    continue
+                
                 candidates.append({'wl': wavelength, 'cap': min_cap})
             
             # === 步骤 B: 综合判定与 DFS 探测 ===
