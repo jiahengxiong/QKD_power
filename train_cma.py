@@ -94,9 +94,10 @@ def evaluate_worker(args):
     """
     global _WORKER_ENV, _WORKER_MODEL
     
-    vector, is_bypass = args
-    
+    # [Robustness] 增加更全面的异常捕获，防止 Worker 崩溃
     try:
+        vector, is_bypass = args
+        
         # 1. 动态更新配置 (防止状态污染)
         _WORKER_ENV.is_bypass = is_bypass
         _WORKER_MODEL.is_bypass = is_bypass # 如果模型内部用到了这个标志
@@ -121,6 +122,7 @@ def evaluate_worker(args):
         last_action_t = None
         done = False
         
+        step_count = 0
         while not done:
             with torch.no_grad():
                 x_global_np, x_wl_np = state_matrices
@@ -136,6 +138,7 @@ def evaluate_worker(args):
                 
             next_state, reward, done, info = _WORKER_ENV.step(action_weights)
             state_matrices, context = next_state
+            step_count += 1
             
         avg_power = info.get('avg_power', 10000.0)
         spec_occ = info.get('spec_occ', 1.0)
@@ -148,19 +151,20 @@ def evaluate_worker(args):
         fitness = avg_power + spec_occ
         # fitness = avg_power + spec_occ + 0.00001 * path_cost_sum
         
-        # # 显式清理 (防止计算图残留)
-        # del h_state, last_action_t
-        
-        # # [Memory] 手动清理大对象并触发 GC
-        # if hasattr(_WORKER_ENV, 'current_aux_graph'):
-        #     _WORKER_ENV.current_aux_graph = None
-        # import gc
-        # gc.collect()
-        
         return fitness, info
+        
     except Exception as e:
-        traceback.print_exc()
-        print(f"❌ Worker Error: {e}", flush=True)
+        import traceback
+        import sys
+        # 打印完整的 traceback 到 stderr，确保能被主进程捕获
+        print(f"❌ Worker Critical Error: {e}", file=sys.stderr)
+        traceback.print_exc(file=sys.stderr)
+        return 10000.0, {}
+    except BaseException as e: # 捕获 KeyboardInterrupt, SystemExit 等更底层的异常
+        import traceback
+        import sys
+        print(f"❌ Worker Fatal Crash: {e}", file=sys.stderr)
+        traceback.print_exc(file=sys.stderr)
         return 10000.0, {}
 
 class OpenAIESOptimizer:
