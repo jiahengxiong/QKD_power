@@ -68,6 +68,11 @@ def get_cached_paths(G, src, dst, is_bypass, traffic):
         if G.has_edge(src, dst):
             paths = [[src, dst]]
             
+    # 防御性修复：确保 paths 是 List[List[Node]]
+    # 如果 paths 变成了一维列表 [n1, n2]，说明结构坏了，强制修复为 [[n1, n2]]
+    if paths and isinstance(paths[0], (int, str, np.integer)):
+        paths = [paths]
+        
     _PATH_CACHE[key] = paths
     return list(paths)
 
