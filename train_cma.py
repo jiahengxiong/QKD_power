@@ -693,18 +693,34 @@ def run_experiment(map_name, protocol, detector, traffic_mid):
     # 限制最大 Worker 数
     # [Performance Tuning] 线程数已限制为 1，现在可以全核跑了
     # num_workers = min(num_workers, 32) 
-    um_workers = num_workers
-    print(f"🚀 Launching ProcessPoolExecutor with {num_workers} workers (Context: {mp_context})")
+    print(f"🚀 Launching multiprocessing.Pool with {num_workers} workers (Context: {mp_context}, MaxTasksPerChild=10)")
     
     # 这里的 if-else 是为了保留 SyncExecutor 作为一个 fallback 选项，但我们现在要切回并行
     if True: 
-        # Python 3.7+ 支持 mp_context
-        executor_cm = ProcessPoolExecutor(
-            max_workers=num_workers, 
+        # [Robustness] 使用 multiprocessing.Pool 代替 ProcessPoolExecutor
+        # 启用 maxtasksperchild=10，强制定期重启 Worker，解决内存泄漏和状态累积导致的崩溃
+        ctx = mp_context if mp_context else multiprocessing
+        pool = ctx.Pool(
+            processes=num_workers, 
             initializer=worker_initializer, 
             initargs=initargs,
-            mp_context=mp_context
+            maxtasksperchild=10
         )
+        
+        # 封装 Pool 为 Executor 接口
+        class PoolExecutor:
+            def __init__(self, pool):
+                self.pool = pool
+            def map(self, func, iterable):
+                return self.pool.map(func, iterable)
+            def shutdown(self, wait=True):
+                self.pool.close()
+                if wait:
+                    self.pool.join()
+            def __enter__(self): return self
+            def __exit__(self, exc_type, exc_val, exc_tb): self.shutdown()
+            
+        executor_cm = PoolExecutor(pool)
     else:
         # Fake Executor for debugging
         class SyncExecutor:
