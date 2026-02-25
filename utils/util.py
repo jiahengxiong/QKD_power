@@ -5,32 +5,50 @@ import math
 
 
 def can_connect_path(path, laser_detector):
-    # 构建有向图的邻接表
-    graph = {}
-    # print(laser_detector)
-    for i, j in laser_detector:
-        if i not in graph:
-            graph[i] = []
-        graph[i].append(j)
-
-    # 获取起点和终点
-    start = path[0]
-    end = path[-1]
-
-    # 使用BFS检查从起点到终点的可达性
-    queue = deque([start])
-    visited = set()
-
+    """
+    检查给定的 laser_detector 对是否能覆盖整个 path。
+    优化版：基于 path 索引的快速连通性检查，避免构建 NetworkX 图。
+    
+    Args:
+        path: 节点列表 [n0, n1, ..., nL]
+        laser_detector: 边列表 [[u1, v1], [u2, v2], ...]，u,v 都在 path 上
+    """
+    if not path: return False
+    
+    # 1. 建立节点到索引的映射
+    # O(V)
+    node_to_idx = {node: i for i, node in enumerate(path)}
+    target_idx = len(path) - 1
+    
+    # 2. 将边转换为索引邻接表
+    # O(E)
+    adj = [[] for _ in range(len(path))]
+    for u, v in laser_detector:
+        # 安全检查：确保 u, v 都在 path 上
+        # 虽然调用方应该保证，但这里再次确认
+        if u in node_to_idx and v in node_to_idx:
+            u_idx = node_to_idx[u]
+            v_idx = node_to_idx[v]
+            # 只考虑前向边 (u -> v)，避免环路干扰
+            if u_idx < v_idx:
+                adj[u_idx].append(v_idx)
+                
+    # 3. 快速 BFS (在索引空间)
+    # O(V + E)
+    queue = deque([0])
+    visited = {0} # 使用 set 记录访问过的索引
+    
     while queue:
-        node = queue.popleft()
-        if node == end:  # 找到终点
+        curr = queue.popleft()
+        if curr == target_idx:
             return True
-        if node not in visited:
-            visited.add(node)
-            for neighbor in graph.get(node, []):
-                if neighbor not in visited:  # 将邻居加入队列
-                    queue.append(neighbor)
-    return False  # 无法到达终点
+            
+        for nxt in adj[curr]:
+            if nxt not in visited:
+                visited.add(nxt)
+                queue.append(nxt)
+                
+    return False
 
 
 def calculate_distance(G, start, end, path):

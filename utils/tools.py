@@ -264,6 +264,10 @@ def find_laser_detector_position(wavelength_slice, path, wavelength, ld_pos_cach
                 
                 if can_connect_path(path=path, laser_detector=possible_laser_detector):
                     laser_detector_position.append(pair)
+                    # [Optimization] 找到唯一可行解后立即停止，避免无效搜索
+                    # 根据业务逻辑，此时只存在唯一的一个 Bypass Pair 能填补路径缺口
+                    ld_pos_cache[cache_key] = laser_detector_position
+                    return laser_detector_position
             
     ld_pos_cache[cache_key] = laser_detector_position
     return laser_detector_position
