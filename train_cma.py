@@ -683,10 +683,12 @@ def run_experiment(map_name, protocol, detector, traffic_mid):
     import multiprocessing
     
     # 尝试获取 fork 上下文 (Linux/Unix 默认，但在某些配置下可能被覆盖)
+    # [Robustness] 强制使用 spawn 模式，牺牲启动速度换取绝对稳定性
+    # 这能解决 NetworkX/Numpy 底层 C 扩展的崩溃问题
     try:
-        mp_context = multiprocessing.get_context("fork")
+        mp_context = multiprocessing.get_context("spawn")
     except ValueError:
-        # 如果不支持 fork (e.g. Windows)，回退到默认
+        # 如果不支持 spawn (理论上全平台支持)，回退到默认
         mp_context = None
         
     num_workers = multiprocessing.cpu_count()
