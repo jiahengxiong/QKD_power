@@ -41,7 +41,7 @@ def get_cached_paths(G, src, dst, is_bypass, traffic):
     # 缓存键：源、宿、是否旁路、协议、检测器
     # 注意：我们不把 traffic 放在 key 里，因为物理路径是通用的。
     # 我们在 build_auxiliary_graph 中根据流量动态剔除。
-    key = (src, dst, is_bypass, protocol, detector)
+    key = (src, dst)
     
     if key in _PATH_CACHE:
         # 返回副本，防止外部修改影响缓存
@@ -694,7 +694,7 @@ def build_auxiliary_graph(topology, wavelength_list, traffic, physical_topology,
         if not path_list: continue
         
         # 获取用于永久剔除的缓存键
-        cache_key_full = (src, dst, config.bypass, config.protocol, config.detector)
+        cache_key_full = (src, dst)
         
         path_found_count = 0
         # --- 3.2 遍历探测路径 ---
@@ -1031,7 +1031,12 @@ def build_auxiliary_graph_with_weights(topology, wavelength_list, traffic, physi
                 if not check_path_validity_for_request(path, [wavelength], served_request): continue
                 candidates.append({'wl': wavelength, 'cap': min_cap})
             
-            if not candidates: continue
+            if not candidates: 
+                # [Optimization] 没有任何波长可用，剔除该路径
+                cache_key_full = (src, dst)
+                if cache_key_full in _PATH_CACHE and path in _PATH_CACHE[cache_key_full]:
+                    _PATH_CACHE[cache_key_full].remove(path)
+                continue
             
             candidates.sort(key=lambda x: x['cap'])
             n_candidates = len(candidates)
@@ -1074,9 +1079,14 @@ def build_auxiliary_graph_with_weights(topology, wavelength_list, traffic, physi
                 else:
                     # [Optimization] 如果该路径尝试了所有波长组合仍无法满足流量，
                     # 应该从缓存中剔除，避免后续无意义的重试
-                    cache_key_full = (src, dst, config.bypass, config.protocol, config.detector)
+                    cache_key_full = (src, dst)
                     if cache_key_full in _PATH_CACHE and path in _PATH_CACHE[cache_key_full]:
                         _PATH_CACHE[cache_key_full].remove(path)
+            else:
+                # [Optimization] 如果所有可用波长的容量总和都不足以承载当前请求，剔除该路径
+                cache_key_full = (src, dst)
+                if cache_key_full in _PATH_CACHE and path in _PATH_CACHE[cache_key_full]:
+                    _PATH_CACHE[cache_key_full].remove(path)
 
     # 2. 第二阶段：统一应用权重矩阵
     for entry in all_raw_entries:
