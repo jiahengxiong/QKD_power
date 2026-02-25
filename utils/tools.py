@@ -1050,8 +1050,11 @@ def build_auxiliary_graph_with_weights(topology, wavelength_list, traffic, physi
             if not candidates: 
                 # [Optimization] 没有任何波长可用，剔除该路径
                 cache_key_full = (src, dst)
-                if cache_key_full in path_cache and path in path_cache[cache_key_full]:
-                    path_cache[cache_key_full].remove(path)
+                try:
+                    if cache_key_full in path_cache and path in path_cache[cache_key_full]:
+                        path_cache[cache_key_full].remove(path)
+                except Exception:
+                    pass
                 continue
             
             candidates.sort(key=lambda x: x['cap'])
@@ -1096,13 +1099,19 @@ def build_auxiliary_graph_with_weights(topology, wavelength_list, traffic, physi
                     # [Optimization] 如果该路径尝试了所有波长组合仍无法满足流量，
                     # 应该从缓存中剔除，避免后续无意义的重试
                     cache_key_full = (src, dst)
-                    if cache_key_full in path_cache and path in path_cache[cache_key_full]:
-                        path_cache[cache_key_full].remove(path)
+                    try:
+                        if cache_key_full in path_cache and path in path_cache[cache_key_full]:
+                            path_cache[cache_key_full].remove(path)
+                    except Exception:
+                        pass
             else:
                 # [Optimization] 如果所有可用波长的容量总和都不足以承载当前请求，剔除该路径
                 cache_key_full = (src, dst)
-                if cache_key_full in path_cache and path in path_cache[cache_key_full]:
-                    path_cache[cache_key_full].remove(path)
+                try:
+                    if cache_key_full in path_cache and path in path_cache[cache_key_full]:
+                        path_cache[cache_key_full].remove(path)
+                except Exception:
+                    pass
 
     # 2. 第二阶段：统一应用权重矩阵
     for entry in all_raw_entries:
