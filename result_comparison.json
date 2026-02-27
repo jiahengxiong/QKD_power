@@ -583,5 +583,140 @@
             }
         },
         "status": "bypass_wins_tradeoff"
+    },
+    {
+        "config": {
+            "topology": "Tokyo",
+            "protocol": "CV-QKD",
+            "detector": "ThorlabsPDB",
+            "traffic": "Low"
+        },
+        "bypass_result": {
+            "success_rate": 1.0,
+            "avg_power": 66.24166666666666,
+            "spec_occ": 0.02619047619047619,
+            "total_wls": 11,
+            "heat_risk": 0,
+            "path_cost": 0.3460546729620546,
+            "source_p": 0.3333333333333333,
+            "detector_p": 2.5,
+            "other_p": 63.40833333333333,
+            "ice_box_p": 0.0,
+            "component_power": {
+                "source": 22,
+                "detector": 165.0,
+                "other": 4184.95,
+                "ice_box": 0
+            }
+        },
+        "nobypass_result": {
+            "success_rate": 1.0,
+            "avg_power": 66.24166666666666,
+            "spec_occ": 0.02619047619047619,
+            "total_wls": 11,
+            "heat_risk": 0,
+            "path_cost": 114.37917360663414,
+            "source_p": 0.3333333333333333,
+            "detector_p": 2.5,
+            "other_p": 63.40833333333333,
+            "ice_box_p": 0.0,
+            "component_power": {
+                "source": 22,
+                "detector": 165.0,
+                "other": 4184.95,
+                "ice_box": 0
+            }
+        },
+        "status": "max_gens_reached"
+    },
+    {
+        "config": {
+            "topology": "Tokyo",
+            "protocol": "CV-QKD",
+            "detector": "ThorlabsPDB",
+            "traffic": "Medium"
+        },
+        "bypass_result": {
+            "success_rate": 1.0,
+            "avg_power": 66.24166666666666,
+            "spec_occ": 0.02619047619047619,
+            "total_wls": 11,
+            "heat_risk": 0,
+            "path_cost": 0.02265610301583365,
+            "source_p": 0.3333333333333333,
+            "detector_p": 2.5,
+            "other_p": 63.40833333333333,
+            "ice_box_p": 0.0,
+            "component_power": {
+                "source": 22,
+                "detector": 165.0,
+                "other": 4184.95,
+                "ice_box": 0
+            }
+        },
+        "nobypass_result": {
+            "success_rate": 1.0,
+            "avg_power": 66.24166666666666,
+            "spec_occ": 0.02619047619047619,
+            "total_wls": 11,
+            "heat_risk": 0,
+            "path_cost": 2.9730490976944566,
+            "source_p": 0.3333333333333333,
+            "detector_p": 2.5,
+            "other_p": 63.40833333333333,
+            "ice_box_p": 0.0,
+            "component_power": {
+                "source": 22,
+                "detector": 165.0,
+                "other": 4184.95,
+                "ice_box": 0
+            }
+        },
+        "status": "max_gens_reached"
+    },
+    {
+        "config": {
+            "topology": "Tokyo",
+            "protocol": "CV-QKD",
+            "detector": "ThorlabsPDB",
+            "traffic": "High"
+        },
+        "bypass_result": {
+            "success_rate": 1.0,
+            "avg_power": 96.35151515151513,
+            "spec_occ": 0.0380952380952381,
+            "total_wls": 16,
+            "heat_risk": 0,
+            "path_cost": 0.386121489762445,
+            "source_p": 0.48484848484848486,
+            "detector_p": 3.6363636363636362,
+            "other_p": 92.23030303030302,
+            "ice_box_p": 0.0,
+            "component_power": {
+                "source": 32,
+                "detector": 240.0,
+                "other": 6087.199999999999,
+                "ice_box": 0
+            }
+        },
+        "nobypass_result": {
+            "success_rate": 1.0,
+            "avg_power": 96.35151515151514,
+            "spec_occ": 0.0380952380952381,
+            "total_wls": 16,
+            "heat_risk": 0,
+            "path_cost": 1.327693529432704,
+            "source_p": 0.48484848484848486,
+            "detector_p": 3.6363636363636362,
+            "other_p": 92.23030303030303,
+            "ice_box_p": 0.0,
+            "component_power": {
+                "source": 32,
+                "detector": 240.0,
+                "other": 6087.2,
+                "ice_box": 0
+            }
+        },
+        "status": "max_gens_reached"
     }
 ]

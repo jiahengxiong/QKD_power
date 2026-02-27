@@ -24,7 +24,7 @@ except Exception as e:
     raise
 
 # 定义测试用例
-TOPOLOGIES = ["Paris", "Tokyo", "Large"]
+TOPOLOGIES = ["Tokyo"]
 
 # 9种组合 (Protocol, Detector, Traffic)
 CONFIGS = [
