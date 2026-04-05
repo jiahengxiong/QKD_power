@@ -71,7 +71,7 @@ def worker_initializer(map_name, protocol, detector, traffic_mid, wavelength_lis
         
         # 3. 初始化模型 (CPU)
         _WORKER_MODEL = QKDGraphNet(
-            num_global_features=6 + 2 * _WORKER_ENV.num_nodes,
+            num_global_features=8 + 2 * _WORKER_ENV.num_nodes,
             num_wl_features=5,
             num_wavelengths=len(wavelength_list),
             actual_nodes=_WORKER_ENV.num_nodes,
@@ -197,7 +197,7 @@ class OpenAIESOptimizer:
             wavelength_list=self.wavelength_list, request_list=self.request_list, is_bypass=bypass
         )
         self.model = QKDGraphNet(
-            num_global_features=6 + 2 * self.env.num_nodes, num_wl_features=5, num_wavelengths=len(self.wavelength_list),
+            num_global_features=8 + 2 * self.env.num_nodes, num_wl_features=5, num_wavelengths=len(self.wavelength_list),
             actual_nodes=self.env.num_nodes, is_bypass=bypass, hidden_dim=self.hidden_dim
         ).to(device)
         
@@ -429,7 +429,7 @@ class CMAESOptimizer:
         )
         
         self.model = QKDGraphNet(
-            num_global_features=6 + 2 * self.env.num_nodes,
+            num_global_features=8 + 2 * self.env.num_nodes,
             num_wl_features=5,
             num_wavelengths=len(self.wavelength_list),
             actual_nodes=self.env.num_nodes,
