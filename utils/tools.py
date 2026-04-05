@@ -945,9 +945,9 @@ def extract_feature_matrices_from_graph(auxiliary_graph, node_to_idx, num_nodes,
     """
     修复版 V5：完全自适应图内归一化 (Instance Normalization)
     不再依赖硬编码的 max_stats。对每个 Feature Channel 进行 Z-Score 归一化。
-    [新增] topology: 物理拓扑，用于填入 Channel 5 的物理距离
+    [新增] topology: 物理拓扑，用于填入 Channel 3 的物理距离
     """
-    num_global_feats = 8 + 2 * num_nodes
+    num_global_feats = 6 + 2 * num_nodes
     num_wl_feats = 5     # 新增 LD Bypass Count, WL Distance
     num_wavelengths = len(wavelength_list)
     
@@ -963,14 +963,14 @@ def extract_feature_matrices_from_graph(auxiliary_graph, node_to_idx, num_nodes,
     # 记录哪些位置有边 (Mask)
     edge_mask = np.zeros((num_nodes, num_nodes), dtype=bool)
     
-    # [新增] 填入 Channel 4: 物理拓扑距离 (原 Ch 5)
+    # [新增] 填入 Channel 3: 物理拓扑距离
     if topology is not None:
         for u, v, data in topology.edges(data=True):
             if u in node_to_idx and v in node_to_idx:
                 u_i, v_i = node_to_idx[u], node_to_idx[v]
                 dist = data.get('distance', 0)
-                global_tensor[4, u_i, v_i] = dist
-                global_tensor[4, v_i, u_i] = dist 
+                global_tensor[3, u_i, v_i] = dist
+                global_tensor[3, v_i, u_i] = dist 
     
     # 辅助：去重
     min_power_map = np.full((num_nodes, num_nodes), 1e9, dtype=np.float32)
@@ -981,7 +981,7 @@ def extract_feature_matrices_from_graph(auxiliary_graph, node_to_idx, num_nodes,
     u_list, v_list = [], []
     
     # Global Features Buffers
-    dist_list, occ_list, nwls_list, fridge_list, hops_list, computer_list = [], [], [], [], [], []
+    dist_list, occ_list, nwls_list, hops_list = [], [], [], []
     
     # Wavelength Features Buffers: [List for ch0, List for ch1, ...]
     # 每个波长通道的数据需要单独维护，或者维护一个大列表 [(wl_idx, feature_val), ...]
@@ -1013,7 +1013,6 @@ def extract_feature_matrices_from_graph(auxiliary_graph, node_to_idx, num_nodes,
             dist_list.append(data.get('distance', 0))
             occ_list.append(rf.get('f_occ', 0))
             nwls_list.append(rf.get('num_wls', 0))
-            fridge_list.append(rf.get('num_new_fridges', 0) * 3000.0)
             path_hops = len(data.get('path', [])) - 1
             hops_list.append(float(max(0, path_hops)))
             
@@ -1036,7 +1035,7 @@ def extract_feature_matrices_from_graph(auxiliary_graph, node_to_idx, num_nodes,
     min_power_map.fill(1e9)
     edge_mask.fill(False)
     u_list, v_list = [], []
-    dist_list, occ_list, nwls_list, fridge_list, hops_list, computer_list = [], [], [], [], [], []
+    dist_list, occ_list, nwls_list, hops_list = [], [], [], []
     comp_node_cols = []
     fridge_node_cols = []
     
@@ -1078,8 +1077,6 @@ def extract_feature_matrices_from_graph(auxiliary_graph, node_to_idx, num_nodes,
                 if n in node_to_idx:
                     fridge_vec[node_to_idx[n]] = float(p)
             fridge_node_cols.append(fridge_vec)
-            computer_list.append(float(comp_vec.sum()))
-            fridge_list.append(float(fridge_vec.sum()))
             
             # 2. Wavelength Features Collection
             wls = data.get('wavelength_list', [])
@@ -1111,19 +1108,17 @@ def extract_feature_matrices_from_graph(auxiliary_graph, node_to_idx, num_nodes,
         global_tensor[0, u_list, v_list] = dist_list
         global_tensor[1, u_list, v_list] = occ_list
         global_tensor[2, u_list, v_list] = nwls_list
-        global_tensor[3, u_list, v_list] = fridge_list
-        global_tensor[5, u_list, v_list] = hops_list
-        global_tensor[7, u_list, v_list] = computer_list
+        global_tensor[4, u_list, v_list] = hops_list
         if comp_node_cols:
             comp_mat = np.stack(comp_node_cols, axis=0)  # [L, N]
             comp_mat = comp_mat.transpose(1, 0)          # [N, L]
             for j in range(num_nodes):
-                global_tensor[8 + j, u_list, v_list] = comp_mat[j]
+                global_tensor[6 + j, u_list, v_list] = comp_mat[j]
         if fridge_node_cols:
             fridge_mat = np.stack(fridge_node_cols, axis=0)  # [L, N]
             fridge_mat = fridge_mat.transpose(1, 0)          # [N, L]
             for j in range(num_nodes):
-                global_tensor[8 + num_nodes + j, u_list, v_list] = fridge_mat[j]
+                global_tensor[6 + num_nodes + j, u_list, v_list] = fridge_mat[j]
         
         # Wavelength Features Assignment
         for w_idx in range(num_wavelengths):
@@ -1145,7 +1140,7 @@ def extract_feature_matrices_from_graph(auxiliary_graph, node_to_idx, num_nodes,
     # [Modification]: 移除所有归一化/Log处理。
     # Raw Data In, Norm Data Out. 所有的数值变换都交给 Neural Network 的输入层处理。
     if remain_request_matrix is not None:
-        global_tensor[6] = remain_request_matrix
+        global_tensor[5] = remain_request_matrix
     
     return global_tensor, wl_tensor
 
