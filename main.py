@@ -184,6 +184,12 @@ def serve_traffic(G, AG, path_edge_list, request_traffic, pbar, served_request):
                     # 初始化容量
                     G.nodes[laser_postion]['laser_capacity'][wavelength][cover_links_tuple] = calculate_keyrate(
                         laser_detector_position={'laser': laser_postion, 'detector': detector_postion}, path=path, G=G)
+                    if G.nodes[laser_postion]['computer'] is False:
+                        actual_power['other'] += 150
+                        G.nodes[laser_postion]['computer'] = True
+                    if G.nodes[detector_postion]['computer'] is False:
+                        actual_power['other'] += 150
+                        G.nodes[detector_postion]['computer'] = True
 
                     # --- 冰箱功耗计算 (仅在新建硬件时增加检测器计数) ---
                     if detector_type == 'SNSPD':

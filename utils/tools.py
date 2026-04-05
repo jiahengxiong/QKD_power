@@ -318,11 +318,12 @@ def calculate_keyrate(laser_detector_position, path, G):
 
 
 def calculate_power(laser_detector_position, path, G):
-    component_power = {'source': 0, 'detector':0, 'other':0, 'ice_box':0, 'total':0}
+    component_power = {'source': 0, 'detector':0, 'other':0, 'ice_box':0, 'total':0, 'computer':0}
     if config.detector == 'SNSPD':
         ice_box_power = 3000
     else:
         ice_box_power = 0
+    computer_power = 150
     laser_position = laser_detector_position['laser']
     detector_position = laser_detector_position['detector']
     if laser_position is not None and detector_position is not None:
@@ -330,8 +331,14 @@ def calculate_power(laser_detector_position, path, G):
         power = compute_power(distance=distance, protocol=config.protocol, receiver=config.detector)
         component_power['source'] = power['source']
         component_power['detector'] = power['detector']
-        component_power['other'] = power['other']
-        total_power = power['total']
+        component_power['other'] = power['other'] - 2 * computer_power
+        total_power = power['total'] - 2 * computer_power
+        # if G.nodes[laser_position]['computer'] is False:
+        #     total_power = total_power + computer_power
+        #     component_power['computer'] = component_power['computer'] + computer_power
+        # if G.nodes[detector_position]['computer'] is False:
+        #     total_power = total_power + computer_power
+        #     component_power['other'] = component_power['other'] + computer_power
         num_detector = G.nodes[detector_position]['num_detector']
         if num_detector % config.ice_box_capacity == 0:
             total_power = ice_box_power + total_power
@@ -406,7 +413,8 @@ def calculate_data_auxiliary_edge(G, path, wavelength_combination, wavelength_ca
     # === 获取全局配置 === 
     detector_type = getattr(config, 'detector', 'SNSPD') 
     ice_box_capacity = getattr(config, 'ice_box_capacity', 8) 
-    unit_cooling_power = getattr(config, 'unit_cooling_power', 3000) 
+    unit_cooling_power = getattr(config, 'unit_cooling_power', 3000)
+    single_computer_power =  150
 
     for wavelength_laser_detector in wavelength_laser_detector_list: 
         actual_needed_wls = [] 
@@ -447,6 +455,8 @@ def calculate_data_auxiliary_edge(G, path, wavelength_combination, wavelength_ca
             wavelength_power_info = {}
             wavelength_bypass_info = {} # 新增：记录每个波长的 LD Bypass 数量
             wavelength_dist_info = {}   # 新增：记录每个波长的物理距离
+            # 新增：本条候选边需要新安装 computer 的节点集合（去重）
+            nodes_need_computer = set()
 
             # 遍历实际需要的波长
             for idx, wavelength in enumerate(actual_needed_wls): 
@@ -464,6 +474,17 @@ def calculate_data_auxiliary_edge(G, path, wavelength_combination, wavelength_ca
                     bypass_cnt = max(0, path.index(det_pos) - path.index(laser_pos) - 1)
                     # 计算该波长覆盖的物理距离
                     wl_dist = calculate_distance(G=topology, path=path, start=laser_pos, end=det_pos)
+                    # 计算本节点是否需要新增 computer（一个节点只需一个，所有请求共享）
+                    try:
+                        if not G.nodes[laser_pos].get('computer', False):
+                            nodes_need_computer.add(laser_pos)
+                    except Exception:
+                        nodes_need_computer.add(laser_pos)
+                    try:
+                        if not G.nodes[det_pos].get('computer', False):
+                            nodes_need_computer.add(det_pos)
+                    except Exception:
+                        nodes_need_computer.add(det_pos)
                 
                 wavelength_dist_info[wavelength] = wl_dist
                 
@@ -506,18 +527,28 @@ def calculate_data_auxiliary_edge(G, path, wavelength_combination, wavelength_ca
                                 delta_spectrum += 1 
                                 break 
             
+            # 在所有波长统计完成后，统一计入本条候选边新增的 computer 功耗
+            computer_power = single_computer_power * len(nodes_need_computer) if nodes_need_computer else 0
+            computer_node_power_map = {}
+            for n in nodes_need_computer:
+                computer_node_power_map[n] = single_computer_power
+            
             # === 3. 冰箱阶跃计算 === 
             marginal_fridges = 0 
+            fridge_node_power_map = {}
             if detector_type == 'SNSPD': 
                 for node, new_count in node_new_detectors_count.items(): 
                     current_num = topology.nodes[node].get('num_detector', 0) if node in topology.nodes else 0 
                     fridges_before = math.ceil(current_num / ice_box_capacity) 
                     total_num_after = current_num + new_count 
                     fridges_after = math.ceil(total_num_after / ice_box_capacity) 
-                    marginal_fridges += max(0, fridges_after - fridges_before)
+                    delta_fridge = max(0, fridges_after - fridges_before)
+                    marginal_fridges += delta_fridge
+                    if delta_fridge > 0:
+                        fridge_node_power_map[node] = delta_fridge * unit_cooling_power
             
             ice_box_power = marginal_fridges * unit_cooling_power
-            total_power_base = source_power + detector_power + other_power 
+            total_power_base = source_power + detector_power + other_power + computer_power
             eps = 1e-12 
 
             # === 4. 提取原始特征 (Raw Features) ===
@@ -572,7 +603,11 @@ def calculate_data_auxiliary_edge(G, path, wavelength_combination, wavelength_ca
                 'source_power': source_power, 
                 'detector_power': detector_power, 
                 'other_power': other_power, 
+                'computer_power': computer_power,
+                'computer_nodes': sorted(list(nodes_need_computer)),
                 'ice_box_power': ice_box_power, 
+                'computer_node_power_map': computer_node_power_map,
+                'fridge_node_power_map': fridge_node_power_map,
                 'path': path, 
                 'laser_detector_position': {wl: wavelength_laser_detector[wl] for wl in actual_needed_wls}, 
                 'wavelength_traffic': actual_wavelength_traffic_limitation, 
@@ -912,7 +947,7 @@ def extract_feature_matrices_from_graph(auxiliary_graph, node_to_idx, num_nodes,
     不再依赖硬编码的 max_stats。对每个 Feature Channel 进行 Z-Score 归一化。
     [新增] topology: 物理拓扑，用于填入 Channel 5 的物理距离
     """
-    num_global_feats = 7 # 移除 Bypass Count (冗余)，保留 Path Hops
+    num_global_feats = 8 + 2 * num_nodes
     num_wl_feats = 5     # 新增 LD Bypass Count, WL Distance
     num_wavelengths = len(wavelength_list)
     
@@ -946,7 +981,7 @@ def extract_feature_matrices_from_graph(auxiliary_graph, node_to_idx, num_nodes,
     u_list, v_list = [], []
     
     # Global Features Buffers
-    dist_list, occ_list, nwls_list, fridge_list, hops_list = [], [], [], [], []
+    dist_list, occ_list, nwls_list, fridge_list, hops_list, computer_list = [], [], [], [], [], []
     
     # Wavelength Features Buffers: [List for ch0, List for ch1, ...]
     # 每个波长通道的数据需要单独维护，或者维护一个大列表 [(wl_idx, feature_val), ...]
@@ -1002,6 +1037,8 @@ def extract_feature_matrices_from_graph(auxiliary_graph, node_to_idx, num_nodes,
     edge_mask.fill(False)
     u_list, v_list = [], []
     dist_list, occ_list, nwls_list, fridge_list, hops_list = [], [], [], [], []
+    comp_node_cols = []
+    fridge_node_cols = []
     
     # 针对 WL 特征，我们使用 list of lists: feats[wl_idx][channel_idx] -> list of values
     # 并记录对应的 u, v
@@ -1030,6 +1067,19 @@ def extract_feature_matrices_from_graph(auxiliary_graph, node_to_idx, num_nodes,
             nwls_list.append(rf.get('num_wls', 0))
             fridge_list.append(rf.get('num_new_fridges', 0) * 3000.0)
             hops_list.append(float(max(0, len(data.get('path', [])) - 1)))
+            computer_list.append(data.get('computer_power', 0))
+            comp_vec = np.zeros((num_nodes,), dtype=np.float32)
+            comp_map = data.get('computer_node_power_map', {}) or {}
+            for n, p in comp_map.items():
+                if n in node_to_idx:
+                    comp_vec[node_to_idx[n]] = float(p)
+            comp_node_cols.append(comp_vec)
+            fridge_vec = np.zeros((num_nodes,), dtype=np.float32)
+            fridge_map = data.get('fridge_node_power_map', {}) or {}
+            for n, p in fridge_map.items():
+                if n in node_to_idx:
+                    fridge_vec[node_to_idx[n]] = float(p)
+            fridge_node_cols.append(fridge_vec)
             
             # 2. Wavelength Features Collection
             wls = data.get('wavelength_list', [])
@@ -1063,6 +1113,17 @@ def extract_feature_matrices_from_graph(auxiliary_graph, node_to_idx, num_nodes,
         global_tensor[2, u_list, v_list] = nwls_list
         global_tensor[3, u_list, v_list] = fridge_list
         global_tensor[5, u_list, v_list] = hops_list
+        global_tensor[7, u_list, v_list] = computer_list
+        if comp_node_cols:
+            comp_mat = np.stack(comp_node_cols, axis=0)  # [L, N]
+            comp_mat = comp_mat.transpose(1, 0)          # [N, L]
+            for j in range(num_nodes):
+                global_tensor[8 + j, u_list, v_list] = comp_mat[j]
+        if fridge_node_cols:
+            fridge_mat = np.stack(fridge_node_cols, axis=0)  # [L, N]
+            fridge_mat = fridge_mat.transpose(1, 0)          # [N, L]
+            for j in range(num_nodes):
+                global_tensor[8 + num_nodes + j, u_list, v_list] = fridge_mat[j]
         
         # Wavelength Features Assignment
         for w_idx in range(num_wavelengths):

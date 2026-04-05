@@ -125,9 +125,11 @@ class QKDEnv(gym.Env):
     def _get_obs(self):
         if self.current_req_idx >= len(self.requests):
             # 返回空状态，匹配新的双流结构
-            # Global: [7, N, N], Wavelength: [50, N, N]
-            empty_global = np.zeros((7, self.num_nodes, self.num_nodes), dtype=np.float32)
-            empty_wl = np.zeros((50, self.num_nodes, self.num_nodes), dtype=np.float32)
+            # Global: [8 + 2N, N, N], Wavelength: [5*|λ|, N, N]
+            num_global_ch = 8 + 2 * self.num_nodes
+            num_wl_ch = 5 * len(self.wavelength_list)
+            empty_global = np.zeros((num_global_ch, self.num_nodes, self.num_nodes), dtype=np.float32)
+            empty_wl = np.zeros((num_wl_ch, self.num_nodes, self.num_nodes), dtype=np.float32)
             return (empty_global, empty_wl), np.zeros(4)
             
         req = self.requests[self.current_req_idx]

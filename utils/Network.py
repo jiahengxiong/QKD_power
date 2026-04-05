@@ -186,6 +186,7 @@ class Network:
                 G.nodes[node]['laser_capacity'] = {}
                 G.nodes[node]['ice_box'] = 0
                 G.nodes[node]['num_detector'] = 0
+                G.nodes[node]['computer'] = False
                 for wavelength in self.wavelength_list:
                     G.nodes[node]['laser'][wavelength] = []
                     G.nodes[node]['laser_capacity'][wavelength] = {}
@@ -238,6 +239,7 @@ class Network:
                 G.nodes[node]['laser_capacity'] = {}
                 G.nodes[node]['ice_box'] = 0
                 G.nodes[node]['num_detector'] = 0
+                G.nodes[node]['computer'] = False
                 for wavelength in self.wavelength_list:
                     G.nodes[node]['laser'][wavelength] = []
                     G.nodes[node]['laser_capacity'][wavelength] = {}
@@ -280,6 +282,7 @@ class Network:
                 G.nodes[node]['laser_capacity'] = {}
                 G.nodes[node]['ice_box'] = 0
                 G.nodes[node]['num_detector'] = 0
+                G.nodes[node]['computer'] = False
                 for wavelength in self.wavelength_list:
                     G.nodes[node]['laser'][wavelength] = []
                     G.nodes[node]['laser_capacity'][wavelength] = {}
@@ -326,6 +329,7 @@ class Network:
                 G.nodes[node]['laser_capacity'] = {}
                 G.nodes[node]['ice_box'] = 0
                 G.nodes[node]['num_detector'] = 0
+                G.nodes[node]['computer'] = False
                 for wavelength in self.wavelength_list:
                     G.nodes[node]['laser'][wavelength] = []
                     G.nodes[node]['laser_capacity'][wavelength] = {}
@@ -397,6 +401,7 @@ class Network:
                 G.nodes[node]['laser_capacity'] = {}
                 G.nodes[node]['ice_box'] = 0
                 G.nodes[node]['num_detector'] = 0
+                G.nodes[node]['computer'] = False
                 for wavelength in self.wavelength_list:
                     G.nodes[node]['laser'][wavelength] = []
                     G.nodes[node]['laser_capacity'][wavelength] = {}
