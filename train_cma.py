@@ -216,7 +216,7 @@ class OpenAIESOptimizer:
         # 状态记录
         self.best_fitness_found = float('inf')
         self.best_pure_power_found = float('inf')
-        self.prev_best_fitness = float('inf') # [Adaptive Sigma] 记录上一代的最佳
+        self.restart_best_fitness = float('inf')
         self.best_metrics = {}
         self.generation = 0
         self.current_center_params = None
@@ -331,23 +331,18 @@ class OpenAIESOptimizer:
         # 8. [Adaptive Sigma] 动态调整噪声幅度
         current_best_fit = fitnesses[min_idx]
         
-        if self.prev_best_fitness == float('inf'):
-            # 第一代，跳过调整，保持初始 Sigma
-            pass
-        elif current_best_fit < self.prev_best_fitness:
-            # 进步了 -> 根据进步幅度自适应收敛
-            # 进步越大，收敛越快 (Sigma *= ratio)
-            ratio = current_best_fit / (self.prev_best_fitness + 1e-8)
-            # 保护性 Clip，防止 ratio 异常
-            ratio = np.clip(ratio, 0.5, 0.99) 
+        if self.restart_best_fitness == float('inf'):
+            self.restart_best_fitness = current_best_fit
+        elif current_best_fit < self.restart_best_fitness:
+            ratio = current_best_fit / (self.restart_best_fitness + 1e-8)
+            ratio = np.clip(ratio, 0.5, 0.99)
             self.sigma *= ratio
+            self.restart_best_fitness = current_best_fit
         else:
-            # 停滞 -> 膨胀
             self.sigma *= 1.02
             
         # [Sigma Clip] 限制最大噪声幅度 (0.10 - 0.25)
         self.sigma = np.clip(self.sigma, 0.1, 0.25)
-        self.prev_best_fitness = self.best_fitness_found # 更新历史最佳基准
         
         # [Restart Mechanism] 如果 Sigma 长期顶在上限 (0.25)，说明陷入深坑，强制重启
         if self.sigma >= 0.248:
@@ -358,15 +353,15 @@ class OpenAIESOptimizer:
         if self.stagnation_counter >= 10:
             print(f"⚠️ [{self.generation}] Stagnation detected! Restarting with large perturbation...")
             
-            # 1. 参数大跳跃 (Jump)
-            current_params = self.get_flat_params()
-            # 扰动幅度 0.5 (对于权重来说已经很大了)
-            perturbation = np.random.randn(self.total_params) * 0.5
-            self.set_flat_params(current_params + perturbation)
+            for m in self.model.modules():
+                reset = getattr(m, "reset_parameters", None)
+                if callable(reset):
+                    reset()
             
             # 2. 重置状态
             self.sigma = 0.15
             self.stagnation_counter = 0
+            self.restart_best_fitness = float('inf')
             # 重置 Adam 动量 (保留 Weight Decay 设置)
             self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr, weight_decay=0.001)
             
