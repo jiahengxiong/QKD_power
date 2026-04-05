@@ -1036,7 +1036,7 @@ def extract_feature_matrices_from_graph(auxiliary_graph, node_to_idx, num_nodes,
     min_power_map.fill(1e9)
     edge_mask.fill(False)
     u_list, v_list = [], []
-    dist_list, occ_list, nwls_list, fridge_list, hops_list = [], [], [], [], []
+    dist_list, occ_list, nwls_list, fridge_list, hops_list, computer_list = [], [], [], [], [], []
     comp_node_cols = []
     fridge_node_cols = []
     
@@ -1065,9 +1065,7 @@ def extract_feature_matrices_from_graph(auxiliary_graph, node_to_idx, num_nodes,
             dist_list.append(data.get('distance', 0))
             occ_list.append(rf.get('f_occ', 0))
             nwls_list.append(rf.get('num_wls', 0))
-            fridge_list.append(rf.get('num_new_fridges', 0) * 3000.0)
             hops_list.append(float(max(0, len(data.get('path', [])) - 1)))
-            computer_list.append(data.get('computer_power', 0))
             comp_vec = np.zeros((num_nodes,), dtype=np.float32)
             comp_map = data.get('computer_node_power_map', {}) or {}
             for n, p in comp_map.items():
@@ -1080,6 +1078,8 @@ def extract_feature_matrices_from_graph(auxiliary_graph, node_to_idx, num_nodes,
                 if n in node_to_idx:
                     fridge_vec[node_to_idx[n]] = float(p)
             fridge_node_cols.append(fridge_vec)
+            computer_list.append(float(comp_vec.sum()))
+            fridge_list.append(float(fridge_vec.sum()))
             
             # 2. Wavelength Features Collection
             wls = data.get('wavelength_list', [])
