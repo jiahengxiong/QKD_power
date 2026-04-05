@@ -947,7 +947,7 @@ def extract_feature_matrices_from_graph(auxiliary_graph, node_to_idx, num_nodes,
     不再依赖硬编码的 max_stats。对每个 Feature Channel 进行 Z-Score 归一化。
     [新增] topology: 物理拓扑，用于填入 Channel 5 的物理距离
     """
-    num_global_feats = 8 + 2 * num_nodes
+    num_global_feats = 6 + 2 * num_nodes
     num_wl_feats = 5     # 新增 LD Bypass Count, WL Distance
     num_wavelengths = len(wavelength_list)
     
@@ -963,80 +963,25 @@ def extract_feature_matrices_from_graph(auxiliary_graph, node_to_idx, num_nodes,
     # 记录哪些位置有边 (Mask)
     edge_mask = np.zeros((num_nodes, num_nodes), dtype=bool)
     
-    # [新增] 填入 Channel 4: 物理拓扑距离 (原 Ch 5)
+    # [新增] 填入 Channel 3: 物理拓扑距离
     if topology is not None:
         for u, v, data in topology.edges(data=True):
             if u in node_to_idx and v in node_to_idx:
                 u_i, v_i = node_to_idx[u], node_to_idx[v]
                 dist = data.get('distance', 0)
-                global_tensor[4, u_i, v_i] = dist
-                global_tensor[4, v_i, u_i] = dist 
+                global_tensor[3, u_i, v_i] = dist
+                global_tensor[3, v_i, u_i] = dist 
     
     # 辅助：去重
     min_power_map = np.full((num_nodes, num_nodes), 1e9, dtype=np.float32)
     wl_to_idx = {wl: i for i, wl in enumerate(wavelength_list)}
     
     # --- 第一步：批量收集特征 (Batch Collection) ---
-    # 使用列表收集数据，最后一次性填入 Tensor，比逐个填入 Tensor 快得多
-    u_list, v_list = [], []
-    
-    # Global Features Buffers
-    dist_list, occ_list, nwls_list, fridge_list, hops_list, computer_list = [], [], [], [], [], []
-    
-    # Wavelength Features Buffers: [List for ch0, List for ch1, ...]
-    # 每个波长通道的数据需要单独维护，或者维护一个大列表 [(wl_idx, feature_val), ...]
-    # 这里为了性能，我们维护 dict: {wl_idx: {'p': [], 'c': [], 'w': [], 'b': [], 'd': [], 'u': [], 'v': []}}
-    wl_data_map = {} 
-    
-    for u, v, data in auxiliary_graph.edges(data=True):
-        if u not in node_to_idx or v not in node_to_idx: continue
-        u_idx, v_idx = node_to_idx[u], node_to_idx[v]
-        
-        # [Strict Mode] 严格校验数据完整性
-        rf = data.get('raw_features')
-        if rf is None:
-            raise KeyError(f"Edge {u}->{v} missing 'raw_features'")
-            
-        current_p = data.get('power', 0)
-        
-        # 仅当当前边是该节点对间功耗最低的边时，才记录 Global 特征
-        # 注意：Global 特征是 per-link 的，而不是 per-edge (multi-graph)
-        # 所以这里其实是在做一次 Min-Pooling
-        if current_p < min_power_map[u_idx, v_idx]:
-            min_power_map[u_idx, v_idx] = current_p
-            edge_mask[u_idx, v_idx] = True
-            
-            u_list.append(u_idx)
-            v_list.append(v_idx)
-            
-            # 收集 Global Features
-            dist_list.append(data.get('distance', 0))
-            occ_list.append(rf.get('f_occ', 0))
-            nwls_list.append(rf.get('num_wls', 0))
-            fridge_list.append(rf.get('num_new_fridges', 0) * 3000.0)
-            path_hops = len(data.get('path', [])) - 1
-            hops_list.append(float(max(0, path_hops)))
-            
-        # 收集 Wavelength Features (对每一条边都收集，不只是最小功耗边)
-        # 实际上 GNN 通常也只关注最优边，或者聚合所有边。
-        # 原逻辑是：只要 power < min_power，就填入 global；
-        # 但 wl_tensor 是基于 u,v 索引的。
-        # 如果 u,v 之间有多条边（多重图），wl_tensor 会被覆盖。
-        # 原逻辑中：`wl_tensor[..., u, v] = ...` 也是在 if current_p < min_power 内部吗？
-        # 让我们回看原代码... 是的！原代码所有赋值都在 if 块内。
-        # 所以 wl features 也只取功耗最低的那条边的。
-        
-        if current_p <= min_power_map[u_idx, v_idx]: # 注意这里用 <= 或者是上面的 < 已经更新了 min_power
-            # 由于上面更新了 min_power，这里需要判断是否就是刚才更新的那条
-            # 简单起见，我们把 wl 收集也放在上面的 if 块里
-            pass
-
-    # --- 重新组织循环以匹配原逻辑 ---
     # 重新初始化
     min_power_map.fill(1e9)
     edge_mask.fill(False)
     u_list, v_list = [], []
-    dist_list, occ_list, nwls_list, fridge_list, hops_list = [], [], [], [], []
+    dist_list, occ_list, nwls_list, hops_list = [], [], [], []
     comp_node_cols = []
     fridge_node_cols = []
     
@@ -1065,9 +1010,7 @@ def extract_feature_matrices_from_graph(auxiliary_graph, node_to_idx, num_nodes,
             dist_list.append(data.get('distance', 0))
             occ_list.append(rf.get('f_occ', 0))
             nwls_list.append(rf.get('num_wls', 0))
-            fridge_list.append(rf.get('num_new_fridges', 0) * 3000.0)
             hops_list.append(float(max(0, len(data.get('path', [])) - 1)))
-            computer_list.append(data.get('computer_power', 0))
             comp_vec = np.zeros((num_nodes,), dtype=np.float32)
             comp_map = data.get('computer_node_power_map', {}) or {}
             for n, p in comp_map.items():
@@ -1111,19 +1054,17 @@ def extract_feature_matrices_from_graph(auxiliary_graph, node_to_idx, num_nodes,
         global_tensor[0, u_list, v_list] = dist_list
         global_tensor[1, u_list, v_list] = occ_list
         global_tensor[2, u_list, v_list] = nwls_list
-        global_tensor[3, u_list, v_list] = fridge_list
-        global_tensor[5, u_list, v_list] = hops_list
-        global_tensor[7, u_list, v_list] = computer_list
+        global_tensor[4, u_list, v_list] = hops_list
         if comp_node_cols:
             comp_mat = np.stack(comp_node_cols, axis=0)  # [L, N]
             comp_mat = comp_mat.transpose(1, 0)          # [N, L]
             for j in range(num_nodes):
-                global_tensor[8 + j, u_list, v_list] = comp_mat[j]
+                global_tensor[6 + j, u_list, v_list] = comp_mat[j]
         if fridge_node_cols:
             fridge_mat = np.stack(fridge_node_cols, axis=0)  # [L, N]
             fridge_mat = fridge_mat.transpose(1, 0)          # [N, L]
             for j in range(num_nodes):
-                global_tensor[8 + num_nodes + j, u_list, v_list] = fridge_mat[j]
+                global_tensor[6 + num_nodes + j, u_list, v_list] = fridge_mat[j]
         
         # Wavelength Features Assignment
         for w_idx in range(num_wavelengths):
@@ -1145,7 +1086,7 @@ def extract_feature_matrices_from_graph(auxiliary_graph, node_to_idx, num_nodes,
     # [Modification]: 移除所有归一化/Log处理。
     # Raw Data In, Norm Data Out. 所有的数值变换都交给 Neural Network 的输入层处理。
     if remain_request_matrix is not None:
-        global_tensor[6] = remain_request_matrix
+        global_tensor[5] = remain_request_matrix
     
     return global_tensor, wl_tensor
 

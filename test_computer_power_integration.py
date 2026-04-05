@@ -10,7 +10,7 @@ from utils.tools import extract_feature_matrices_from_graph, calculate_data_auxi
 from rl_models import QKDGraphNet
 
 def test_computer_power_integration():
-    """Test that computer_power is correctly extracted and used by GNN"""
+    """Test that per-node power planes are correctly extracted and used by GNN"""
     
     print("=== Testing Computer Power Integration ===")
     
@@ -25,16 +25,15 @@ def test_computer_power_integration():
     # Create auxiliary graph with computer_power data
     auxiliary_graph = nx.MultiDiGraph()
     
-    # Add some test edges with computer_power information
+    # Add some test edges with per-node power plane information
     test_data = {
         'distance': 100.0,
         'power': 500.0,
         'source_power': 200.0,
         'detector_power': 150.0,
         'other_power': 100.0,
-        'computer_power': 150.0,  # This is what we want to test
-        'computer_nodes': [0, 1],  # Nodes using computer power
-        'ice_box_power': 0.0,
+        'computer_node_power_map': {0: 150.0, 1: 150.0},
+        'fridge_node_power_map': {},
         'path': [0, 1, 2],
         'wavelength_list': ['wl1'],
         'wavelength_power_info': {'wl1': {'source': 200.0, 'detector': 150.0, 'other': 100.0}},
@@ -75,29 +74,25 @@ def test_computer_power_integration():
     print(f"   Global tensor shape: {global_tensor.shape}")
     print(f"   Wavelength tensor shape: {wl_tensor.shape}")
     
-    # Check if computer_power is in channel 7
-    computer_power_channel = global_tensor[7]  # Channel 7 is computer_power
-    print(f"   Computer power channel (7) values:")
-    print(f"   Edge (0,1): {computer_power_channel[0, 1]}")
-    print(f"   Edge (1,2): {computer_power_channel[1, 2]}")
+    comp_base = 6
+    comp_ch_0 = global_tensor[comp_base + 0]
+    comp_ch_1 = global_tensor[comp_base + 1]
+    print(f"   Computer node-plane channels values:")
+    print(f"   Ch(node0) Edge (0,1): {comp_ch_0[0, 1]}")
+    print(f"   Ch(node1) Edge (0,1): {comp_ch_1[0, 1]}")
     
     # Verify values
     expected_computer_power = 150.0
-    if abs(computer_power_channel[0, 1] - expected_computer_power) < 1e-6:
-        print("   ✓ Computer power correctly extracted for edge (0,1)")
+    if abs(comp_ch_0[0, 1] - expected_computer_power) < 1e-6 and abs(comp_ch_1[0, 1] - expected_computer_power) < 1e-6:
+        print("   ✓ Computer per-node power correctly extracted for edge (0,1)")
     else:
-        print(f"   ✗ Computer power mismatch for edge (0,1): expected {expected_computer_power}, got {computer_power_channel[0, 1]}")
-    
-    if abs(computer_power_channel[1, 2] - expected_computer_power) < 1e-6:
-        print("   ✓ Computer power correctly extracted for edge (1,2)")
-    else:
-        print(f"   ✗ Computer power mismatch for edge (1,2): expected {expected_computer_power}, got {computer_power_channel[1, 2]}")
+        print(f"   ✗ Computer per-node power mismatch for edge (0,1): expected {expected_computer_power}, got ({comp_ch_0[0, 1]}, {comp_ch_1[0, 1]})")
     
     print("\n2. Testing GNN processing...")
     
     # Test with GNN model
     model = QKDGraphNet(
-        num_global_features=8 + 2 * num_nodes,
+        num_global_features=6 + 2 * num_nodes,
         num_wl_features=5,
         num_wavelengths=1,
         actual_nodes=3,
@@ -140,17 +135,17 @@ def test_computer_power_integration():
     
     print("\n3. Testing with different computer_power values...")
     
-    # Test with different computer power values
+    # Test with different per-node computer power maps
     test_cases = [
-        {'computer_power': 0.0, 'computer_nodes': []},
-        {'computer_power': 150.0, 'computer_nodes': [0]},
-        {'computer_power': 300.0, 'computer_nodes': [0, 1]},
+        {'computer_node_power_map': {}, 'expected': (0.0, 0.0)},
+        {'computer_node_power_map': {0: 150.0}, 'expected': (150.0, 0.0)},
+        {'computer_node_power_map': {0: 150.0, 1: 150.0}, 'expected': (150.0, 150.0)},
     ]
     
     for i, test_case in enumerate(test_cases):
         # Update test data
         test_data_copy = test_data.copy()
-        test_data_copy.update(test_case)
+        test_data_copy['computer_node_power_map'] = test_case['computer_node_power_map']
         
         # Create new auxiliary graph
         aux_graph_test = nx.MultiDiGraph()
@@ -161,13 +156,14 @@ def test_computer_power_integration():
             aux_graph_test, node_to_idx, num_nodes, wavelength_list, topology=G
         )
         
-        computer_power_val = global_test[7, 0, 1]
-        expected_val = test_case['computer_power']
+        v0 = global_test[comp_base + 0, 0, 1]
+        v1 = global_test[comp_base + 1, 0, 1]
+        expected_v0, expected_v1 = test_case['expected']
         
-        if abs(computer_power_val - expected_val) < 1e-6:
-            print(f"   ✓ Test case {i+1}: computer_power={expected_val} correctly extracted")
+        if abs(v0 - expected_v0) < 1e-6 and abs(v1 - expected_v1) < 1e-6:
+            print(f"   ✓ Test case {i+1}: per-node computer power correctly extracted")
         else:
-            print(f"   ✗ Test case {i+1}: expected {expected_val}, got {computer_power_val}")
+            print(f"   ✗ Test case {i+1}: expected ({expected_v0}, {expected_v1}), got ({v0}, {v1})")
     
     print("\n=== All tests completed ===")
     return True

@@ -10,7 +10,7 @@ from utils.tools import extract_feature_matrices_from_graph, calculate_data_auxi
 from rl_models import QKDGraphNet
 
 def test_computer_power_feature():
-    """Test that computer_power is correctly extracted and used by GNN"""
+    """Test that per-node computer power plane is correctly extracted and used by GNN"""
     
     # Create a simple test graph
     G = nx.MultiDiGraph()
@@ -18,11 +18,11 @@ def test_computer_power_feature():
     G.add_node('B', computer=False) 
     G.add_node('C', computer=True)  # This node has a computer
     
-    # Add some edges with computer_power data
+    # Add some edges with per-node power plane data
     G.add_edge('A', 'B', 
                power=1000,
-               computer_power=150,  # 150W for computer
-               computer_nodes=['A'],  # Node A needs computer
+               computer_node_power_map={'A': 150.0},
+               fridge_node_power_map={},
                raw_features={
                    'f_occ': 0.5,
                    'num_wls': 2,
@@ -39,8 +39,8 @@ def test_computer_power_feature():
     
     G.add_edge('B', 'C',
                power=800,
-               computer_power=0,  # No computer needed (C already has one)
-               computer_nodes=[],   # No nodes need computer
+               computer_node_power_map={},
+               fridge_node_power_map={},
                raw_features={
                    'f_occ': 0.3,
                    'num_wls': 1,
@@ -59,7 +59,7 @@ def test_computer_power_feature():
     node_to_idx = {'A': 0, 'B': 1, 'C': 2}
     wavelength_list = [1, 2]
     
-    print("Testing computer_power feature extraction...")
+    print("Testing per-node computer power plane extraction...")
     
     # Extract features
     global_tensor, wl_tensor = extract_feature_matrices_from_graph(
@@ -68,19 +68,18 @@ def test_computer_power_feature():
     
     print(f"Global tensor shape: {global_tensor.shape}")
     
-    # Check if computer_power channel (channel 7) has the correct values
-    computer_power_channel = global_tensor[7]  # Channel 7 is computer_power
-    print(f"\nComputer power channel (channel 7):")
-    print(computer_power_channel)
+    comp_base = 6
+    comp_plane_A = global_tensor[comp_base + node_to_idx['A']]
+    print(f"\nComputer node-plane channel (node A):")
+    print(comp_plane_A)
     
-    # Check specific edges
-    print(f"\nEdge A->B computer_power: {computer_power_channel[0, 1]}")
-    print(f"Edge B->C computer_power: {computer_power_channel[1, 2]}")
+    print(f"\nEdge A->B node(A) computer_add_power: {comp_plane_A[0, 1]}")
+    print(f"Edge B->C node(A) computer_add_power: {comp_plane_A[1, 2]}")
     
     # Test GNN model
-    print("\nTesting GNN model with computer_power feature...")
+    print("\nTesting GNN model with per-node power plane feature...")
     model = QKDGraphNet(
-        num_global_features=8 + 2 * 3,
+        num_global_features=6 + 2 * 3,
         num_wl_features=5,
         num_wavelengths=2,
         actual_nodes=3,
@@ -101,8 +100,8 @@ def test_computer_power_feature():
     print(f"Expected shape: (1, 3, 3)")  # Batch size 1, 3x3 adjacency matrix
     
     print("\n✅ Test completed successfully!")
-    print("- Computer power feature is correctly extracted as channel 7")
-    print("- GNN model processes the 8-channel global features correctly")
+    print("- Per-node computer power plane feature is correctly extracted")
+    print("- GNN model processes the global features correctly")
     print("- Feature extraction preserves vectorization for performance")
 
 if __name__ == "__main__":

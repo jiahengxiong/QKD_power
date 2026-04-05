@@ -36,11 +36,13 @@ class QKDGraphNet(nn.Module):
     保留空间结构，引入 Request Mask 和 瓶颈感知 (Max Pooling)。
     参数量极低，但信息流无损。
     """
-    def __init__(self, num_global_features=8, num_wl_features=5, num_wavelengths=10, actual_nodes=12, is_bypass=True, hidden_dim=8):
+    def __init__(self, num_global_features=None, num_wl_features=5, num_wavelengths=10, actual_nodes=12, is_bypass=True, hidden_dim=8):
         super(QKDGraphNet, self).__init__()
         self.num_nodes = actual_nodes
         self.is_bypass = is_bypass
         self.hidden_dim = hidden_dim
+        if num_global_features is None:
+            num_global_features = 6 + 2 * actual_nodes
         
         # === 1. 特征预处理 ===
         # 使用 GroupNorm(1, C) 代替 InstanceNorm
@@ -167,7 +169,7 @@ class PolicyGradientAgent:
         self.device = device
         self.is_bypass = is_bypass
         if num_global_features is None:
-            num_global_features = 8 + 2 * num_nodes
+            num_global_features = 6 + 2 * num_nodes
         
         # 初始化双流 GNN 模型
         self.model = QKDGraphNet(
