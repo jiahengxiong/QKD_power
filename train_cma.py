@@ -97,13 +97,17 @@ def evaluate_worker(args):
     """
     并行评估 Worker。直接复用全局变量。
     Args:
-        args: tuple (vector, is_bypass)
+        args: tuple (vector, is_bypass, eval_seed)
     """
     global _WORKER_ENV, _WORKER_MODEL
     
     # [Robustness] 增加更全面的异常捕获，防止 Worker 崩溃
     try:
-        vector, is_bypass = args
+        vector, is_bypass, eval_seed = args
+        if eval_seed is not None:
+            random.seed(int(eval_seed))
+            np.random.seed(int(eval_seed))
+            torch.manual_seed(int(eval_seed))
         
         # 1. 动态更新配置 (防止状态污染)
         _WORKER_ENV.is_bypass = is_bypass
@@ -209,6 +213,13 @@ class OpenAIESOptimizer:
         # 2. ES 参数
         self.pop_size = 128 # [Tuning] 增大种群以增强探索
         self.sigma = 0.15   # [Tuning] 增大初始噪声 (0.1 -> 0.15)
+        self.sigma_min = 0.1
+        self.sigma_max = 0.25
+        self.target_success_rate = 0.2
+        self.sigma_adapt_rate = 0.1
+        self.restart_sigma = 0.15
+        self.restart_patience = 30
+        self.eval_seed_base = 424242
         self.lr = 0.02      # 学习率 (Adam)
         # [Optimization] 减小 Weight Decay (0.005 -> 0.001)
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr, weight_decay=0.001)
@@ -216,11 +227,12 @@ class OpenAIESOptimizer:
         # 状态记录
         self.best_fitness_found = float('inf')
         self.best_pure_power_found = float('inf')
-        self.restart_best_fitness = float('inf')
+        self.best_solution_vector = self.get_flat_params()
         self.best_metrics = {}
         self.generation = 0
         self.current_center_params = None
-        self.stagnation_counter = 0 # [Restart] 停滞计数器
+        self.best_stagnation_counter = 0
+        self.best_fitness_at_last_improvement = float('inf')
         
         # 尝试热启动
         model_path = os.path.join("models", self.model_filename)
@@ -228,6 +240,7 @@ class OpenAIESOptimizer:
             try:
                 self.model.load_state_dict(torch.load(model_path))
                 print(f"📂 [{bypass}] Loaded warm start model: {self.model_filename}")
+                self.best_solution_vector = self.get_flat_params()
             except: pass
             
         # 日志
@@ -263,14 +276,17 @@ class OpenAIESOptimizer:
             eval_params.append(center_params - self.sigma * noise[i])
             
         # 3. 并行评估
-        args_list = [(x, self.bypass) for x in eval_params]
+        eval_seed = self.eval_seed_base + self.generation
+        full_eval_params = [center_params] + eval_params
+        args_list = [(x, self.bypass, eval_seed) for x in full_eval_params]
         start_time = time.time()
         
         fitnesses = []
         infos = []
         try:
             results = list(self.executor.map(evaluate_worker, args_list))
-            for fit, info in results:
+            f_center, _ = results[0]
+            for fit, info in results[1:]:
                 fitnesses.append(fit)
                 infos.append(info)
         except Exception as e:
@@ -286,6 +302,7 @@ class OpenAIESOptimizer:
             self.best_fitness_found = fitnesses[min_idx]
             self.best_pure_power_found = infos[min_idx].get('avg_power', float('inf'))
             self.best_metrics = infos[min_idx]
+            self.best_solution_vector = eval_params[min_idx].copy()
             self.save_model(eval_params[min_idx])
             
         # 5. 梯度估计 (Rank Transformation)
@@ -328,41 +345,29 @@ class OpenAIESOptimizer:
             #self.log_file.write(log_str + "\n")
             #self.log_file.flush()
             
-        # 8. [Adaptive Sigma] 动态调整噪声幅度
-        current_best_fit = fitnesses[min_idx]
+        # 8. [Adaptive Sigma] 基于 Center + Antithetic Pair Success Rate 的步长自适应
+        successes = 0
+        for i in range(half_pop):
+            if min(fitnesses[2 * i], fitnesses[2 * i + 1]) < f_center:
+                successes += 1
+        success_rate = successes / float(half_pop)
+        self.sigma *= float(np.exp(self.sigma_adapt_rate * (success_rate - self.target_success_rate)))
+        self.sigma = float(np.clip(self.sigma, self.sigma_min, self.sigma_max))
         
-        if self.restart_best_fitness == float('inf'):
-            self.restart_best_fitness = current_best_fit
-        elif current_best_fit < self.restart_best_fitness:
-            ratio = current_best_fit / (self.restart_best_fitness + 1e-8)
-            ratio = np.clip(ratio, 0.5, 0.99)
-            self.sigma *= ratio
-            self.restart_best_fitness = current_best_fit
+        # 9. [Restart Mechanism] 仅基于全局 best 的长期停滞触发；重启回到 best
+        tol = 1e-12
+        if self.best_fitness_found < self.best_fitness_at_last_improvement - tol:
+            self.best_fitness_at_last_improvement = self.best_fitness_found
+            self.best_stagnation_counter = 0
         else:
-            self.sigma *= 1.02
-            
-        # [Sigma Clip] 限制最大噪声幅度 (0.10 - 0.25)
-        self.sigma = np.clip(self.sigma, 0.1, 0.25)
+            self.best_stagnation_counter += 1
         
-        # [Restart Mechanism] 如果 Sigma 长期顶在上限 (0.25)，说明陷入深坑，强制重启
-        if self.sigma >= 0.248:
-            self.stagnation_counter += 1
-        else:
-            self.stagnation_counter = 0
-            
-        if self.stagnation_counter >= 10:
-            print(f"⚠️ [{self.generation}] Stagnation detected! Restarting with large perturbation...")
-            
-            for m in self.model.modules():
-                reset = getattr(m, "reset_parameters", None)
-                if callable(reset):
-                    reset()
-            
-            # 2. 重置状态
-            self.sigma = 0.15
-            self.stagnation_counter = 0
-            self.restart_best_fitness = float('inf')
-            # 重置 Adam 动量 (保留 Weight Decay 设置)
+        if self.best_stagnation_counter >= self.restart_patience:
+            print(f"⚠️ [{self.generation}] Stagnation detected (best not improved). Restarting from best...")
+            if self.best_solution_vector is not None:
+                self.set_flat_params(self.best_solution_vector)
+            self.sigma = self.restart_sigma
+            self.best_stagnation_counter = 0
             self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr, weight_decay=0.001)
             
         self.generation += 1
@@ -756,8 +761,8 @@ def run_experiment(map_name, protocol, detector, traffic_mid):
         opt_bypass = OpenAIESOptimizer(global_request_list, shared_executor, bypass=True, map_name=map_name, traffic_mid=traffic_mid, protocol=protocol, detector=detector, device=device)
         opt_nobypass = OpenAIESOptimizer(global_request_list, shared_executor, bypass=False, map_name=map_name, traffic_mid=traffic_mid, protocol=protocol, detector=detector, device=device)
         
-        phase1_gens = 50
-        phase2_gens = 100 
+        phase1_gens = 100
+        phase2_gens = 250 
         
         # Phase 1
         print(f"\n=== Phase 1: Pre-training NoBypass ({phase1_gens} gens) ===")
@@ -776,12 +781,12 @@ def run_experiment(map_name, protocol, detector, traffic_mid):
         print(f"\n=== Phase 2: Transferring Knowledge & Training Bypass ===")
         opt_bypass.load_from_optimizer(opt_nobypass)
         
-        max_it = 300
+        # max_it = 300
         total_gens = phase1_gens + phase2_gens
         
         final_status = "max_gens_reached"
         
-        for gen in range(phase1_gens + 1, max_it + 1):
+        for gen in range(phase1_gens + 1, total_gens + 1):
             if not opt_bypass.step(): break
             
             report = {
