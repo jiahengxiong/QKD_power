@@ -36,6 +36,51 @@ from concurrent.futures import ProcessPoolExecutor
 _WORKER_ENV = None
 _WORKER_MODEL = None
 
+def deprioritize_other_python_processes(exclude_pids, nice_value=19):
+    try:
+        proc_root = "/proc"
+        if not os.path.isdir(proc_root):
+            return 0
+        if not hasattr(os, "setpriority"):
+            return 0
+        uid = os.getuid()
+        exclude_pids = {int(p) for p in exclude_pids if p is not None}
+        changed = 0
+        for name in os.listdir(proc_root):
+            if not name.isdigit():
+                continue
+            pid = int(name)
+            if pid in exclude_pids:
+                continue
+            status_path = os.path.join(proc_root, name, "status")
+            comm_path = os.path.join(proc_root, name, "comm")
+            try:
+                with open(comm_path, "r") as f:
+                    comm = f.read().strip()
+                if comm not in {"python", "python3"} and not comm.startswith("python"):
+                    continue
+                proc_uid = None
+                with open(status_path, "r") as f:
+                    for line in f:
+                        if line.startswith("Uid:"):
+                            parts = line.split()
+                            if len(parts) >= 2:
+                                proc_uid = int(parts[1])
+                            break
+                if proc_uid != uid:
+                    continue
+                os.setpriority(os.PRIO_PROCESS, pid, int(nice_value))
+                changed += 1
+            except (FileNotFoundError, ProcessLookupError):
+                continue
+            except PermissionError:
+                continue
+            except Exception:
+                continue
+        return changed
+    except Exception:
+        return 0
+
 def worker_initializer(map_name, protocol, detector, traffic_mid, wavelength_list, request_list, hidden_dim):
     """
     Worker 进程初始化函数。只在进程启动时执行一次。
@@ -724,6 +769,17 @@ def run_experiment(map_name, protocol, detector, traffic_mid):
             initargs=initargs,
             maxtasksperchild=8
         )
+        try:
+            exclude_pids = {os.getpid()}
+            for p in getattr(pool, "_pool", []):
+                pid = getattr(p, "pid", None)
+                if pid:
+                    exclude_pids.add(int(pid))
+            changed = deprioritize_other_python_processes(exclude_pids=exclude_pids, nice_value=19)
+            if changed:
+                print(f"🧹 Deprioritized {changed} other python processes (nice=19).")
+        except Exception:
+            pass
         
         # 封装 Pool 为 Executor 接口
         class PoolExecutor:
