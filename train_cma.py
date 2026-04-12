@@ -261,7 +261,8 @@ class OpenAIESOptimizer:
         self.sigma_min = 0.1
         self.sigma_max = 0.25
         self.target_success_rate = 0.2
-        self.sigma_adapt_rate = 0.1
+        self.sigma_adapt_rate_up = 0.05
+        self.sigma_adapt_rate_down = 0.15
         self.restart_sigma = 0.15
         self.restart_patience = 30
         self.eval_seed_base = 424242
@@ -396,10 +397,9 @@ class OpenAIESOptimizer:
             if min(fitnesses[2 * i], fitnesses[2 * i + 1]) < f_center:
                 successes += 1
         success_rate = successes / float(half_pop)
-        if success_rate > self.target_success_rate:
-            self.sigma *= 0.99
-        elif success_rate < self.target_success_rate:
-            self.sigma *= 1.01
+        delta = float(success_rate - self.target_success_rate)
+        adapt_rate = self.sigma_adapt_rate_up if delta < 0.0 else self.sigma_adapt_rate_down
+        self.sigma *= float(np.exp(adapt_rate * delta))
         self.sigma = float(np.clip(self.sigma, self.sigma_min, self.sigma_max))
         
         # 9. [Restart Mechanism] 仅基于全局 best 的长期停滞触发；重启回到 best
