@@ -260,9 +260,7 @@ class OpenAIESOptimizer:
         self.sigma = 0.15   # [Tuning] 增大初始噪声 (0.1 -> 0.15)
         self.sigma_min = 0.1
         self.sigma_max = 0.25
-        self.sigma_mid = 0.15
-        self.sigma_pull_strength = 0.02
-        self.target_success_rate = 0.2
+        self.target_success_rate = 0.34
         self.sigma_adapt_rate_up = 0.05
         self.sigma_adapt_rate_down = 0.15
         self.restart_sigma = 0.15
@@ -396,15 +394,12 @@ class OpenAIESOptimizer:
         # 8. [Adaptive Sigma] 基于 Center + Antithetic Pair Success Rate 的步长自适应
         successes = 0
         for i in range(half_pop):
-            if 0.5 * (fitnesses[2 * i] + fitnesses[2 * i + 1]) < f_center:
+            if min(fitnesses[2 * i], fitnesses[2 * i + 1]) < f_center:
                 successes += 1
         success_rate = successes / float(half_pop)
         delta = float(success_rate - self.target_success_rate)
         adapt_rate = self.sigma_adapt_rate_up if delta < 0.0 else self.sigma_adapt_rate_down
         self.sigma *= float(np.exp(-adapt_rate * delta))
-        sigma_safe = max(float(self.sigma), 1e-12)
-        sigma_mid = max(float(self.sigma_mid), 1e-12)
-        self.sigma *= float(np.exp(-float(self.sigma_pull_strength) * (np.log(sigma_safe) - np.log(sigma_mid))))
         self.sigma = float(np.clip(self.sigma, self.sigma_min, self.sigma_max))
         
         # 9. [Restart Mechanism] 仅基于全局 best 的长期停滞触发；重启回到 best
