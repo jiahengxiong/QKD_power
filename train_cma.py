@@ -394,7 +394,7 @@ class OpenAIESOptimizer:
         # 8. [Adaptive Sigma] 基于 Center + Antithetic Pair Success Rate 的步长自适应
         successes = 0
         for i in range(half_pop):
-            if min(fitnesses[2 * i], fitnesses[2 * i + 1]) < f_center:
+            if 0.5 * (fitnesses[2 * i] + fitnesses[2 * i + 1]) < f_center:
                 successes += 1
         success_rate = successes / float(half_pop)
         delta = float(success_rate - self.target_success_rate)
