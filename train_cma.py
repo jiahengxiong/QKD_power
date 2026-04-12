@@ -818,12 +818,17 @@ def run_experiment(map_name, protocol, detector, traffic_mid):
         opt_nobypass = OpenAIESOptimizer(global_request_list, shared_executor, bypass=False, map_name=map_name, traffic_mid=traffic_mid, protocol=protocol, detector=detector, device=device)
         
         phase1_gens = 100
-        phase2_gens = 250 
+        max_gens = 300
+        compare_interval = 10
         
-        # Phase 1
-        print(f"\n=== Phase 1: Pre-training NoBypass ({phase1_gens} gens) ===")
+        final_status = "max_gens_reached"
+        
+        # Phase 1: NoBypass 先跑 100 代
+        print(f"\n=== Phase 1A: Pre-training NoBypass ({phase1_gens} gens) ===")
         for gen in range(1, phase1_gens + 1):
-            if not opt_nobypass.step(): break
+            if not opt_nobypass.step():
+                final_status = "nobypass_step_failed"
+                break
             
             report = {
                 "generation": gen,
@@ -833,42 +838,65 @@ def run_experiment(map_name, protocol, detector, traffic_mid):
             }
             with open(json_filename, "w") as f: json.dump(report, f, indent=4)
         
-        # Phase 2
-        print(f"\n=== Phase 2: Transferring Knowledge & Training Bypass ===")
-        opt_bypass.load_from_optimizer(opt_nobypass)
+        # Phase 1: Bypass 再跑 100 代
+        if final_status == "max_gens_reached":
+            print(f"\n=== Phase 1B: Pre-training Bypass ({phase1_gens} gens) ===")
+            for gen in range(1, phase1_gens + 1):
+                if not opt_bypass.step():
+                    final_status = "bypass_step_failed"
+                    break
+                
+                report = {
+                    "generation": gen,
+                    "bypass": opt_bypass.get_best_result(),
+                    "nobypass": opt_nobypass.get_best_result(),
+                    "status": "phase1_bypass"
+                }
+                with open(json_filename, "w") as f: json.dump(report, f, indent=4)
         
-        # max_it = 300
-        total_gens = phase1_gens + phase2_gens
-        
-        final_status = "max_gens_reached"
-        
-        for gen in range(phase1_gens + 1, total_gens + 1):
-            if not opt_bypass.step(): break
-            
-            report = {
-                "generation": gen,
-                "bypass": opt_bypass.get_best_result(),
-                "nobypass": opt_nobypass.get_best_result(),
-                "status": "phase2_bypass"
-            }
-            with open(json_filename, "w") as f: json.dump(report, f, indent=4)
-            
-            # 比较逻辑
-            p_bypass = opt_bypass.best_pure_power_found
-            p_nobypass = opt_nobypass.best_pure_power_found
-            s_bypass = opt_bypass.best_metrics.get('spec_occ', 0.0)
-            s_nobypass = opt_nobypass.best_metrics.get('spec_occ', 0.0)
-
-            # 停止条件判断
-            if p_bypass < float('inf') and p_nobypass < float('inf'):
-                power_win = p_bypass < p_nobypass
-                spec_tradeoff = s_bypass > s_nobypass
-                if gen > total_gens:
+        # Phase 2: 两边继续跑，每 10 代比较一次，最多到 300 代
+        if final_status == "max_gens_reached":
+            print(f"\n=== Phase 2: Joint Training & Compare Every {compare_interval} Gens (Max {max_gens}) ===")
+            current_gen = phase1_gens
+            while current_gen < max_gens:
+                block_end = min(current_gen + compare_interval, max_gens)
+                
+                for _ in range(current_gen + 1, block_end + 1):
+                    if not opt_nobypass.step():
+                        final_status = "nobypass_step_failed"
+                        break
+                if final_status != "max_gens_reached":
+                    break
+                
+                for _ in range(current_gen + 1, block_end + 1):
+                    if not opt_bypass.step():
+                        final_status = "bypass_step_failed"
+                        break
+                if final_status != "max_gens_reached":
+                    break
+                
+                current_gen = block_end
+                
+                report = {
+                    "generation": current_gen,
+                    "bypass": opt_bypass.get_best_result(),
+                    "nobypass": opt_nobypass.get_best_result(),
+                    "status": "phase2_joint_compare"
+                }
+                with open(json_filename, "w") as f: json.dump(report, f, indent=4)
+                
+                p_bypass = opt_bypass.best_pure_power_found
+                p_nobypass = opt_nobypass.best_pure_power_found
+                
+                if p_bypass < float('inf') and p_nobypass < float('inf'):
+                    s_bypass = opt_bypass.best_metrics['spec_occ']
+                    s_nobypass = opt_nobypass.best_metrics['spec_occ']
+                    power_win = p_bypass < p_nobypass
+                    spec_tradeoff = s_bypass > s_nobypass
                     if power_win and spec_tradeoff:
                         print(f"✅ Bypass Wins with Trade-off! Stopping.")
                         final_status = "bypass_wins_tradeoff"
                         break
-                    # 其他情况继续跑
         
         # 获取最终结果
         result = {
