@@ -265,7 +265,7 @@ class OpenAIESOptimizer:
         self.log_sigma_mid = float(np.log(self.sigma_mid))
         self.log_sigma = float(np.log(self.sigma))
         self.sr_smooth = None
-        self.sigma_k = 0.5
+        self.sigma_k = 0.2
         self.sigma_c = 0.05
         self.restart_sigma = 0.15
         self.restart_patience = 30
