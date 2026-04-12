@@ -399,7 +399,7 @@ class OpenAIESOptimizer:
         success_rate = successes / float(half_pop)
         delta = float(success_rate - self.target_success_rate)
         adapt_rate = self.sigma_adapt_rate_up if delta < 0.0 else self.sigma_adapt_rate_down
-        self.sigma *= float(np.exp(adapt_rate * delta))
+        self.sigma *= float(np.exp(-adapt_rate * delta))
         self.sigma = float(np.clip(self.sigma, self.sigma_min, self.sigma_max))
         
         # 9. [Restart Mechanism] 仅基于全局 best 的长期停滞触发；重启回到 best
