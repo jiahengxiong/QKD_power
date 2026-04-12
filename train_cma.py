@@ -280,6 +280,7 @@ class OpenAIESOptimizer:
         self.best_stagnation_counter = 0
         self.best_fitness_at_last_improvement = float('inf')
         self.sr_smooth = self.target_success_rate # 初始化平滑值为 target
+        self.restart_best_fitness_found = float('inf')
         
         # 尝试热启动
         model_path = os.path.join("models", self.model_filename)
@@ -345,6 +346,10 @@ class OpenAIESOptimizer:
         
         # 4. 记录最佳结果
         min_idx = np.argmin(fitnesses)
+        current_best_fit = float(fitnesses[min_idx])
+        record_improved = current_best_fit < self.restart_best_fitness_found
+        if record_improved:
+            self.restart_best_fitness_found = current_best_fit
         if fitnesses[min_idx] < self.best_fitness_found:
             self.best_fitness_found = fitnesses[min_idx]
             self.best_pure_power_found = infos[min_idx].get('avg_power', float('inf'))
@@ -385,6 +390,8 @@ class OpenAIESOptimizer:
             if min(fitnesses[2 * i], fitnesses[2 * i + 1]) < f_center:
                 successes += 1
         success_rate = successes / float(half_pop)
+        if record_improved:
+            success_rate = min(self.target_success_rate + success_rate, 2.0 * self.target_success_rate)
         
         # 7. 日志
         if self.generation % 1 == 0:
@@ -420,6 +427,8 @@ class OpenAIESOptimizer:
             self.sigma = self.restart_sigma
             self.best_stagnation_counter = 0
             self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr, weight_decay=0.001)
+            self.restart_best_fitness_found = float('inf')
+            self.sr_smooth = self.target_success_rate
             
         self.generation += 1
         return True
@@ -444,6 +453,14 @@ class OpenAIESOptimizer:
         
         # 重置 Adam (带 Weight Decay)
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr, weight_decay=0.005)
+        self.best_fitness_found = float('inf')
+        self.best_pure_power_found = float('inf')
+        self.best_metrics = {}
+        self.best_stagnation_counter = 0
+        self.best_fitness_at_last_improvement = float('inf')
+        self.restart_best_fitness_found = float('inf')
+        self.sr_smooth = self.target_success_rate
+        self.best_solution_vector = self.get_flat_params()
         print(f"✅ Transfer complete. Adam reset.")
 
     def close(self):
@@ -846,6 +863,7 @@ def run_experiment(map_name, protocol, detector, traffic_mid):
         
         # Phase 1: Bypass 再跑 100 代
         if final_status == "max_gens_reached":
+            opt_bypass.load_from_optimizer(opt_nobypass)
             print(f"\n=== Phase 1B: Pre-training Bypass ({phase1_gens} gens) ===")
             for gen in range(1, phase1_gens + 1):
                 if not opt_bypass.step():
