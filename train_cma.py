@@ -259,14 +259,9 @@ class OpenAIESOptimizer:
         self.pop_size = 128 # [Tuning] 增大种群以增强探索
         self.sigma = 0.15   # [Tuning] 增大初始噪声 (0.1 -> 0.15)
         self.sigma_min = 0.1
-        self.sigma_max = 0.3
+        self.sigma_max = 0.25
         self.target_success_rate = 0.2
-        self.sigma_mid = 0.15
-        self.log_sigma_mid = float(np.log(self.sigma_mid))
-        self.log_sigma = float(np.log(self.sigma))
-        self.sr_smooth = None
-        self.sigma_k = 0.2
-        self.sigma_c = 0.05
+        self.sigma_adapt_rate = 0.1
         self.restart_sigma = 0.15
         self.restart_patience = 30
         self.eval_seed_base = 424242
@@ -401,15 +396,11 @@ class OpenAIESOptimizer:
             if min(fitnesses[2 * i], fitnesses[2 * i + 1]) < f_center:
                 successes += 1
         success_rate = successes / float(half_pop)
-        if self.sr_smooth is None:
-            self.sr_smooth = float(success_rate)
-        else:
-            self.sr_smooth = 0.9 * float(self.sr_smooth) + 0.1 * float(success_rate)
-        delta = float(self.sr_smooth) - float(self.target_success_rate)
-        self.log_sigma = float(self.log_sigma) + float(self.sigma_k) * delta - float(self.sigma_c) * (float(self.log_sigma) - float(self.log_sigma_mid))
-        self.sigma = float(np.exp(self.log_sigma))
+        if success_rate > self.target_success_rate:
+            self.sigma *= 0.99
+        elif success_rate < self.target_success_rate:
+            self.sigma *= 1.01
         self.sigma = float(np.clip(self.sigma, self.sigma_min, self.sigma_max))
-        self.log_sigma = float(np.log(self.sigma))
         
         # 9. [Restart Mechanism] 仅基于全局 best 的长期停滞触发；重启回到 best
         tol = 1e-12
@@ -424,8 +415,6 @@ class OpenAIESOptimizer:
             if self.best_solution_vector is not None:
                 self.set_flat_params(self.best_solution_vector)
             self.sigma = self.restart_sigma
-            self.log_sigma = float(np.log(self.sigma))
-            self.sr_smooth = None
             self.best_stagnation_counter = 0
             self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr, weight_decay=0.001)
             
