@@ -279,6 +279,7 @@ class OpenAIESOptimizer:
         self.current_center_params = None
         self.best_stagnation_counter = 0
         self.best_fitness_at_last_improvement = float('inf')
+        self.sr_smooth = self.target_success_rate # 初始化平滑值为 target
         
         # 尝试热启动
         model_path = os.path.join("models", self.model_filename)
@@ -398,7 +399,8 @@ class OpenAIESOptimizer:
             #self.log_file.flush()
             
         # 8. [Adaptive Sigma] 基于 Center + Antithetic Pair Success Rate 的步长自适应
-        delta = float(success_rate - self.target_success_rate)
+        self.sr_smooth = 0.9 * self.sr_smooth + 0.1 * success_rate
+        delta = float(self.sr_smooth - self.target_success_rate)
         adapt_rate = self.sigma_adapt_rate_up if delta < 0.0 else self.sigma_adapt_rate_down
         self.sigma *= float(np.exp(-adapt_rate * delta))
         self.sigma = float(np.clip(self.sigma, self.sigma_min, self.sigma_max))
