@@ -260,7 +260,7 @@ class OpenAIESOptimizer:
         self.sigma = 0.15   # [Tuning] 增大初始噪声 (0.1 -> 0.15)
         self.sigma_min = 0.1
         self.sigma_max = 0.25
-        self.target_success_rate = 0.35
+        self.target_success_rate = 0.34
         self.sigma_adapt_rate_up = 0.06
         self.sigma_adapt_rate_down = 0.08
         self.restart_sigma = 0.15
