@@ -259,9 +259,14 @@ class OpenAIESOptimizer:
         self.pop_size = 128 # [Tuning] 增大种群以增强探索
         self.sigma = 0.15   # [Tuning] 增大初始噪声 (0.1 -> 0.15)
         self.sigma_min = 0.1
-        self.sigma_max = 0.25
+        self.sigma_max = 0.3
         self.target_success_rate = 0.2
-        self.sigma_adapt_rate = 0.1
+        self.sigma_inc_rate = 0.05
+        self.sigma_dec_rate = 0.2
+        self.success_ema = None
+        self.success_ema_alpha = 0.2
+        self.restart_sigma_threshold_ratio = 0.8
+        self.restart_success_threshold_ratio = 0.5
         self.restart_sigma = 0.15
         self.restart_patience = 30
         self.eval_seed_base = 424242
@@ -390,16 +395,26 @@ class OpenAIESOptimizer:
             #self.log_file.write(log_str + "\n")
             #self.log_file.flush()
             
-        # 8. [Adaptive Sigma] 基于 Center + Antithetic Pair Success Rate 的步长自适应
+        # 8. [Adaptive Sigma] 基于 Center + Antithetic Pair Success Signal 的步长自适应
         successes = 0
         for i in range(half_pop):
             if min(fitnesses[2 * i], fitnesses[2 * i + 1]) < f_center:
                 successes += 1
         success_rate = successes / float(half_pop)
-        self.sigma *= float(np.exp(self.sigma_adapt_rate * (success_rate - self.target_success_rate)))
+        if self.success_ema is None:
+            self.success_ema = float(success_rate)
+        else:
+            a = float(self.success_ema_alpha)
+            self.success_ema = (1.0 - a) * float(self.success_ema) + a * float(success_rate)
+        success_signal = float(self.success_ema)
+        delta = success_signal - float(self.target_success_rate)
+        if delta > 0:
+            self.sigma *= float(np.exp(-self.sigma_dec_rate * delta))
+        else:
+            self.sigma *= float(np.exp(-self.sigma_inc_rate * delta))
         self.sigma = float(np.clip(self.sigma, self.sigma_min, self.sigma_max))
         
-        # 9. [Restart Mechanism] 仅基于全局 best 的长期停滞触发；重启回到 best
+        # 9. [Restart Mechanism] 基于 best 停滞 + 高 sigma + 弱 success signal 的联合判据；重启回到 best
         tol = 1e-12
         if self.best_fitness_found < self.best_fitness_at_last_improvement - tol:
             self.best_fitness_at_last_improvement = self.best_fitness_found
@@ -407,12 +422,19 @@ class OpenAIESOptimizer:
         else:
             self.best_stagnation_counter += 1
         
-        if self.best_stagnation_counter >= self.restart_patience:
+        restart_sigma_threshold = float(self.sigma_max) * float(self.restart_sigma_threshold_ratio)
+        restart_success_threshold = float(self.target_success_rate) * float(self.restart_success_threshold_ratio)
+        if (
+            self.best_stagnation_counter >= self.restart_patience
+            and float(self.sigma) >= restart_sigma_threshold
+            and success_signal <= restart_success_threshold
+        ):
             print(f"⚠️ [{self.generation}] Stagnation detected (best not improved). Restarting from best...")
             if self.best_solution_vector is not None:
                 self.set_flat_params(self.best_solution_vector)
             self.sigma = self.restart_sigma
             self.best_stagnation_counter = 0
+            self.success_ema = None
             self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr, weight_decay=0.001)
             
         self.generation += 1
