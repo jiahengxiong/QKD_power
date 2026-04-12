@@ -399,7 +399,7 @@ class OpenAIESOptimizer:
             #self.log_file.flush()
             
         # 8. [Adaptive Sigma] 基于 Center + Antithetic Pair Success Rate 的步长自适应
-        self.sr_smooth = 0.9 * self.sr_smooth + 0.1 * success_rate
+        self.sr_smooth = 0.7 * self.sr_smooth + 0.3 * success_rate
         delta = float(self.sr_smooth - self.target_success_rate)
         adapt_rate = self.sigma_adapt_rate_up if delta < 0.0 else self.sigma_adapt_rate_down
         self.sigma *= float(np.exp(-adapt_rate * delta))
