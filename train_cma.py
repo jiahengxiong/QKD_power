@@ -853,6 +853,27 @@ def run_experiment(map_name, protocol, detector, traffic_mid):
                     "status": "phase1_bypass"
                 }
                 with open(json_filename, "w") as f: json.dump(report, f, indent=4)
+
+        # Phase 1 Compare: 两边各自跑完 100 代后，先比较一次
+        if final_status == "max_gens_reached":
+            p_bypass = opt_bypass.best_pure_power_found
+            p_nobypass = opt_nobypass.best_pure_power_found
+            if p_bypass < float('inf') and p_nobypass < float('inf'):
+                s_bypass = opt_bypass.best_metrics['spec_occ']
+                s_nobypass = opt_nobypass.best_metrics['spec_occ']
+                power_win = p_bypass < p_nobypass
+                spec_tradeoff = s_bypass > s_nobypass
+                if power_win and spec_tradeoff:
+                    print(f"✅ Bypass Wins with Trade-off! Stopping.")
+                    final_status = "bypass_wins_tradeoff"
+
+            report = {
+                "generation": phase1_gens,
+                "bypass": opt_bypass.get_best_result(),
+                "nobypass": opt_nobypass.get_best_result(),
+                "status": "phase1_compare"
+            }
+            with open(json_filename, "w") as f: json.dump(report, f, indent=4)
         
         # Phase 2: 两边继续跑，每 10 代比较一次，最多到 300 代
         if final_status == "max_gens_reached":
@@ -862,15 +883,15 @@ def run_experiment(map_name, protocol, detector, traffic_mid):
                 block_end = min(current_gen + compare_interval, max_gens)
                 
                 for _ in range(current_gen + 1, block_end + 1):
-                    if not opt_nobypass.step():
-                        final_status = "nobypass_step_failed"
+                    if not opt_bypass.step():
+                        final_status = "bypass_step_failed"
                         break
                 if final_status != "max_gens_reached":
                     break
                 
                 for _ in range(current_gen + 1, block_end + 1):
-                    if not opt_bypass.step():
-                        final_status = "bypass_step_failed"
+                    if not opt_nobypass.step():
+                        final_status = "nobypass_step_failed"
                         break
                 if final_status != "max_gens_reached":
                     break
