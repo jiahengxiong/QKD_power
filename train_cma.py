@@ -379,6 +379,12 @@ class OpenAIESOptimizer:
             
         self.optimizer.step()
         
+        successes = 0
+        for i in range(half_pop):
+            if min(fitnesses[2 * i], fitnesses[2 * i + 1]) < f_center:
+                successes += 1
+        success_rate = successes / float(half_pop)
+        
         # 7. 日志
         if self.generation % 1 == 0:
             avg_power = infos[min_idx].get('avg_power', 0.0)
@@ -386,17 +392,12 @@ class OpenAIESOptimizer:
             fit_std = np.std(fitnesses) # 替换 Unique Count 为 Fitness Std
             
             log_str = (f"Gen {self.generation} (ES) | Pop: {self.pop_size} | Sigma: {self.sigma:.3f} | Time: {duration:.2f}s | "
-                       f"Cur: {avg_power:.2f}W (S:{spec_occ:.2%}) | Std: {fit_std:.2f} | Best: {self.best_pure_power_found:.2f}W")
+                       f"Cur: {avg_power:.2f}W (S:{spec_occ:.2%}) | SR:{success_rate:.2%} | Std: {fit_std:.2f} | Best: {self.best_pure_power_found:.2f}W")
             print(f"[{'Bypass' if self.bypass else 'NoBypass'}] {log_str}")
             #self.log_file.write(log_str + "\n")
             #self.log_file.flush()
             
         # 8. [Adaptive Sigma] 基于 Center + Antithetic Pair Success Rate 的步长自适应
-        successes = 0
-        for i in range(half_pop):
-            if min(fitnesses[2 * i], fitnesses[2 * i + 1]) < f_center:
-                successes += 1
-        success_rate = successes / float(half_pop)
         delta = float(success_rate - self.target_success_rate)
         adapt_rate = self.sigma_adapt_rate_up if delta < 0.0 else self.sigma_adapt_rate_down
         self.sigma *= float(np.exp(-adapt_rate * delta))
