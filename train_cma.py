@@ -261,8 +261,8 @@ class OpenAIESOptimizer:
         self.sigma_min = 0.1
         self.sigma_max = 0.25
         self.target_success_rate = 0.34
-        self.sigma_adapt_rate_up = 0.06
-        self.sigma_adapt_rate_down = 0.08
+        self.sigma_adapt_rate_up = 0.07
+        self.sigma_adapt_rate_down = 0.07
         self.restart_sigma = 0.15
         self.restart_patience = 30
         self.eval_seed_base = 424242
@@ -338,7 +338,9 @@ class OpenAIESOptimizer:
                 fitnesses.append(fit)
                 infos.append(info)
         except Exception as e:
-            print(f"❌ Parallel Error: {e}")
+            import traceback
+            print(f"❌ Parallel Error ({type(e).__name__}): {e!r}")
+            traceback.print_exc()
             return False
             
         duration = time.time() - start_time
@@ -391,7 +393,7 @@ class OpenAIESOptimizer:
                 successes += 1
         success_rate = successes / float(half_pop)
         if record_improved:
-            success_rate = min(self.target_success_rate + success_rate, 2.0 * self.target_success_rate)
+            success_rate = max(success_rate, self.target_success_rate)
         
         # 7. 日志
         if self.generation % 1 == 0:
@@ -668,7 +670,9 @@ class CMAESOptimizer:
                 self.log_file.flush()
                 
         except Exception as e:
-            print(f"❌ Parallel Execution Error: {e}")
+            import traceback
+            print(f"❌ Parallel Execution Error ({type(e).__name__}): {e!r}")
+            traceback.print_exc()
             return False
         
         self.es.tell(solutions, fitnesses)
