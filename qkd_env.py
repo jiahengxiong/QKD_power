@@ -30,6 +30,9 @@ class QKDEnv(gym.Env):
         self.network = Network(map_name=self.map_name, wavelength_list=self.wavelength_list, 
                                protocol=self.protocol, receiver=self.detector)
         self.num_nodes = len(self.network.topology.nodes())
+        self._base_topology = copy.deepcopy(self.network.topology)
+        self._base_physical_topology = self.network.physical_topology
+        self._aux_graph_template_cache = {}
         
         # === 预计算归一化统计量 ===
         max_dist = 0.0
@@ -97,10 +100,8 @@ class QKDEnv(gym.Env):
         config.bypass = self.is_bypass # 强制使用实例配置覆盖全局配置
         config.key_rate_list = {} 
         
-        self.network = Network(map_name=self.map_name, wavelength_list=self.wavelength_list, 
-                               protocol=self.protocol, receiver=self.detector)
-        self.topology = self.network.topology
-        self.physical_topology = self.network.physical_topology
+        self.topology = copy.deepcopy(self._base_topology)
+        self.physical_topology = self._base_physical_topology
         
         # Node mapping
         nodes = list(self.topology.nodes())
@@ -146,12 +147,27 @@ class QKDEnv(gym.Env):
         
         if diag:
             t0 = time.perf_counter()
-        self.current_aux_graph = build_auxiliary_graph_with_weights(
-            self.topology, self.wavelength_list, traffic, self.physical_topology, 
-            config.key_rate_list, self.served_request, len(self.requests) - self.current_req_idx,
-            dummy_weights, self.node_to_idx,
-            path_cache=self.path_cache, ld_pos_cache=self.ld_pos_cache
-        )
+        use_template = self.current_req_idx == 0 and len(self.served_request) == 0
+        if use_template:
+            template_key = (traffic, len(self.requests), self.is_bypass)
+            template = self._aux_graph_template_cache.get(template_key)
+            if template is not None:
+                self.current_aux_graph = template.copy()
+            else:
+                self.current_aux_graph = build_auxiliary_graph_with_weights(
+                    self.topology, self.wavelength_list, traffic, self.physical_topology, 
+                    config.key_rate_list, self.served_request, len(self.requests) - self.current_req_idx,
+                    dummy_weights, self.node_to_idx,
+                    path_cache=self.path_cache, ld_pos_cache=self.ld_pos_cache
+                )
+                self._aux_graph_template_cache[template_key] = self.current_aux_graph.copy()
+        else:
+            self.current_aux_graph = build_auxiliary_graph_with_weights(
+                self.topology, self.wavelength_list, traffic, self.physical_topology, 
+                config.key_rate_list, self.served_request, len(self.requests) - self.current_req_idx,
+                dummy_weights, self.node_to_idx,
+                path_cache=self.path_cache, ld_pos_cache=self.ld_pos_cache
+            )
         if diag:
             dt = time.perf_counter() - t0
             if dt >= slow_sec:
