@@ -784,7 +784,6 @@ def run_experiment(map_name, protocol, detector, traffic_mid):
     # [Performance Tuning] 线程数已限制为 1，现在可以全核跑了
     # num_workers = min(num_workers, 32) 
     max_tasks_per_child = 200
-    map_timeout_sec = 3600
     print(f"🚀 Launching multiprocessing.Pool with {num_workers} workers (Context: {mp_context}, MaxTasksPerChild={max_tasks_per_child})")
     
     # 这里的 if-else 是为了保留 SyncExecutor 作为一个 fallback 选项，但我们现在要切回并行
@@ -812,12 +811,10 @@ def run_experiment(map_name, protocol, detector, traffic_mid):
         
         # 封装 Pool 为 Executor 接口
         class PoolExecutor:
-            def __init__(self, pool, map_timeout_sec):
+            def __init__(self, pool):
                 self.pool = pool
-                self.map_timeout_sec = map_timeout_sec
             def map(self, func, iterable):
-                async_res = self.pool.map_async(func, iterable)
-                return async_res.get(timeout=self.map_timeout_sec)
+                return self.pool.map(func, iterable)
             def shutdown(self, wait=True):
                 self.pool.close()
                 if wait:
@@ -825,7 +822,7 @@ def run_experiment(map_name, protocol, detector, traffic_mid):
             def __enter__(self): return self
             def __exit__(self, exc_type, exc_val, exc_tb): self.shutdown()
             
-        executor_cm = PoolExecutor(pool, map_timeout_sec=map_timeout_sec)
+        executor_cm = PoolExecutor(pool)
     else:
         # Fake Executor for debugging
         class SyncExecutor:

@@ -5,6 +5,8 @@ import torch
 import copy
 import config
 import networkx as nx
+import os
+import time
 from utils.Network import Network
 from utils.tools import (
     clear_path_cache, 
@@ -134,16 +136,30 @@ class QKDEnv(gym.Env):
             
         req = self.requests[self.current_req_idx]
         traffic = req[3]
+        diag = os.environ.get("QKD_DIAG", "0") == "1"
+        slow_sec = float(os.environ.get("QKD_DIAG_SLOW_SEC", "5.0")) if diag else 0.0
+        if diag:
+            t_obs_start = time.perf_counter()
         
         # 1. 预先构建辅助图（不带权重），用于提取物理特征
         dummy_weights = np.zeros((self.num_nodes, self.num_nodes))
         
+        if diag:
+            t0 = time.perf_counter()
         self.current_aux_graph = build_auxiliary_graph_with_weights(
             self.topology, self.wavelength_list, traffic, self.physical_topology, 
             config.key_rate_list, self.served_request, len(self.requests) - self.current_req_idx,
             dummy_weights, self.node_to_idx,
             path_cache=self.path_cache, ld_pos_cache=self.ld_pos_cache
         )
+        if diag:
+            dt = time.perf_counter() - t0
+            if dt >= slow_sec:
+                pid = os.getpid()
+                src = req[1]
+                dst = req[2]
+                edge_count = self.current_aux_graph.number_of_edges() if self.current_aux_graph is not None else 0
+                print(f"[PID {pid}] DIAG _get_obs build_aux_graph bypass={self.is_bypass} idx={self.current_req_idx} src={src} dst={dst} traffic={traffic} dt={dt:.3f}s edges={edge_count}", flush=True)
         
         # 1.5 构建未来流量矩阵 (Future Traffic Matrix)
         # 统计剩余所有请求的流量分布，为 NN 提供前瞻性
@@ -159,12 +175,21 @@ class QKDEnv(gym.Env):
         
         # 2. 直接从辅助图中提取特征张量 (传入 future_traffic_matrix)
         # 返回 (global_tensor, wl_tensor)
+        if diag:
+            t1 = time.perf_counter()
         x_global, x_wl = extract_feature_matrices_from_graph(
             self.current_aux_graph, self.node_to_idx, self.num_nodes, self.wavelength_list,
             remain_request_matrix=future_traffic_matrix,
             max_stats=self.max_stats,
             topology=self.topology # 传入物理拓扑
         )
+        if diag:
+            dt = time.perf_counter() - t1
+            if dt >= slow_sec:
+                pid = os.getpid()
+                src = req[1]
+                dst = req[2]
+                print(f"[PID {pid}] DIAG _get_obs extract_features bypass={self.is_bypass} idx={self.current_req_idx} src={src} dst={dst} traffic={traffic} dt={dt:.3f}s", flush=True)
         
         # Context vector
         src_idx = self.node_to_idx[req[1]]
@@ -176,7 +201,13 @@ class QKDEnv(gym.Env):
             np.log1p(traffic) / 15.0,
             prot_idx
         ], dtype=np.float32)
-        
+        if diag:
+            dt = time.perf_counter() - t_obs_start
+            if dt >= slow_sec:
+                pid = os.getpid()
+                src = req[1]
+                dst = req[2]
+                print(f"[PID {pid}] DIAG _get_obs total bypass={self.is_bypass} idx={self.current_req_idx} src={src} dst={dst} traffic={traffic} dt={dt:.3f}s", flush=True)
         return (x_global, x_wl), context
 
     def step(self, action_weights):
@@ -186,6 +217,8 @@ class QKDEnv(gym.Env):
             
         req = self.requests[self.current_req_idx]
         src, dst, traffic = req[1], req[2], req[3]
+        diag = os.environ.get("QKD_DIAG", "0") == "1"
+        slow_sec = float(os.environ.get("QKD_DIAG_SLOW_SEC", "5.0")) if diag else 0.0
         
         # 3. 使用 NN 输出的真实权重更新辅助图的权重属性
         # 注意：不需要重新 build 辅助图，只需修改已有图的边权重
@@ -198,13 +231,27 @@ class QKDEnv(gym.Env):
         # 2. 寻找路径
         # 使用概率采样 (Soft Sampling) 来增强探索
         # 这允许优化器通过微调权重来平滑地改变路径选择概率
+        if diag:
+            t0 = time.perf_counter()
         best_path = find_min_weight_path_with_relay(self.current_aux_graph, src, dst, probabilistic=False)
+        if diag:
+            dt = time.perf_counter() - t0
+            if dt >= slow_sec:
+                pid = os.getpid()
+                print(f"[PID {pid}] DIAG step find_path bypass={self.is_bypass} idx={self.current_req_idx} src={src} dst={dst} traffic={traffic} dt={dt:.3f}s", flush=True)
         
         if best_path:
             self.total_path_cost += best_path[4] # 修正索引：best_path[4] 才是 weight，[0] 是字符串
             
             # 3. Serve 并获取真实功耗和频谱变化
+            if diag:
+                t1 = time.perf_counter()
             occupied_wls, power_dict = serve_traffic(self.topology, self.current_aux_graph, best_path[1], traffic, None, self.served_request)
+            if diag:
+                dt = time.perf_counter() - t1
+                if dt >= slow_sec:
+                    pid = os.getpid()
+                    print(f"[PID {pid}] DIAG step serve_traffic bypass={self.is_bypass} idx={self.current_req_idx} src={src} dst={dst} traffic={traffic} dt={dt:.3f}s", flush=True)
             self.total_power += sum(power_dict.values())
             self.total_occupied_wls += occupied_wls
             self.success_count += 1
@@ -276,4 +323,12 @@ class QKDEnv(gym.Env):
             reward = 0 # 中间步骤不给奖励
             info = {}
         
+        if not done and diag:
+            t2 = time.perf_counter()
+            obs = self._get_obs()
+            dt = time.perf_counter() - t2
+            if dt >= slow_sec:
+                pid = os.getpid()
+                print(f"[PID {pid}] DIAG step next_obs bypass={self.is_bypass} idx={self.current_req_idx} dt={dt:.3f}s", flush=True)
+            return obs, reward, done, info
         return self._get_obs(), reward, done, info
