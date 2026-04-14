@@ -99,6 +99,7 @@ def worker_initializer(map_name, protocol, detector, traffic_mid, wavelength_lis
         global _WORKER_ENV, _WORKER_MODEL
         
         # 1. 禁用警告
+        import uuid
         import warnings
         warnings.filterwarnings("ignore")
         os.environ["PYTHONWARNINGS"] = "ignore"
