@@ -11,9 +11,10 @@ os.environ["OPENBLAS_NUM_THREADS"] = "1"
 os.environ["VECLIB_MAXIMUM_THREADS"] = "1"
 os.environ["NUMEXPR_NUM_THREADS"] = "1"
 
-# 开启卡死诊断模式 (QKDEnv)
 os.environ["QKD_DIAG"] = "1"
 os.environ["QKD_DIAG_SLOW_SEC"] = "10"
+os.environ["QKD_DIAG_TRACE"] = "1"
+os.environ["QKD_DIAG_STACK_SEC"] = "60"
 
 # 动态添加路径，确保能找到 train_cma
 sys.path.append(os.getcwd())

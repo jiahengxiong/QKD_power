@@ -103,6 +103,18 @@ def worker_initializer(map_name, protocol, detector, traffic_mid, wavelength_lis
         import warnings
         warnings.filterwarnings("ignore")
         os.environ["PYTHONWARNINGS"] = "ignore"
+        try:
+            if os.environ.get("QKD_DIAG", "0") == "1":
+                import faulthandler
+                import signal
+                import sys
+                faulthandler.enable(file=sys.stderr, all_threads=True)
+                sec = int(os.environ.get("QKD_DIAG_STACK_SEC", "0"))
+                if sec > 0:
+                    faulthandler.dump_traceback_later(sec, repeat=True, file=sys.stderr)
+                faulthandler.register(signal.SIGUSR1, file=sys.stderr, all_threads=True)
+        except Exception:
+            pass
         
         # 2. 初始化环境 (默认 is_bypass=False，会在每次 evaluate 时动态修改)
         _WORKER_ENV = QKDEnv(
