@@ -875,7 +875,7 @@ def run_experiment(map_name, protocol, detector, traffic_mid):
     import multiprocessing
     # num_workers = multiprocessing.cpu_count()
     # 如果核心数过多，限制一下以免内存爆炸 (e.g. 64核)
-    # [Performance] 恢复多进程并行，强制使用 fork 模式
+    # [Performance] 保留多进程并行，但默认走更稳的 spawn 模式
     import multiprocessing
     
     # 尝试获取 fork 上下文 (Linux/Unix 默认，但在某些配置下可能被覆盖)
@@ -887,23 +887,28 @@ def run_experiment(map_name, protocol, detector, traffic_mid):
         # 如果不支持 spawn (理论上全平台支持)，回退到默认
         mp_context = None
         
-    num_workers = multiprocessing.cpu_count()
-    # 限制最大 Worker 数
-    # [Performance Tuning] 线程数已限制为 1，现在可以全核跑了
-    # num_workers = min(num_workers, 32) 
-    max_tasks_per_child = 200
-    print(f"🚀 Launching multiprocessing.Pool with {num_workers} workers (Context: {mp_context}, MaxTasksPerChild={max_tasks_per_child})")
+    cpu_workers = multiprocessing.cpu_count()
+    worker_cap = int(os.environ.get("QKD_MAX_WORKERS", "32"))
+    num_workers = max(1, min(cpu_workers, worker_cap))
+    # Periodic worker recycling can destabilize long-running spawn pools.
+    max_tasks_per_child = int(os.environ.get("QKD_MAX_TASKS_PER_CHILD", "0"))
+    pool_maxtasks = max_tasks_per_child if max_tasks_per_child > 0 else None
+    max_tasks_label = pool_maxtasks if pool_maxtasks is not None else "disabled"
+    print(
+        f"🚀 Launching multiprocessing.Pool with {num_workers} workers "
+        f"(CPU={cpu_workers}, Context: {mp_context}, MaxTasksPerChild={max_tasks_label})"
+    )
     
     # 这里的 if-else 是为了保留 SyncExecutor 作为一个 fallback 选项，但我们现在要切回并行
     if True: 
         # [Robustness] 使用 multiprocessing.Pool 代替 ProcessPoolExecutor
-        # 启用 maxtasksperchild=10，强制定期重启 Worker，解决内存泄漏和状态累积导致的崩溃
+        # maxtasksperchild 默认关闭；只有显式配置时才启用周期性重启。
         ctx = mp_context if mp_context else multiprocessing
         pool = ctx.Pool(
             processes=num_workers, 
             initializer=worker_initializer, 
             initargs=initargs,
-            maxtasksperchild=max_tasks_per_child
+            maxtasksperchild=pool_maxtasks
         )
         try:
             exclude_pids = {os.getpid()}
@@ -921,15 +926,40 @@ def run_experiment(map_name, protocol, detector, traffic_mid):
         class PoolExecutor:
             def __init__(self, pool):
                 self.pool = pool
+                self._terminated = False
             def map(self, func, iterable):
-                return self.pool.map(func, iterable)
+                timeout_sec = float(os.environ.get("QKD_MAP_TIMEOUT_SEC", "0"))
+                poll_sec = max(0.1, float(os.environ.get("QKD_MAP_POLL_SEC", "5")))
+                chunksize = max(1, int(os.environ.get("QKD_MAP_CHUNKSIZE", "1")))
+                async_result = self.pool.map_async(func, iterable, chunksize=chunksize)
+                if timeout_sec <= 0:
+                    return async_result.get()
+
+                deadline = time.time() + timeout_sec
+                while True:
+                    remaining = deadline - time.time()
+                    if remaining <= 0:
+                        pids = self.worker_pids()
+                        print(
+                            f"❌ pool.map timed out after {timeout_sec:.1f}s. "
+                            f"Worker PIDs={pids}",
+                            flush=True,
+                        )
+                        self.pool.terminate()
+                        self._terminated = True
+                        raise TimeoutError(f"pool.map timed out after {timeout_sec:.1f}s")
+                    try:
+                        return async_result.get(timeout=min(poll_sec, remaining))
+                    except multiprocessing.TimeoutError:
+                        continue
             def worker_pids(self):
                 try:
                     return [getattr(p, "pid", None) for p in getattr(self.pool, "_pool", []) if getattr(p, "pid", None)]
                 except Exception:
                     return []
             def shutdown(self, wait=True):
-                self.pool.close()
+                if not self._terminated:
+                    self.pool.close()
                 if wait:
                     self.pool.join()
             def __enter__(self): return self

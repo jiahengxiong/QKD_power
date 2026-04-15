@@ -11,10 +11,16 @@ os.environ["OPENBLAS_NUM_THREADS"] = "1"
 os.environ["VECLIB_MAXIMUM_THREADS"] = "1"
 os.environ["NUMEXPR_NUM_THREADS"] = "1"
 
-os.environ["QKD_DIAG"] = "1"
-os.environ["QKD_DIAG_SLOW_SEC"] = "1000000000"
-os.environ["QKD_DIAG_TRACE"] = "0"
-os.environ["QKD_HANG_SEC"] = "120"
+# Use diagnosable defaults, but keep them overridable from the shell.
+os.environ.setdefault("QKD_DIAG", "1")
+os.environ.setdefault("QKD_DIAG_SLOW_SEC", "10")
+os.environ.setdefault("QKD_DIAG_TRACE", "0")
+os.environ.setdefault("QKD_HANG_SEC", "120")
+os.environ.setdefault("QKD_MAX_WORKERS", "32")
+os.environ.setdefault("QKD_MAX_TASKS_PER_CHILD", "0")
+os.environ.setdefault("QKD_MAP_TIMEOUT_SEC", "900")
+os.environ.setdefault("QKD_MAP_POLL_SEC", "5")
+os.environ.setdefault("QKD_MAP_CHUNKSIZE", "1")
 
 # 动态添加路径，确保能找到 train_cma
 sys.path.append(os.getcwd())
