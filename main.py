@@ -134,6 +134,23 @@ def find_min_weight_path_with_relay(auxiliary_graph, src, dst, probabilistic=Fal
 def serve_traffic(G, AG, path_edge_list, request_traffic, pbar, served_request):
     occupied_wavelength = 0
     actual_power = {'source': 0, 'detector': 0, 'other': 0, 'ice_box': 0}
+    # Hot-path cache: avoid repeatedly scanning all parallel edges for (u,v,wavelength).
+    edge_ref_cache = {}
+    
+    def _get_edge_ref(u, v, wavelength):
+        cache_key = (u, v, wavelength)
+        if cache_key in edge_ref_cache:
+            return edge_ref_cache[cache_key]
+        edges = G.get_edge_data(u, v)
+        if not edges:
+            edge_ref_cache[cache_key] = None
+            return None
+        for edge_key, edge_attrs in edges.items():
+            if edge_attrs.get('wavelength') == wavelength:
+                edge_ref_cache[cache_key] = (u, v, edge_key)
+                return edge_ref_cache[cache_key]
+        edge_ref_cache[cache_key] = None
+        return None
     
     # === 获取全局配置 ===
     detector_type = getattr(config, 'detector', 'SNSPD')
@@ -144,11 +161,12 @@ def serve_traffic(G, AG, path_edge_list, request_traffic, pbar, served_request):
         edge_data = AG.get_edge_data(u=src, v=dst, key=key)
         wavelength_list = edge_data['wavelength_list']
         path = edge_data['path']
+        path_pos = {node: idx for idx, node in enumerate(path)}
         edge_traffic = request_traffic
         edge_laser_detector_list = edge_data['transverse_laser_detector']
         
         for wavelength in wavelength_list:
-            if wavelength not in list(served_request.keys()):
+            if wavelength not in served_request:
                 served_request[wavelength] = []
             
             laser_postion = edge_data['laser_detector_position'][wavelength][0]
@@ -160,8 +178,8 @@ def serve_traffic(G, AG, path_edge_list, request_traffic, pbar, served_request):
                 continue
 
             if laser_postion is not None and detector_postion is not None:
-                laser_index = path.index(laser_postion)
-                detector_index = path.index(detector_postion)
+                laser_index = path_pos[laser_postion]
+                detector_index = path_pos[detector_postion]
                 cover_links = path[laser_index:detector_index + 1]
                 cover_links_tuple = tuple(cover_links)
                 
@@ -208,29 +226,32 @@ def serve_traffic(G, AG, path_edge_list, request_traffic, pbar, served_request):
             # 物理资源扣减与频谱统计
             for i in range(len(path) - 1):
                 p_src, p_dst = path[i], path[i + 1]
-                edges = G.get_edge_data(p_src, p_dst)
-                for edge_key, edge_attrs in edges.items():
-                    if edge_attrs.get('wavelength') == wavelength:
-                        G.edges[p_src, p_dst, edge_key]['free_capacity'] -= trans_traffic
-                        if G.edges[p_src, p_dst, edge_key]['occupied'] is False:
-                            G.edges[p_src, p_dst, edge_key]['occupied'] = True
-                            occupied_wavelength += 1
+                edge_ref = _get_edge_ref(p_src, p_dst, wavelength)
+                if edge_ref is None:
+                    continue
+                u, v, edge_key = edge_ref
+                G.edges[u, v, edge_key]['free_capacity'] -= trans_traffic
+                if G.edges[u, v, edge_key]['occupied'] is False:
+                    G.edges[u, v, edge_key]['occupied'] = True
+                    occupied_wavelength += 1
             
             # 更新现有的 Bypass 链路容量
             for transverse_laser_detector in edge_laser_detector_list[wavelength]:
                 source_node = transverse_laser_detector[0]
-                G.nodes[source_node]['laser_capacity'][wavelength][tuple(transverse_laser_detector)] -= trans_traffic
+                transverse_key = tuple(transverse_laser_detector)
+                G.nodes[source_node]['laser_capacity'][wavelength][transverse_key] -= trans_traffic
                 
                 # 级联更新物理链路的 free_capacity
                 for i in range(len(transverse_laser_detector) - 1):
                     p_u, p_v = transverse_laser_detector[i], transverse_laser_detector[i+1]
-                    p_edges = G.get_edge_data(p_u, p_v)
-                    for pk, pa in p_edges.items():
-                        if pa.get('wavelength') == wavelength:
-                            G.edges[p_u, p_v, pk]['free_capacity'] = min(
-                                G.edges[p_u, p_v, pk]['free_capacity'],
-                                G.nodes[source_node]['laser_capacity'][wavelength][tuple(transverse_laser_detector)]
-                            )
+                    edge_ref = _get_edge_ref(p_u, p_v, wavelength)
+                    if edge_ref is None:
+                        continue
+                    u, v, pk = edge_ref
+                    G.edges[u, v, pk]['free_capacity'] = min(
+                        G.edges[u, v, pk]['free_capacity'],
+                        G.nodes[source_node]['laser_capacity'][wavelength][transverse_key]
+                    )
 
             edge_traffic -= trans_traffic
             if edge_traffic <= 0:

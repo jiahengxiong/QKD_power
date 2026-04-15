@@ -114,17 +114,9 @@ def worker_initializer(map_name, protocol, detector, traffic_mid, wavelength_lis
                 import signal
                 import sys
                 faulthandler.enable(file=sys.stderr, all_threads=True)
-                def _dump_handler(signum, frame):
-                    try:
-                        stage = getattr(_WORKER_ENV, "_diag_stage", None)
-                        meta = getattr(_WORKER_ENV, "_diag_meta", None)
-                        age_t = getattr(_WORKER_ENV, "_diag_stage_t", 0.0)
-                        age = time.perf_counter() - float(age_t) if age_t else 0.0
-                        print(f"[PID {os.getpid()}] HANG stage={stage} age={age:.3f}s {meta}", file=sys.stderr, flush=True)
-                    except Exception:
-                        pass
-                    faulthandler.dump_traceback(file=sys.stderr, all_threads=True)
-                signal.signal(signal.SIGUSR1, _dump_handler)
+                # Use faulthandler's native signal hook only.
+                # Calling Python code directly in async signal handlers can crash C extensions.
+                faulthandler.register(signal.SIGUSR1, file=sys.stderr, all_threads=True)
         except Exception:
             pass
         
@@ -415,8 +407,9 @@ class OpenAIESOptimizer:
                     try:
                         pids = list(self.executor.worker_pids())
                         if pids:
-                            print(f"⚠️ HANG > {hang_sec}s in executor.map, dumping worker stacks...", flush=True)
-                            for pid in pids:
+                            sample_pids = pids[:2]
+                            print(f"⚠️ HANG > {hang_sec}s in executor.map, dumping worker stacks for PIDs={sample_pids} ...", flush=True)
+                            for pid in sample_pids:
                                 try:
                                     os.kill(int(pid), signal.SIGUSR1)
                                 except Exception:
