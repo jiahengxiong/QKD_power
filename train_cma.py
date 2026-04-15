@@ -35,6 +35,11 @@ from concurrent.futures import ProcessPoolExecutor
 # === Worker 进程内的全局变量 (进程隔离) ===
 _WORKER_ENV = None
 _WORKER_MODEL = None
+_WORKER_CENTER_SHM = None
+_WORKER_CENTER_VIEW = None
+_WORKER_CENTER_NAME = None
+_WORKER_CENTER_SIZE = None
+_WORKER_CENTER_DTYPE = None
 
 def deprioritize_other_python_processes(exclude_pids, nice_value=19):
     try:
@@ -155,72 +160,105 @@ def evaluate_worker(args):
     """
     并行评估 Worker。直接复用全局变量。
     Args:
-        args: tuple (vector, is_bypass, eval_seed)
+        args:
+            ("center", shm_name, total_params, dtype_str, is_bypass, eval_seed)
+            ("pair", shm_name, total_params, dtype_str, sigma, noise_seed, is_bypass, eval_seed)
     """
-    global _WORKER_ENV, _WORKER_MODEL
+    global _WORKER_ENV, _WORKER_MODEL, _WORKER_CENTER_SHM, _WORKER_CENTER_VIEW, _WORKER_CENTER_NAME, _WORKER_CENTER_SIZE, _WORKER_CENTER_DTYPE
     
     # [Robustness] 增加更全面的异常捕获，防止 Worker 崩溃
     try:
-        vector, is_bypass, eval_seed = args
-        if eval_seed is not None:
-            random.seed(int(eval_seed))
-            np.random.seed(int(eval_seed))
-            torch.manual_seed(int(eval_seed))
+        task_type = args[0]
+
+        def _set_eval_seed(seed):
+            if seed is None:
+                return
+            seed = int(seed)
+            random.seed(seed)
+            np.random.seed(seed)
+            torch.manual_seed(seed)
+
+        def _attach_center(shm_name, total_params, dtype_str):
+            nonlocal_vars = (shm_name, total_params, dtype_str)
+            del nonlocal_vars
+            if _WORKER_CENTER_NAME == shm_name and _WORKER_CENTER_VIEW is not None:
+                return
+            try:
+                if _WORKER_CENTER_SHM is not None:
+                    _WORKER_CENTER_SHM.close()
+            except Exception:
+                pass
+            from multiprocessing import shared_memory
+            _WORKER_CENTER_SHM = shared_memory.SharedMemory(name=shm_name)
+            _WORKER_CENTER_NAME = shm_name
+            _WORKER_CENTER_SIZE = int(total_params)
+            _WORKER_CENTER_DTYPE = np.dtype(dtype_str)
+            _WORKER_CENTER_VIEW = np.ndarray((_WORKER_CENTER_SIZE,), dtype=_WORKER_CENTER_DTYPE, buffer=_WORKER_CENTER_SHM.buf)
+
+        def _apply_params(flat_vector):
+            curr_idx = 0
+            for param in _WORKER_MODEL.parameters():
+                size = param.numel()
+                new_param = torch.from_numpy(flat_vector[curr_idx:curr_idx+size]).view(param.shape).float()
+                param.data.copy_(new_param)
+                curr_idx += size
+
+        def _rollout():
+            state_matrices, context = _WORKER_ENV.reset()
+            hidden_dim = _WORKER_MODEL.hidden_dim if hasattr(_WORKER_MODEL, 'hidden_dim') else 8
+            h_state = torch.zeros(1, hidden_dim)
+            last_action_t = None
+            done = False
+            while not done:
+                with torch.no_grad():
+                    x_global_np, x_wl_np = state_matrices
+                    x_global_t = torch.from_numpy(x_global_np).float().unsqueeze(0)
+                    x_wl_t = torch.from_numpy(x_wl_np).float().unsqueeze(0)
+                    context_t = torch.from_numpy(context).float().unsqueeze(0)
+                    mu, _, h_next = _WORKER_MODEL(x_global_t, x_wl_t, context_t, last_action_t, h_state)
+                    h_state = h_next
+                    action_weights = mu.squeeze().numpy()
+                    last_action_t = mu.view(1, -1)
+                next_state, reward, done, info = _WORKER_ENV.step(action_weights)
+                state_matrices, context = next_state
+            avg_power = info.get('avg_power', 10000.0)
+            spec_occ = info.get('spec_occ', 1.0)
+            info['component_power'] = _WORKER_ENV.total_component_power
+            fitness = avg_power + spec_occ
+            return fitness, info
         
         # 1. 动态更新配置 (防止状态污染)
-        _WORKER_ENV.is_bypass = is_bypass
-        _WORKER_MODEL.is_bypass = is_bypass # 如果模型内部用到了这个标志
-        
-        # 2. 加载参数
-        # vector 是 numpy array，转为 tensor
-        curr_idx = 0
-        for param in _WORKER_MODEL.parameters():
-            size = param.numel()
-            # 这种写法比 named_parameters 更快，且无需 name 匹配
-            new_param = torch.from_numpy(vector[curr_idx:curr_idx+size]).view(param.shape).float()
-            param.data.copy_(new_param)
-            curr_idx += size
-            
-        # 3. 运行评估循环
-        # reset 会根据 _WORKER_ENV.is_bypass 强制更新 config.bypass
-        state_matrices, context = _WORKER_ENV.reset()
-        
-        # 这里的 hidden_dim 可以从模型里取
-        hidden_dim = _WORKER_MODEL.hidden_dim if hasattr(_WORKER_MODEL, 'hidden_dim') else 8
-        h_state = torch.zeros(1, hidden_dim)
-        last_action_t = None
-        done = False
-        
-        step_count = 0
-        while not done:
-            with torch.no_grad():
-                x_global_np, x_wl_np = state_matrices
-                # 使用 from_numpy 避免内存拷贝 (Zero-copy)
-                x_global_t = torch.from_numpy(x_global_np).float().unsqueeze(0)
-                x_wl_t = torch.from_numpy(x_wl_np).float().unsqueeze(0)
-                context_t = torch.from_numpy(context).float().unsqueeze(0)
-                
-                mu, _, h_next = _WORKER_MODEL(x_global_t, x_wl_t, context_t, last_action_t, h_state)
-                h_state = h_next
-                action_weights = mu.squeeze().numpy()
-                last_action_t = mu.view(1, -1)
-                
-            next_state, reward, done, info = _WORKER_ENV.step(action_weights)
-            state_matrices, context = next_state
-            step_count += 1
-            
-        avg_power = info.get('avg_power', 10000.0)
-        spec_occ = info.get('spec_occ', 1.0)
-        
-        # [New] Add detailed component power dict for analysis
-        info['component_power'] = _WORKER_ENV.total_component_power
-        
-        # 综合适应度：平均功耗 + 频谱占用 + 热能风险 + 微观路径权重惩罚
-        path_cost_sum = info.get('path_cost', 0.0)
-        fitness = avg_power + spec_occ
-        # fitness = avg_power + spec_occ + 0.00001 * path_cost_sum
-        
-        return fitness, info
+        if task_type == "center":
+            _, shm_name, total_params, dtype_str, is_bypass, eval_seed = args
+            _attach_center(shm_name, total_params, dtype_str)
+            _WORKER_ENV.is_bypass = is_bypass
+            _WORKER_MODEL.is_bypass = is_bypass
+            _set_eval_seed(eval_seed)
+            _apply_params(_WORKER_CENTER_VIEW)
+            return _rollout()
+
+        if task_type == "pair":
+            _, shm_name, total_params, dtype_str, sigma, noise_seed, is_bypass, eval_seed = args
+            _attach_center(shm_name, total_params, dtype_str)
+            _WORKER_ENV.is_bypass = is_bypass
+            _WORKER_MODEL.is_bypass = is_bypass
+            rng = np.random.RandomState(int(noise_seed))
+            eps = rng.standard_normal(int(total_params)).astype(_WORKER_CENTER_DTYPE, copy=False)
+            sigma = float(sigma)
+
+            _set_eval_seed(eval_seed)
+            vec_pos = (_WORKER_CENTER_VIEW + sigma * eps).astype(_WORKER_CENTER_DTYPE, copy=False)
+            _apply_params(vec_pos)
+            fit_pos, info_pos = _rollout()
+
+            _set_eval_seed(eval_seed)
+            vec_neg = (_WORKER_CENTER_VIEW - sigma * eps).astype(_WORKER_CENTER_DTYPE, copy=False)
+            _apply_params(vec_neg)
+            fit_neg, info_neg = _rollout()
+
+            return fit_pos, info_pos, fit_neg, info_neg
+
+        raise ValueError(f"unknown_task_type: {task_type}")
         
     except Exception as e:
         import traceback
@@ -228,12 +266,16 @@ def evaluate_worker(args):
         # 打印完整的 traceback 到 stderr，确保能被主进程捕获
         print(f"❌ Worker Critical Error: {e}", file=sys.stderr)
         traceback.print_exc(file=sys.stderr)
+        if args and args[0] == "pair":
+            return 10000.0, {}, 10000.0, {}
         return 10000.0, {}
     except BaseException as e: # 捕获 KeyboardInterrupt, SystemExit 等更底层的异常
         import traceback
         import sys
         print(f"❌ Worker Fatal Crash: {e}", file=sys.stderr)
         traceback.print_exc(file=sys.stderr)
+        if args and args[0] == "pair":
+            return 10000.0, {}, 10000.0, {}
         return 10000.0, {}
 
 class OpenAIESOptimizer:
@@ -265,6 +307,19 @@ class OpenAIESOptimizer:
         
         self.total_params = sum(p.numel() for p in self.model.parameters())
         self.model_filename = f"gnn_best_{map_name}_{protocol}_{detector}_{traffic_mid}_bypass_{bypass}.pth"
+        self.center_shm = None
+        self.center_buf = None
+        self.center_dtype = np.float32
+        self.center_shm_name = None
+        try:
+            from multiprocessing import shared_memory
+            self.center_shm = shared_memory.SharedMemory(create=True, size=int(self.total_params) * np.dtype(self.center_dtype).itemsize)
+            self.center_buf = np.ndarray((int(self.total_params),), dtype=self.center_dtype, buffer=self.center_shm.buf)
+            self.center_shm_name = self.center_shm.name
+        except Exception:
+            self.center_shm = None
+            self.center_buf = None
+            self.center_shm_name = None
         
         print(f"🚀 OpenAI-ES Optimizer Initialized. Params: {self.total_params}")
         
@@ -323,23 +378,23 @@ class OpenAIESOptimizer:
 
     def step(self):
         """执行一代 OpenAI-ES 训练"""
-        center_params = self.get_flat_params()
+        center_params = self.get_flat_params().astype(self.center_dtype, copy=False)
         self.current_center_params = center_params
+        if self.center_buf is not None:
+            self.center_buf[:] = center_params
         
-        # 1. 生成噪声 (Antithetic Sampling)
+        # 1. 生成噪声种子 (Antithetic Sampling)
         half_pop = self.pop_size // 2
-        noise = np.random.randn(half_pop, self.total_params)
-        
-        # 2. 准备评估参数
-        eval_params = []
-        for i in range(half_pop):
-            eval_params.append(center_params + self.sigma * noise[i])
-            eval_params.append(center_params - self.sigma * noise[i])
+        noise_seeds = np.random.randint(0, 2**31 - 1, size=half_pop, dtype=np.int64)
             
         # 3. 并行评估
         eval_seed = self.eval_seed_base + self.generation
-        full_eval_params = [center_params] + eval_params
-        args_list = [(x, self.bypass, eval_seed) for x in full_eval_params]
+        if self.center_shm_name is None:
+            raise RuntimeError("shared_memory_not_available_for_center_params")
+        dtype_str = str(np.dtype(self.center_dtype))
+        args_list = [("center", self.center_shm_name, int(self.total_params), dtype_str, self.bypass, eval_seed)]
+        for i in range(half_pop):
+            args_list.append(("pair", self.center_shm_name, int(self.total_params), dtype_str, float(self.sigma), int(noise_seeds[i]), self.bypass, eval_seed))
         start_time = time.time()
         
         fitnesses = []
@@ -347,9 +402,11 @@ class OpenAIESOptimizer:
         try:
             results = list(self.executor.map(evaluate_worker, args_list))
             f_center, _ = results[0]
-            for fit, info in results[1:]:
-                fitnesses.append(fit)
-                infos.append(info)
+            for fit_pos, info_pos, fit_neg, info_neg in results[1:]:
+                fitnesses.append(fit_pos)
+                infos.append(info_pos)
+                fitnesses.append(fit_neg)
+                infos.append(info_neg)
         except Exception as e:
             import traceback
             print(f"❌ Parallel Error ({type(e).__name__}): {e!r}")
@@ -369,8 +426,13 @@ class OpenAIESOptimizer:
             self.best_fitness_found = fitnesses[min_idx]
             self.best_pure_power_found = infos[min_idx].get('avg_power', float('inf'))
             self.best_metrics = infos[min_idx]
-            self.best_solution_vector = eval_params[min_idx].copy()
-            self.save_model(eval_params[min_idx])
+            pair_i = int(min_idx) // 2
+            sign = 1.0 if (int(min_idx) % 2 == 0) else -1.0
+            rng = np.random.RandomState(int(noise_seeds[pair_i]))
+            eps = rng.standard_normal(int(self.total_params)).astype(self.center_dtype, copy=False)
+            best_vec = (center_params + (sign * float(self.sigma)) * eps).astype(self.center_dtype, copy=False)
+            self.best_solution_vector = best_vec.copy()
+            self.save_model(best_vec)
             
         # 5. 梯度估计 (Rank Transformation)
         ranks = np.zeros_like(fitnesses)
@@ -379,11 +441,13 @@ class OpenAIESOptimizer:
         utilities = (len(fitnesses) - 1 - ranks) / (len(fitnesses) - 1) - 0.5
         utilities = (utilities - utilities.mean()) / (utilities.std() + 1e-8)
         
-        grad = np.zeros(self.total_params)
+        grad = np.zeros(int(self.total_params), dtype=np.float32)
         for i in range(half_pop):
             u_pos = utilities[2*i]
             u_neg = utilities[2*i+1]
-            grad += noise[i] * (u_pos - u_neg)
+            rng = np.random.RandomState(int(noise_seeds[i]))
+            eps = rng.standard_normal(int(self.total_params)).astype(np.float32, copy=False)
+            grad += eps * float(u_pos - u_neg)
             
         grad /= (half_pop * self.sigma)
         
@@ -480,6 +544,12 @@ class OpenAIESOptimizer:
 
     def close(self):
         if self.log_file: self.log_file.close()
+        try:
+            if self.center_shm is not None:
+                self.center_shm.close()
+                self.center_shm.unlink()
+        except Exception:
+            pass
 
 class CMAESOptimizer:
     def __init__(self, request_list, executor, bypass=True, map_name="Paris", traffic_mid="Low", protocol="BB84", detector="SNSPD", device="cuda", pop_size=64):
