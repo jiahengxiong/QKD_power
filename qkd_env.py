@@ -33,6 +33,9 @@ class QKDEnv(gym.Env):
         self._base_topology = copy.deepcopy(self.network.topology)
         self._base_physical_topology = self.network.physical_topology
         self._aux_graph_template_cache = {}
+        self._diag_stage = None
+        self._diag_meta = None
+        self._diag_stage_t = 0.0
         
         # === 预计算归一化统计量 ===
         max_dist = 0.0
@@ -125,6 +128,14 @@ class QKDEnv(gym.Env):
         
         return self._get_obs()
 
+    def _diag_set(self, stage, **kwargs):
+        self._diag_stage = stage
+        self._diag_stage_t = time.perf_counter()
+        parts = []
+        for k, v in kwargs.items():
+            parts.append(f"{k}={v}")
+        self._diag_meta = " ".join(parts)
+
     def _get_obs(self):
         if self.current_req_idx >= len(self.requests):
             # 返回空状态，匹配新的双流结构
@@ -139,18 +150,15 @@ class QKDEnv(gym.Env):
         traffic = req[3]
         diag = os.environ.get("QKD_DIAG", "0") == "1"
         slow_sec = float(os.environ.get("QKD_DIAG_SLOW_SEC", "5.0")) if diag else 0.0
-        diag_trace = os.environ.get("QKD_DIAG_TRACE", "0") == "1"
+        src = req[1]
+        dst = req[2]
+        self._diag_set("_get_obs.build_aux_graph", bypass=self.is_bypass, idx=self.current_req_idx, src=src, dst=dst, traffic=traffic)
         if diag:
             t_obs_start = time.perf_counter()
         
         # 1. 预先构建辅助图（不带权重），用于提取物理特征
         dummy_weights = np.zeros((self.num_nodes, self.num_nodes))
         
-        if diag_trace:
-            pid = os.getpid()
-            src = req[1]
-            dst = req[2]
-            print(f"[PID {pid}] DIAG START _get_obs build_aux_graph bypass={self.is_bypass} idx={self.current_req_idx} src={src} dst={dst} traffic={traffic}", flush=True)
         if diag:
             t0 = time.perf_counter()
         use_template = self.current_req_idx == 0 and len(self.served_request) == 0
@@ -197,11 +205,7 @@ class QKDEnv(gym.Env):
         
         # 2. 直接从辅助图中提取特征张量 (传入 future_traffic_matrix)
         # 返回 (global_tensor, wl_tensor)
-        if diag_trace:
-            pid = os.getpid()
-            src = req[1]
-            dst = req[2]
-            print(f"[PID {pid}] DIAG START _get_obs extract_features bypass={self.is_bypass} idx={self.current_req_idx} src={src} dst={dst} traffic={traffic}", flush=True)
+        self._diag_set("_get_obs.extract_features", bypass=self.is_bypass, idx=self.current_req_idx, src=src, dst=dst, traffic=traffic)
         if diag:
             t1 = time.perf_counter()
         x_global, x_wl = extract_feature_matrices_from_graph(
@@ -246,7 +250,6 @@ class QKDEnv(gym.Env):
         src, dst, traffic = req[1], req[2], req[3]
         diag = os.environ.get("QKD_DIAG", "0") == "1"
         slow_sec = float(os.environ.get("QKD_DIAG_SLOW_SEC", "5.0")) if diag else 0.0
-        diag_trace = os.environ.get("QKD_DIAG_TRACE", "0") == "1"
         
         # 3. 使用 NN 输出的真实权重更新辅助图的权重属性
         # 注意：不需要重新 build 辅助图，只需修改已有图的边权重
@@ -259,9 +262,7 @@ class QKDEnv(gym.Env):
         # 2. 寻找路径
         # 使用概率采样 (Soft Sampling) 来增强探索
         # 这允许优化器通过微调权重来平滑地改变路径选择概率
-        if diag_trace:
-            pid = os.getpid()
-            print(f"[PID {pid}] DIAG START step find_path bypass={self.is_bypass} idx={self.current_req_idx} src={src} dst={dst} traffic={traffic}", flush=True)
+        self._diag_set("step.find_path", bypass=self.is_bypass, idx=self.current_req_idx, src=src, dst=dst, traffic=traffic)
         if diag:
             t0 = time.perf_counter()
         best_path = find_min_weight_path_with_relay(self.current_aux_graph, src, dst, probabilistic=False)
@@ -275,9 +276,7 @@ class QKDEnv(gym.Env):
             self.total_path_cost += best_path[4] # 修正索引：best_path[4] 才是 weight，[0] 是字符串
             
             # 3. Serve 并获取真实功耗和频谱变化
-            if diag_trace:
-                pid = os.getpid()
-                print(f"[PID {pid}] DIAG START step serve_traffic bypass={self.is_bypass} idx={self.current_req_idx} src={src} dst={dst} traffic={traffic}", flush=True)
+            self._diag_set("step.serve_traffic", bypass=self.is_bypass, idx=self.current_req_idx, src=src, dst=dst, traffic=traffic)
             if diag:
                 t1 = time.perf_counter()
             occupied_wls, power_dict = serve_traffic(self.topology, self.current_aux_graph, best_path[1], traffic, None, self.served_request)
@@ -358,9 +357,7 @@ class QKDEnv(gym.Env):
             info = {}
         
         if not done and diag:
-            if diag_trace:
-                pid = os.getpid()
-                print(f"[PID {pid}] DIAG START step next_obs bypass={self.is_bypass} idx={self.current_req_idx}", flush=True)
+            self._diag_set("step.next_obs", bypass=self.is_bypass, idx=self.current_req_idx)
             t2 = time.perf_counter()
             obs = self._get_obs()
             dt = time.perf_counter() - t2

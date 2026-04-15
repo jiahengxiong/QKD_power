@@ -114,10 +114,17 @@ def worker_initializer(map_name, protocol, detector, traffic_mid, wavelength_lis
                 import signal
                 import sys
                 faulthandler.enable(file=sys.stderr, all_threads=True)
-                sec = int(os.environ.get("QKD_DIAG_STACK_SEC", "0"))
-                if sec > 0:
-                    faulthandler.dump_traceback_later(sec, repeat=True, file=sys.stderr)
-                faulthandler.register(signal.SIGUSR1, file=sys.stderr, all_threads=True)
+                def _dump_handler(signum, frame):
+                    try:
+                        stage = getattr(_WORKER_ENV, "_diag_stage", None)
+                        meta = getattr(_WORKER_ENV, "_diag_meta", None)
+                        age_t = getattr(_WORKER_ENV, "_diag_stage_t", 0.0)
+                        age = time.perf_counter() - float(age_t) if age_t else 0.0
+                        print(f"[PID {os.getpid()}] HANG stage={stage} age={age:.3f}s {meta}", file=sys.stderr, flush=True)
+                    except Exception:
+                        pass
+                    faulthandler.dump_traceback(file=sys.stderr, all_threads=True)
+                signal.signal(signal.SIGUSR1, _dump_handler)
         except Exception:
             pass
         
@@ -179,8 +186,7 @@ def evaluate_worker(args):
             torch.manual_seed(seed)
 
         def _attach_center(shm_name, total_params, dtype_str):
-            nonlocal_vars = (shm_name, total_params, dtype_str)
-            del nonlocal_vars
+            global _WORKER_CENTER_SHM, _WORKER_CENTER_VIEW, _WORKER_CENTER_NAME, _WORKER_CENTER_SIZE, _WORKER_CENTER_DTYPE
             if _WORKER_CENTER_NAME == shm_name and _WORKER_CENTER_VIEW is not None:
                 return
             try:
@@ -399,7 +405,27 @@ class OpenAIESOptimizer:
         
         fitnesses = []
         infos = []
+        hang_timer = None
         try:
+            hang_sec = int(os.environ.get("QKD_HANG_SEC", "0"))
+            if hang_sec > 0 and hasattr(self.executor, "worker_pids"):
+                import signal
+                import threading
+                def _on_hang():
+                    try:
+                        pids = list(self.executor.worker_pids())
+                        if pids:
+                            print(f"⚠️ HANG > {hang_sec}s in executor.map, dumping worker stacks...", flush=True)
+                            for pid in pids:
+                                try:
+                                    os.kill(int(pid), signal.SIGUSR1)
+                                except Exception:
+                                    pass
+                    except Exception:
+                        pass
+                hang_timer = threading.Timer(hang_sec, _on_hang)
+                hang_timer.daemon = True
+                hang_timer.start()
             results = list(self.executor.map(evaluate_worker, args_list))
             f_center, _ = results[0]
             for fit_pos, info_pos, fit_neg, info_neg in results[1:]:
@@ -412,6 +438,12 @@ class OpenAIESOptimizer:
             print(f"❌ Parallel Error ({type(e).__name__}): {e!r}")
             traceback.print_exc()
             return False
+        finally:
+            try:
+                if hang_timer is not None:
+                    hang_timer.cancel()
+            except Exception:
+                pass
             
         duration = time.time() - start_time
         fitnesses = np.array(fitnesses)
@@ -898,6 +930,11 @@ def run_experiment(map_name, protocol, detector, traffic_mid):
                 self.pool = pool
             def map(self, func, iterable):
                 return self.pool.map(func, iterable)
+            def worker_pids(self):
+                try:
+                    return [getattr(p, "pid", None) for p in getattr(self.pool, "_pool", []) if getattr(p, "pid", None)]
+                except Exception:
+                    return []
             def shutdown(self, wait=True):
                 self.pool.close()
                 if wait:
