@@ -108,18 +108,6 @@ def worker_initializer(map_name, protocol, detector, traffic_mid, wavelength_lis
         import warnings
         warnings.filterwarnings("ignore")
         os.environ["PYTHONWARNINGS"] = "ignore"
-        try:
-            if os.environ.get("QKD_DIAG", "0") == "1":
-                import faulthandler
-                import signal
-                import sys
-                faulthandler.enable(file=sys.stderr, all_threads=True)
-                # Use faulthandler's native signal hook only.
-                # Calling Python code directly in async signal handlers can crash C extensions.
-                faulthandler.register(signal.SIGUSR1, file=sys.stderr, all_threads=True)
-        except Exception:
-            pass
-        
         # 2. 初始化环境 (默认 is_bypass=False，会在每次 evaluate 时动态修改)
         _WORKER_ENV = QKDEnv(
             map_name=map_name,
@@ -397,28 +385,7 @@ class OpenAIESOptimizer:
         
         fitnesses = []
         infos = []
-        hang_timer = None
         try:
-            hang_sec = int(os.environ.get("QKD_HANG_SEC", "0"))
-            if hang_sec > 0 and hasattr(self.executor, "worker_pids"):
-                import signal
-                import threading
-                def _on_hang():
-                    try:
-                        pids = list(self.executor.worker_pids())
-                        if pids:
-                            sample_pids = pids[:2]
-                            print(f"⚠️ HANG > {hang_sec}s in executor.map, dumping worker stacks for PIDs={sample_pids} ...", flush=True)
-                            for pid in sample_pids:
-                                try:
-                                    os.kill(int(pid), signal.SIGUSR1)
-                                except Exception:
-                                    pass
-                    except Exception:
-                        pass
-                hang_timer = threading.Timer(hang_sec, _on_hang)
-                hang_timer.daemon = True
-                hang_timer.start()
             results = list(self.executor.map(evaluate_worker, args_list))
             f_center, _ = results[0]
             for fit_pos, info_pos, fit_neg, info_neg in results[1:]:
@@ -431,12 +398,6 @@ class OpenAIESOptimizer:
             print(f"❌ Parallel Error ({type(e).__name__}): {e!r}")
             traceback.print_exc()
             return False
-        finally:
-            try:
-                if hang_timer is not None:
-                    hang_timer.cancel()
-            except Exception:
-                pass
             
         duration = time.time() - start_time
         fitnesses = np.array(fitnesses)
