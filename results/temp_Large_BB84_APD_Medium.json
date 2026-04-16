@@ -1,0 +1,23 @@
+{
+    "generation": 100,
+    "bypass": {},
+    "nobypass": {
+        "success_rate": 1.0,
+        "avg_power": 1688.4782608695652,
+        "spec_occ": 0.42674418604651165,
+        "total_wls": 367,
+        "heat_risk": 0,
+        "path_cost": 27340.734736442566,
+        "source_p": 5.318840579710145,
+        "detector_p": 856.3333333333334,
+        "other_p": 826.8260869565217,
+        "ice_box_p": 0.0,
+        "component_power": {
+            "source": 1468,
+            "detector": 236348,
+            "other": 228204,
+            "ice_box": 0
+        }
+    },
+    "status": "phase1_nobypass"
+}
