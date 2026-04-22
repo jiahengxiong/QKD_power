@@ -213,11 +213,9 @@ def compute_power(distance, protocol, receiver):
             other_power = other_power + other.power
         total_power = CVQKD_experiment.power()
 
-        taudsp = 10 ** -3
-        # cvqkd_rate = 100e6
-        keyrate = CVQKD_experiment.compute_secret_key_rate()
-        power_dsp = taudsp  * sourcerate
-        # print(power_dsp)
+        # Power for the current CV-QKD model comes from the component list only.
+        # Recomputing secret key rate here adds noticeable overhead but does not
+        # affect the returned power values.
         power = {'source':source_power, 'detector':detector_power, 'other':other_power, 'total':total_power }
 
 
