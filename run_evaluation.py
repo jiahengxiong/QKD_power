@@ -14,7 +14,9 @@ os.environ["NUMEXPR_NUM_THREADS"] = "1"
 # Multiprocessing defaults.
 os.environ.setdefault("QKD_MAX_WORKERS", "32")
 os.environ.setdefault("QKD_MAX_TASKS_PER_CHILD", "0")
-os.environ.setdefault("QKD_MAP_TIMEOUT_SEC", "900")
+# Default to no hard timeout: some Large/CV-QKD Bypass cases are legitimately slow.
+# Set QKD_MAP_TIMEOUT_SEC manually if you want timeout protection for debugging.
+os.environ.setdefault("QKD_MAP_TIMEOUT_SEC", "0")
 os.environ.setdefault("QKD_MAP_POLL_SEC", "5")
 os.environ.setdefault("QKD_MAP_CHUNKSIZE", "1")
 
